@@ -1,38 +1,64 @@
 <script lang="ts" setup>
 /**
- * Chat screen modelled on the ChatGPT mobile app.
+ * The chat screen.
  *
  * Layout (top to bottom):
- *  - A minimal white header with the model name and a connection indicator.
- *  - A scrollable message list (AI text is full width, user messages are
- *    right-aligned grey pills).
- *  - A composer with a rounded input and a circular send button.
+ *  - A compact app bar: the drawer handle, the active route as a tappable
+ *    chip, and the live state of the gateway.
+ *  - A scrollable conversation. Assistant replies are rendered as Markdown,
+ *    user messages sit in an ink-filled bubble on the right.
+ *  - A composer with a rounded field and an accent send button.
  *
- * The native ActionBar is hidden in favour of a custom header so the layout
- * can match the ChatGPT app more closely.
+ * Two overlays sit on top of the grid: the navigation drawer and the model
+ * picker. Both span all rows so they cover the whole screen.
  */
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { $navigateTo } from 'nativescript-vue';
 import { useChatStore } from '../stores/chat';
+import { useSettingsStore } from '../stores/settings';
 import { omniRoute, type OmniRouteModel } from '../services/omniroute';
+import { accentFor, providerOf } from '../utils/accent';
 import ChatMessage from './ChatMessage.vue';
+import Sidebar from './Sidebar.vue';
+import ModelSheet from './ModelSheet.vue';
+import Profile from './Profile.vue';
+import Settings from './Settings.vue';
 
 const chatStore = useChatStore();
+const settings = useSettingsStore();
+
 const userInput = ref('');
-const messageList = ref(null);
+const scrollRef = ref(null);
+const contentRef = ref(null);
 
 const models = ref<OmniRouteModel[]>([]);
 const showModelPicker = ref(false);
+const drawerOpen = ref(false);
 const loadingModels = ref(false);
-const modelFilter = ref('');
 
-/** Models matching the current search term. */
-const filteredModels = computed(() => {
-  const term = modelFilter.value.trim().toLowerCase();
-  if (!term) {
-    return models.value;
-  }
-  return models.value.filter((model) => model.id.toLowerCase().includes(term));
+/** Suggestions offered on the empty screen. */
+const suggestions = [
+  'Explain this error message',
+  'Write a bash one-liner for a JSON file',
+  'Draft a commit message',
+  'Compare two SQL queries',
+];
+
+/** Accent colour of the currently selected provider. */
+const accent = computed(() => accentFor(chatStore.model));
+
+/** Provider prefix of the current model. */
+const provider = computed(() => providerOf(chatStore.model));
+
+/** Model name without the provider prefix. */
+const modelLabel = computed(() => {
+  const slash = chatStore.model.indexOf('/');
+  return slash > -1 ? chatStore.model.slice(slash + 1) : chatStore.model;
 });
+
+const canSend = computed(() => userInput.value.trim().length > 0 && !chatStore.isTyping);
+
+const statusText = computed(() => (chatStore.isConnected ? 'live' : 'offline'));
 
 let unsubscribeStatus: (() => void) | undefined;
 
@@ -53,12 +79,24 @@ onUnmounted(() => {
   unsubscribeStatus?.();
 });
 
+/** Scrolls the conversation to the newest message. */
 function scrollToBottom() {
   nextTick(() => {
-    const list = messageList.value as any;
-    if (list?.scrollToIndex) {
-      list.scrollToIndex(chatStore.messages.length - 1, true);
-    }
+    // The native layout pass runs after the Vue render, so the measurement
+    // has to wait a tick as well.
+    setTimeout(() => {
+      const scroll = scrollRef.value?.nativeView;
+      const content = contentRef.value?.nativeView;
+      if (!scroll || !content) {
+        return;
+      }
+      const height = content.getMeasuredHeight?.() ?? 0;
+      try {
+        scroll.scrollToVerticalOffset(Math.max(0, height), true);
+      } catch (err) {
+        console.error('Could not scroll to the bottom:', err);
+      }
+    }, 60);
   });
 }
 
@@ -86,15 +124,40 @@ function selectModel(model: OmniRouteModel) {
   closeModelPicker();
 }
 
-function currentModelLabel(): string {
-  const selected = models.value.find((m) => m.id === chatStore.model);
-  if (selected) {
-    // Show a short, friendly label: "provider/model" -> "model"
-    const parts = selected.id.split('/');
-    return parts.length > 1 ? parts.slice(1).join('/') : selected.id;
-  }
-  return chatStore.model;
+/* ------------------------------------------------------------------ */
+/* Drawer actions                                                      */
+/* ------------------------------------------------------------------ */
+
+function onNewChat() {
+  chatStore.newChat();
+  userInput.value = '';
+  drawerOpen.value = false;
 }
+
+function openProfile() {
+  drawerOpen.value = false;
+  $navigateTo(Profile);
+}
+
+function openSettings() {
+  drawerOpen.value = false;
+  $navigateTo(Settings);
+}
+
+/* ------------------------------------------------------------------ */
+/* Composer                                                            */
+/* ------------------------------------------------------------------ */
+
+function useSuggestion(text: string) {
+  userInput.value = text;
+}
+
+function onSubmit() {
+  if (settings.sendOnEnter) {
+    sendMessage();
+  }
+}
+
 async function sendMessage() {
   const text = userInput.value.trim();
   if (!text || chatStore.isTyping) {
@@ -131,314 +194,333 @@ async function sendMessage() {
 </script>
 
 <template>
-  <Frame>
-    <Page actionBarHidden="true">
-      <GridLayout rows="auto, *, auto" class="page-root">
-        <!-- ============ Header ============ -->
-        <GridLayout row="0" columns="auto, *, auto" class="header">
-          <Label col="0" text="☰" class="header-icon" />
+  <Page actionBarHidden="true">
+    <GridLayout rows="auto, *, auto" class="page-root">
+      <!-- ============ App bar ============ -->
+      <GridLayout row="0" columns="auto, *, auto" class="header">
+        <!-- Drawer handle -->
+        <Label col="0" text="☰" class="icon-button" @tap="drawerOpen = true" />
 
-          <!-- Tapping the title opens the model picker. -->
-          <StackLayout col="1" vertical-align="center" @tap="openModelPicker">
-            <Label :text="currentModelLabel()" class="header-title" />
-            <Label
-              :text="chatStore.isConnected ? 'Connected' : 'Connecting…'"
-              class="header-status"
-            />
-          </StackLayout>
-
-          <Label col="2" text="✎" class="header-icon" @tap="closeModelPicker" />
+        <!-- Active route: tapping it opens the model picker. -->
+        <GridLayout col="1" columns="auto, auto, auto" class="route-chip" @tap="openModelPicker">
+          <Label col="0" text="●" class="route-chip-dot" :color="accent" />
+          <Label col="1" :text="provider" class="route-chip-provider" />
+          <Label col="2" text="⌄" class="route-chip-caret" />
         </GridLayout>
 
-        <!-- ============ Messages ============ -->
-        <ScrollView row="1" class="message-scroll">
-          <StackLayout ref="messageList" class="message-list">
-            <ChatMessage
-              v-for="(message, index) in chatStore.messages"
-              :key="index"
-              :text="message.text"
-              :sender="message.sender"
-              :timestamp="message.timestamp"
-              :is-error="message.isError"
-            />
-
-            <!-- Typing indicator (ChatGPT shows three pulsing dots) -->
-            <GridLayout
-              v-if="chatStore.isTyping"
-              columns="auto, *"
-              class="typing-row"
-            >
-              <StackLayout col="0" orientation="horizontal" class="typing-bubble">
-                <Label text="•" class="dot" />
-                <Label text="•" class="dot" />
-                <Label text="•" class="dot" />
-              </StackLayout>
-            </GridLayout>
-          </StackLayout>
-        </ScrollView>
-
-        <!-- ============ Model picker (modal sheet) ============ -->
-        <!--
-          The overlay spans all three rows of the page grid (rowSpan="3")
-          so it covers the header, the messages and the composer.
-        -->
-        <GridLayout
-          v-if="showModelPicker"
-          row="0"
-          rowSpan="3"
-          columns="*, auto"
-          class="modal-backdrop"
-          @tap="closeModelPicker"
-        >
-          <GridLayout
+        <!-- Gateway state -->
+        <GridLayout col="2" columns="auto, auto" class="status-chip">
+          <Label
             col="0"
-            rows="auto, auto, *"
-            class="modal-sheet"
-            @tap="() => {}"
-          >
-            <GridLayout row="0" columns="*, auto" class="modal-header">
-              <Label col="0" text="Select a model" class="modal-title" />
-              <Label col="1" text="✕" class="modal-close" @tap="closeModelPicker" />
-            </GridLayout>
-
-            <!-- Search box: OmniRoute exposes several hundred models. -->
-            <TextField
-              row="1"
-              v-model="modelFilter"
-              hint="Search models"
-              class="model-search"
-            />
-
-            <StackLayout
-              v-if="loadingModels || (!filteredModels.length && models.length)"
-              row="2"
-              class="modal-loading"
-            >
-              <Label
-                :text="loadingModels ? 'Loading models…' : 'No model matches your search.'"
-                class="modal-loading-text"
-              />
-            </StackLayout>
-
-            <!--
-              A ListView is used instead of a ScrollView because OmniRoute
-              exposes several hundred models - ListView recycles the rows
-              instead of laying out every Label at once.
-            -->
-            <ListView
-              v-else
-              row="2"
-              class="modal-list"
-              :items="filteredModels"
-            >
-              <template #default="{ item: model }">
-                <Label
-                  :text="model.id"
-                  textWrap="true"
-                  class="model-item"
-                  :class="{ 'model-item--active': model.id === chatStore.model }"
-                  @tap="selectModel(model)"
-                />
-              </template>
-            </ListView>
-          </GridLayout>
+            text="●"
+            class="status-dot"
+            :color="chatStore.isConnected ? '#0E8F6E' : '#C0392B'"
+          />
+          <Label col="1" :text="statusText" class="status-text" />
         </GridLayout>
+      </GridLayout>
 
-        <!-- ============ Composer ============ -->
-        <GridLayout row="2" columns="*, auto" class="composer">
+      <!-- ============ Conversation ============ -->
+      <ScrollView row="1" ref="scrollRef" class="message-scroll">
+        <!-- Empty state -->
+        <StackLayout v-if="!chatStore.messages.length" class="hero">
+          <Label text="◈" class="hero-mark" :color="accent" />
+          <Label text="What should we route?" class="hero-title" />
+          <Label
+            :text="`${models.length || 578} models are one tap away. Pick a route, then ask.`"
+            class="hero-sub"
+          />
+
+          <WrapLayout class="hero-chips">
+            <Label
+              v-for="suggestion in suggestions"
+              :key="suggestion"
+              :text="suggestion"
+              class="hero-chip"
+              @tap="useSuggestion(suggestion)"
+            />
+          </WrapLayout>
+        </StackLayout>
+
+        <!-- Messages -->
+        <StackLayout v-else ref="contentRef" class="message-list">
+          <ChatMessage
+            v-for="(message, index) in chatStore.messages"
+            :key="index"
+            :text="message.text"
+            :sender="message.sender"
+            :timestamp="message.timestamp"
+            :is-error="message.isError"
+            :model="message.model"
+            :accent="accent"
+            :scale="settings.fontScale"
+            :show-timestamp="settings.showTimestamps"
+          />
+
+          <!-- Pending indicator -->
+          <GridLayout v-if="chatStore.isTyping" columns="auto, *" class="typing-row">
+            <Label col="0" text="●" class="typing-dot" :color="accent" />
+            <StackLayout col="1" class="typing-bubble">
+              <Label text="·" class="typing-mark" :class="`typing-mark--1`" />
+              <Label text="·" class="typing-mark" :class="`typing-mark--2`" />
+              <Label text="·" class="typing-mark" :class="`typing-mark--3`" />
+            </StackLayout>
+          </GridLayout>
+        </StackLayout>
+      </ScrollView>
+
+      <!-- ============ Composer ============ -->
+      <GridLayout row="2" class="composer">
+        <GridLayout columns="*, auto" class="composer-inner">
           <TextField
             col="0"
             v-model="userInput"
-            hint="Message Omniroute AI"
+            hint="Ask anything…"
             class="composer-input"
-            returnKeyType="send"
-            @submit="sendMessage"
+            :fontSize="Math.round(15 * settings.fontScale)"
+            :returnKeyType="settings.sendOnEnter ? 'send' : 'done'"
+            @submit="onSubmit"
           />
-          <Button
+          <GridLayout
             col="1"
-            text="↑"
+            columns="auto"
             class="send-button"
-            :class="{ 'send-button--disabled': !userInput.trim() }"
+            :class="{ 'send-button--idle': !canSend }"
             @tap="sendMessage"
-          />
+          >
+            <Label col="0" text="↑" class="send-glyph" :color="canSend ? '#FFFFFF' : '#B4BAC4'" />
+          </GridLayout>
         </GridLayout>
       </GridLayout>
-    </Page>
-  </Frame>
+
+      <!-- ============ Drawer ============ -->
+      <GridLayout
+        v-if="drawerOpen"
+        row="0"
+        rowSpan="3"
+        columns="*"
+        class="overlay"
+      >
+        <Sidebar
+          :accent="accent"
+          @close="drawerOpen = false"
+          @new-chat="onNewChat"
+          @open-profile="openProfile"
+          @open-settings="openSettings"
+        />
+      </GridLayout>
+
+      <!-- ============ Model picker ============ -->
+      <GridLayout
+        v-if="showModelPicker"
+        row="0"
+        rowSpan="3"
+        columns="*"
+        class="overlay"
+      >
+        <ModelSheet
+          :models="models"
+          :selected="chatStore.model"
+          :loading="loadingModels"
+          :accent="accent"
+          @close="closeModelPicker"
+          @select="selectModel"
+        />
+      </GridLayout>
+    </GridLayout>
+  </Page>
 </template>
 
 <style scoped>
 .page-root {
-  background-color: #ffffff;
+  background-color: #f2f3f6;
 }
 
-/* ---------- Header ---------- */
+/* ---------- App bar ---------- */
 .header {
   background-color: #ffffff;
   border-bottom-width: 1;
-  border-bottom-color: #e5e5e5;
-  padding: 10 12;
+  border-bottom-color: #e9ebef;
+  padding: 10 14;
   horizontal-align: stretch;
 }
 
-.header-icon {
-  color: #0d0d0d;
+.icon-button {
+  color: #14171d;
   font-size: 20;
-  width: 32;
-  text-align: center;
+  width: 34;
+  text-align: left;
   vertical-align: center;
 }
 
-.header-title {
-  color: #0d0d0d;
-  font-size: 16;
-  font-weight: 600;
-  text-align: center;
-}
-
-.header-status {
-  color: #8f8f8f;
-  font-size: 11;
-  text-align: center;
-}
-
-/* ---------- Messages ---------- */
-.message-scroll {
-  background-color: #ffffff;
-}
-
-.message-list {
-  padding-bottom: 8;
-}
-
-/* ---------- Typing indicator ---------- */
-.typing-row {
-  padding: 0 12 4 12;
-}
-
-.typing-bubble {
-  background-color: #f0f0f0;
-  border-radius: 20;
-  padding: 12 14;
+.route-chip {
+  background-color: #f2f3f6;
+  border-radius: 14;
+  padding: 6 10;
+  margin-right: 10;
   horizontal-align: left;
 }
 
-.dot {
-  color: #8f8f8f;
-  font-size: 18;
-  line-height: 14;
-  padding: 0 3;
-}
-
-/* ---------- Model picker ---------- */
-.modal-backdrop {
-  background-color: rgba(0, 0, 0, 0.35);
-  horizontal-align: stretch;
-  vertical-align: stretch;
-}
-
-.modal-sheet {
-  background-color: #ffffff;
-  border-top-left-radius: 16;
-  border-top-right-radius: 16;
-  padding: 12;
-  margin: 12;
-  /* Bottom sheet: full width, 60% of the screen, anchored to the bottom. */
-  horizontal-align: stretch;
-  vertical-align: bottom;
-  height: 60%;
-}
-
-.modal-header {
-  padding-bottom: 8;
-  border-bottom-width: 1;
-  border-bottom-color: #e5e5e5;
-}
-
-.modal-title {
-  color: #0d0d0d;
-  font-size: 16;
-  font-weight: 600;
+.route-chip-dot {
+  font-size: 7;
+  width: 12;
   vertical-align: center;
 }
 
-.modal-close {
-  color: #8f8f8f;
+.route-chip-provider {
+  color: #1b1e24;
+  font-family: monospace;
+  font-size: 11;
+  letter-spacing: 0.8;
+  text-transform: uppercase;
+  vertical-align: center;
+  margin-right: 4;
+}
+
+.route-chip-caret {
+  color: #9aa1ad;
+  font-size: 12;
+  vertical-align: center;
+}
+
+.status-chip {
+  horizontal-align: right;
+}
+
+.status-dot {
+  font-size: 7;
+  width: 12;
+  vertical-align: center;
+}
+
+.status-text {
+  color: #9aa1ad;
+  font-family: monospace;
+  font-size: 10;
+  letter-spacing: 0.8;
+  text-transform: uppercase;
+  vertical-align: center;
+}
+
+/* ---------- Conversation ---------- */
+.message-scroll {
+  background-color: #f2f3f6;
+}
+
+.message-list {
+  padding-bottom: 12;
+}
+
+/* ---------- Empty state ---------- */
+.hero {
+  padding: 44 26 26 26;
+}
+
+.hero-mark {
+  font-size: 40;
+  margin-bottom: 14;
+}
+
+.hero-title {
+  color: #0f1115;
+  font-size: 24;
+  font-weight: 700;
+  letter-spacing: -0.5;
+}
+
+.hero-sub {
+  color: #8d94a0;
+  font-size: 14;
+  margin-top: 8;
+}
+
+.hero-chips {
+  margin-top: 22;
+}
+
+.hero-chip {
+  background-color: #ffffff;
+  border-width: 1;
+  border-color: #e2e5ea;
+  border-radius: 18;
+  color: #3a4049;
+  font-size: 13;
+  padding: 9 14;
+  margin-right: 8;
+  margin-bottom: 8;
+}
+
+/* ---------- Pending indicator ---------- */
+.typing-row {
+  padding: 4 16 8 16;
+}
+
+.typing-dot {
+  font-size: 8;
+  width: 18;
+  vertical-align: center;
+}
+
+.typing-bubble {
+  background-color: #ffffff;
+  border-width: 1;
+  border-color: #e6e8ee;
+  border-radius: 18;
+  padding: 12 16;
+  horizontal-align: left;
+}
+
+.typing-mark {
+  color: #9aa1ad;
   font-size: 18;
-  width: 28;
-  text-align: center;
-}
-
-.model-search {
-  background-color: #f4f4f4;
-  color: #0d0d0d;
-  border-radius: 16;
-  border-width: 0;
-  font-size: 14;
-  padding: 8 12;
-  margin: 8 0;
-}
-
-.modal-list {
-  margin-top: 4;
-}
-
-.modal-loading {
-  padding: 16;
-}
-
-.modal-loading-text {
-  color: #8f8f8f;
-  font-size: 14;
-  text-align: center;
-}
-
-.model-item {
-  color: #0d0d0d;
-  font-size: 14;
-  padding: 10 8;
-}
-
-.model-item--active {
-  color: #0d6efd;
-  font-weight: 600;
+  margin: 0 3;
 }
 
 /* ---------- Composer ---------- */
 .composer {
   background-color: #ffffff;
   border-top-width: 1;
-  border-top-color: #e5e5e5;
-  padding: 8;
+  border-top-color: #e9ebef;
+  padding: 10 14 12 14;
   horizontal-align: stretch;
 }
 
+.composer-inner {
+  columns: *, auto;
+}
+
 .composer-input {
-  background-color: #f4f4f4;
-  color: #0d0d0d;
-  border-radius: 24;
+  background-color: #f2f3f6;
+  color: #14171d;
+  border-radius: 22;
   border-width: 0;
-  font-size: 15;
-  padding: 10 16;
-  margin-right: 8;
+  padding: 12 18;
+  margin-right: 10;
   vertical-align: center;
 }
 
 .send-button {
-  width: 36;
-  height: 36;
-  border-radius: 18;
-  background-color: #0d0d0d;
-  color: #ffffff;
-  font-size: 18;
-  font-weight: 700;
+  width: 42;
+  height: 42;
+  border-radius: 21;
+  background-color: #2f55f5;
   horizontal-align: right;
   vertical-align: center;
-  padding: 0;
-  margin: 0;
 }
 
-.send-button--disabled {
-  background-color: #d4d4d4;
+.send-button--idle {
+  background-color: #e6e8ed;
+}
+
+.send-glyph {
+  font-size: 19;
+  font-weight: 700;
+  vertical-align: center;
+}
+
+/* ---------- Overlays ---------- */
+.overlay {
+  horizontal-align: stretch;
+  vertical-align: stretch;
 }
 </style>

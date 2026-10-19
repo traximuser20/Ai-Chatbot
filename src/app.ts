@@ -1,9 +1,10 @@
 import './process-shim';
+import './app.css';
 import { createApp } from 'nativescript-vue';
 import { createPinia } from 'pinia';
-import Home from './components/Home.vue';
+import App from './App.vue';
 
-const app = createApp(Home);
+const app = createApp(App);
 const pinia = createPinia();
 
 app.use(pinia);

@@ -22,7 +22,7 @@ import { Application } from '@nativescript/core';
  */
 const HOST = Application.android ? '10.0.2.2' : '127.0.0.1';
 const PORT = 20128;
-const BASE_URL = `http://${HOST}:${PORT}`;
+export const BASE_URL = `http://${HOST}:${PORT}`;
 
 /**
  * API key for the local OmniRoute instance.

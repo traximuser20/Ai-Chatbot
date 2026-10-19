@@ -48,6 +48,11 @@ ENV PATH=${JAVA_HOME}/bin:${PATH}
 # d56f5187479451eabf01fb78af6dfcb131a6481e in addition to the older ones.
 # Without it Gradle aborts with:
 #   Failed to install the following SDK components: platforms;android-35
+#
+# NOTE: each hash MUST be on its own line. The license files shipped in the
+# base image have no trailing newline, so a plain `echo hash >> file` appends
+# to the previous line and produces a concatenated value that Gradle cannot
+# match ("License for package Android SDK Platform 35 not accepted").
 RUN yes | sdkmanager --licenses || true \
  && for license in /opt/android/licenses/android-sdk-license \
                  /opt/android/licenses/android-sdk-preview-license; do \
@@ -55,7 +60,7 @@ RUN yes | sdkmanager --licenses || true \
       for hash in 24333f8a63b6825ea9c5514f83c2829b004d1fee \
                  d56f5187479451eabf01fb78af6dfcb131a6481e \
                  8933bad161af4178b1185d1a37fbf41ea5269c55; do \
-        grep -q "$hash" "$license" || echo "$hash" >> "$license"; \
+        grep -qx "$hash" "$license" || printf '\n%s\n' "$hash" >> "$license"; \
       done; \
     done \
  && (sdkmanager "platform-tools" "platforms;android-34" "platforms;android-35" \

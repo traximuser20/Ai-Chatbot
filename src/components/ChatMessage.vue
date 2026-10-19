@@ -1,33 +1,63 @@
 <script lang="ts" setup>
 /**
- * Chat bubble for a single message.
+ * A single chat bubble.
  *
- * Mirrors the ChatGPT mobile layout:
- *  - User messages sit in a light-grey rounded pill, right-aligned.
- *  - AI messages are plain text on the page background, left-aligned and
- *    full-width, so long answers are easy to read.
+ * Layout rules:
+ *  - The user speaks in an ink-filled bubble, right aligned, with a slightly
+ *    tighter bottom-right corner - the "tail" detail most modern chat apps
+ *    use to keep the two sides visually distinct.
+ *  - The assistant speaks in plain text on the page canvas, left aligned, so
+ *    long answers stay comfortable to read. Above the text sits a small
+ *    mono "route chip" showing which provider answered.
+ *
+ * The accent colour is derived from the provider, so the colour of the
+ * interface always tells you who you are talking to.
  */
 import { computed } from 'vue';
+import MarkdownView from './MarkdownView.vue';
+import { providerOf } from '../utils/accent';
 
 const props = defineProps<{
   text: string;
   sender: 'user' | 'ai';
   timestamp?: string;
   isError?: boolean;
+  /** Model that produced the reply. */
+  model?: string;
+  /** Accent colour of the active provider. */
+  accent?: string;
+  /** Body text multiplier from the user's text-size setting. */
+  scale?: number;
+  showTimestamp?: boolean;
 }>();
 
 const isUser = computed(() => props.sender === 'user');
+
+const accent = computed(() => props.accent ?? '#2F55F5');
+
+/** Provider prefix, e.g. "auto" for "auto/best-fast". */
+const provider = computed(() => (props.model ? providerOf(props.model) : ''));
+
+/** Model name without the provider prefix. */
+const modelName = computed(() => {
+  if (!props.model) {
+    return '';
+  }
+  const slash = props.model.indexOf('/');
+  return slash > -1 ? props.model.slice(slash + 1) : props.model;
+});
+
+const scale = computed(() => props.scale ?? 1);
 
 /**
  * Splits a message into paragraphs.
  *
  * A NativeScript `Label` with `textWrap="true"` collapses embedded "\n"
  * characters into a single line break (and renders them oddly), so each
- * paragraph is rendered as its own Label instead. Blank lines are dropped
- * and the spacing between paragraphs is handled with CSS margins.
+ * paragraph is rendered as its own Label instead.
  */
 const paragraphs = computed(() =>
-  props.text
+  (props.text ?? '')
     .split(/\n+/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0),
@@ -42,31 +72,50 @@ const paragraphs = computed(() =>
       - AI    -> columns "*": the text column is constrained to the page
                  width, so long answers wrap instead of being clipped.
   -->
-  <GridLayout
-    :columns="isUser ? '*, auto' : '*'"
-    class="message-row"
-  >
-    <!-- User message: light grey pill, right aligned. -->
-    <Label
-      v-if="isUser"
-      col="1"
-      :text="text"
-      textWrap="true"
-      class="user-bubble"
-    />
-
-    <!-- AI message: plain text on the page background. -->
-    <StackLayout v-else col="0" class="ai-bubble-wrap">
+  <GridLayout :columns="isUser ? '*, auto' : '*'" class="message-row">
+    <!-- ── User message ─────────────────────────────────────────────────── -->
+    <StackLayout v-if="isUser" col="1" class="user-bubble">
       <Label
-        v-for="(paragraph, index) in paragraphs"
-        :key="index"
-        :text="paragraph"
+        v-for="(paragraph, paragraphIndex) in paragraphs"
+        :key="paragraphIndex"
         textWrap="true"
-        class="ai-text"
-        :class="{ 'ai-text--error': isError }"
+        class="user-text"
+        :text="paragraph"
+        :fontSize="Math.round(15 * scale)"
       />
+    </StackLayout>
+
+    <!-- ── Assistant message ────────────────────────────────────────────── -->
+    <StackLayout v-else col="0" class="ai-block">
+      <!-- Route chip: who answered. -->
+      <GridLayout
+        v-if="provider || modelName"
+        columns="auto, auto"
+        class="ai-chip"
+      >
+        <Label col="0" text="●" class="ai-chip-dot" :color="accent" />
+        <Label
+          col="1"
+          :text="provider ? `${provider} / ${modelName}` : modelName"
+          class="ai-chip-text"
+        />
+      </GridLayout>
+
+      <!-- Error notice. -->
+      <GridLayout v-if="isError" columns="auto, *" class="ai-error">
+        <Label col="0" text="!" class="ai-error-mark" />
+        <Label col="1" textWrap="true" class="ai-error-text" :text="text" />
+      </GridLayout>
+
+      <MarkdownView
+        v-else
+        :text="text"
+        :accent="accent"
+        :scale="scale"
+      />
+
       <Label
-        v-if="timestamp"
+        v-if="timestamp && showTimestamp"
         :text="timestamp"
         class="ai-timestamp"
       />
@@ -76,47 +125,79 @@ const paragraphs = computed(() =>
 
 <style scoped>
 .message-row {
-  padding: 4 12;
+  padding: 6 16;
+  horizontal-align: stretch;
 }
 
-/* User message: light grey pill, right aligned (ChatGPT mobile style). */
+/* ---------- User bubble ---------- */
 .user-bubble {
-  background-color: #f0f0f0;
-  color: #0d0d0d;
-  border-radius: 22px;
-  padding: 10 16;
-  font-size: 15;
-  max-width: 300;
-  /* Bubble hugs its content but never grows past the bubble column. */
+  background-color: #14171d;
+  border-top-left-radius: 20;
+  border-top-right-radius: 20;
+  border-bottom-left-radius: 20;
+  border-bottom-right-radius: 7;
+  padding: 11 16;
+  max-width: 290;
   horizontal-align: right;
 }
 
-/* AI message: no bubble, just text on the page background. */
-.ai-bubble-wrap {
-  padding: 6 0 8 0;
+.user-text {
+  color: #ffffff;
+  font-weight: 400;
+  margin-bottom: 2;
 }
 
-.ai-text {
-  color: #0d0d0d;
-  font-size: 15;
-  /*
-    No 'line-height' here on purpose: NativeScript maps it to
-    TextView.setLineSpacing(extra, 1), i.e. it ADDS the value to the
-    font's natural line height. Setting 'line-height: 22' on a 15px font
-    produced a ~37px line box with big gaps between wrapped lines.
-  */
-  /* Vertical space between two paragraphs. */
-  margin-bottom: 10;
+/* ---------- Assistant block ---------- */
+.ai-block {
+  padding: 2 0 8 0;
+}
+
+.ai-chip {
+  margin-bottom: 4;
+}
+
+.ai-chip-dot {
+  font-size: 9;
+  vertical-align: center;
+  margin-right: 6;
+}
+
+.ai-chip-text {
+  color: #79808d;
+  font-family: monospace;
+  font-size: 10;
+  letter-spacing: 0.7;
+  text-transform: uppercase;
+  vertical-align: center;
 }
 
 .ai-timestamp {
-  color: #9a9a9a;
-  font-size: 11;
-  margin-top: 2;
+  color: #a2a8b3;
+  font-family: monospace;
+  font-size: 10;
+  margin-top: 4;
 }
 
-/* Error messages (e.g. the gateway is unreachable) are highlighted. */
-.ai-text--error {
-  color: #b3261e;
+/* ---------- Error ---------- */
+.ai-error {
+  background-color: #fdf0ef;
+  border-left-width: 3;
+  border-left-color: #c0392b;
+  border-radius: 8;
+  padding: 10 12;
+  margin-bottom: 4;
+}
+
+.ai-error-mark {
+  color: #c0392b;
+  font-weight: 700;
+  font-size: 13;
+  width: 18;
+  vertical-align: top;
+}
+
+.ai-error-text {
+  color: #8c2f24;
+  font-size: 14;
 }
 </style>

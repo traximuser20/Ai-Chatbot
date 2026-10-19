@@ -1,12 +1,51 @@
 @import 'tailwindcss';
 
 /*
-  ChatGPT-like light theme.
-  The base font-size is bumped up a little so the app reads well on a
-  phone-sized screen.
+  Global theme.
+
+  The palette is a cool "paper" scheme: a light grey canvas, white surfaces
+  for the chrome, and near-black ink for the text. The one live colour in the
+  interface is the *accent*, which is derived from the provider that answers
+  (see src/utils/accent.ts) and therefore changes with the selected model.
 */
 Page {
-  background-color: #ffffff;
-  color: #0d0d0d;
+  background-color: #f2f3f6;
+  color: #14171d;
   font-size: 15;
+}
+
+/*
+  The typing indicator. Three dots fade in sequence - a small moment of
+  motion that tells the reader the answer is on its way.
+*/
+@keyframes dotFade {
+  0% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.25;
+  }
+}
+
+.typing-mark--1 {
+  animation-name: dotFade;
+  animation-duration: 1.2s;
+  animation-iteration-count: infinite;
+}
+
+.typing-mark--2 {
+  animation-name: dotFade;
+  animation-duration: 1.2s;
+  animation-delay: 0.15s;
+  animation-iteration-count: infinite;
+}
+
+.typing-mark--3 {
+  animation-name: dotFade;
+  animation-duration: 1.2s;
+  animation-delay: 0.3s;
+  animation-iteration-count: infinite;
 }
