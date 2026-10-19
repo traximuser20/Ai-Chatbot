@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+/*
+  ChatGPT-like light theme.
+  The base font-size is bumped up a little so the app reads well on a
+  phone-sized screen.
+*/
+Page {
+  background-color: #ffffff;
+  color: #0d0d0d;
+  font-size: 15;
+}

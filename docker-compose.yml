@@ -1,0 +1,36 @@
+services:
+  nativescript-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      network: host
+      args:
+        DOCKER_ANDROID_VERSION: "emulator_14.0"
+    container_name: nativescript-vue-android
+    privileged: true
+    network_mode: host
+    devices:
+      - /dev/kvm:/dev/kvm
+    environment:
+      # Use display :99 to avoid collision with host X server (:0) in host network mode
+      - DISPLAY=:99
+      # Emulator device skin/profile (e.g., "Samsung Galaxy S10", "Nexus 5", etc.)
+      - EMULATOR_DEVICE=Samsung Galaxy S10
+      - WEB_VNC=true
+      - EMULATOR_HEADLESS=false
+    ports:
+      # noVNC Web Interface (View emulator in browser: http://localhost:6080)
+      - "6080:6080"
+      # ADB port (connect from host: adb connect localhost:5555)
+      - "5555:5555"
+      # Emulator Console port
+      - "5554:5554"
+      # Webpack Dev Server / HMR port
+      - "8080:8080"
+    volumes:
+      # Mount host code for live development & hot reload
+      - .:/home/androidusr/app
+      # Keep container's internal node_modules and platforms intact
+      - /home/androidusr/app/node_modules
+      - /home/androidusr/app/platforms
+    restart: unless-stopped
