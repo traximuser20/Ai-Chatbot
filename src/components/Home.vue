@@ -14,6 +14,7 @@
  */
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
+import { Screen } from '@nativescript/core';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { omniRoute, type OmniRouteModel } from '../services/omniroute';
@@ -38,8 +39,8 @@ const loadingModels = ref(false);
 
 /** Suggestions offered on the empty screen. */
 const suggestions = [
-  'Explain this error message',
-  'Write a bash one-liner for a JSON file',
+  'Explain an error',
+  'Write a bash one-liner',
   'Draft a commit message',
   'Compare two SQL queries',
 ];
@@ -79,24 +80,32 @@ onUnmounted(() => {
   unsubscribeStatus?.();
 });
 
-/** Scrolls the conversation to the newest message. */
-function scrollToBottom() {
+/**
+ * Scrolls the conversation to the newest message.
+ *
+ * `scrollToVerticalOffset` expects device independent pixels, while
+ * `getMeasuredHeight()` reports device pixels - hence the density factor.
+ */
+function scrollToBottom(animated = true) {
   nextTick(() => {
     // The native layout pass runs after the Vue render, so the measurement
     // has to wait a tick as well.
     setTimeout(() => {
       const scroll = scrollRef.value?.nativeView;
       const content = contentRef.value?.nativeView;
-      if (!scroll || !content) {
+      if (!scroll) {
         return;
       }
-      const height = content.getMeasuredHeight?.() ?? 0;
       try {
-        scroll.scrollToVerticalOffset(Math.max(0, height), true);
+        const density = Screen.mainScreen.scale || 1;
+        const contentHeight = (content?.getMeasuredHeight?.() ?? 0) / density;
+        const viewport = (scroll.getMeasuredHeight?.() ?? 0) / density;
+        const offset = Math.max(0, contentHeight - viewport);
+        scroll.scrollToVerticalOffset(offset, animated);
       } catch (err) {
         console.error('Could not scroll to the bottom:', err);
       }
-    }, 60);
+    }, 100);
   });
 }
 
@@ -183,6 +192,9 @@ async function sendMessage() {
       chatStore.addMessage('(empty response)', 'ai', true);
     }
     scrollToBottom();
+    // The layout can still change afterwards (the keyboard closing for
+    // example), so make sure the conversation ends up at the newest message.
+    setTimeout(() => scrollToBottom(false), 320);
   } catch (error) {
     chatStore.setTypingStatus(false);
     const message =
@@ -202,10 +214,11 @@ async function sendMessage() {
         <Label col="0" text="☰" class="icon-button" @tap="drawerOpen = true" />
 
         <!-- Active route: tapping it opens the model picker. -->
-        <GridLayout col="1" columns="auto, auto, auto" class="route-chip" @tap="openModelPicker">
+        <GridLayout col="1" columns="auto, auto, auto, auto" class="route-chip" @tap="openModelPicker">
           <Label col="0" text="●" class="route-chip-dot" :color="accent" />
           <Label col="1" :text="provider" class="route-chip-provider" />
-          <Label col="2" text="⌄" class="route-chip-caret" />
+          <Label col="2" :text="modelLabel" class="route-chip-model" />
+          <Label col="3" text="⌄" class="route-chip-caret" />
         </GridLayout>
 
         <!-- Gateway state -->
@@ -227,8 +240,9 @@ async function sendMessage() {
           <Label text="◈" class="hero-mark" :color="accent" />
           <Label text="What should we route?" class="hero-title" />
           <Label
-            :text="`${models.length || 578} models are one tap away. Pick a route, then ask.`"
+            textWrap="true"
             class="hero-sub"
+            :text="`${models.length || 578} models are one tap away. Pick a route, then ask.`"
           />
 
           <WrapLayout class="hero-chips">
@@ -258,14 +272,18 @@ async function sendMessage() {
           />
 
           <!-- Pending indicator -->
-          <GridLayout v-if="chatStore.isTyping" columns="auto, *" class="typing-row">
-            <Label col="0" text="●" class="typing-dot" :color="accent" />
-            <StackLayout col="1" class="typing-bubble">
-              <Label text="·" class="typing-mark" :class="`typing-mark--1`" />
-              <Label text="·" class="typing-mark" :class="`typing-mark--2`" />
-              <Label text="·" class="typing-mark" :class="`typing-mark--3`" />
+          <StackLayout v-if="chatStore.isTyping" class="typing-row">
+            <!--
+              orientation="horizontal" is required: a StackLayout defaults to
+              vertical, which stacked the three dots in a tall narrow pill
+              instead of a single horizontal row of dots.
+            -->
+            <StackLayout orientation="horizontal" class="typing-bubble">
+              <Label text="●" class="typing-mark typing-mark--1" />
+              <Label text="●" class="typing-mark typing-mark--2" />
+              <Label text="●" class="typing-mark typing-mark--3" />
             </StackLayout>
-          </GridLayout>
+          </StackLayout>
         </StackLayout>
       </ScrollView>
 
@@ -368,13 +386,22 @@ async function sendMessage() {
 }
 
 .route-chip-provider {
+  color: #9aa1ad;
+  font-family: monospace;
+  font-size: 10;
+  letter-spacing: 0.1;
+  text-transform: uppercase;
+  vertical-align: center;
+  margin-right: 7;
+}
+
+.route-chip-model {
   color: #1b1e24;
   font-family: monospace;
   font-size: 11;
-  letter-spacing: 0.8;
-  text-transform: uppercase;
+  font-weight: 700;
   vertical-align: center;
-  margin-right: 4;
+  margin-right: 5;
 }
 
 .route-chip-caret {
@@ -397,7 +424,7 @@ async function sendMessage() {
   color: #9aa1ad;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 0.8;
+  letter-spacing: 0.1;
   text-transform: uppercase;
   vertical-align: center;
 }
@@ -413,19 +440,19 @@ async function sendMessage() {
 
 /* ---------- Empty state ---------- */
 .hero {
-  padding: 44 26 26 26;
+  padding: 36 26 24 26;
 }
 
 .hero-mark {
-  font-size: 40;
-  margin-bottom: 14;
+  font-size: 34;
+  margin-bottom: 12;
 }
 
 .hero-title {
   color: #0f1115;
   font-size: 24;
   font-weight: 700;
-  letter-spacing: -0.5;
+  letter-spacing: -0.02;
 }
 
 .hero-sub {
@@ -455,24 +482,18 @@ async function sendMessage() {
   padding: 4 16 8 16;
 }
 
-.typing-dot {
-  font-size: 8;
-  width: 18;
-  vertical-align: center;
-}
-
 .typing-bubble {
   background-color: #ffffff;
   border-width: 1;
   border-color: #e6e8ee;
   border-radius: 18;
-  padding: 12 16;
+  padding: 13 16;
   horizontal-align: left;
 }
 
 .typing-mark {
   color: #9aa1ad;
-  font-size: 18;
+  font-size: 11;
   margin: 0 3;
 }
 

@@ -69,22 +69,29 @@ function clearHistory() {
           <!-- ── Appearance ───────────────────────────────────────────────── -->
           <Label text="Appearance" class="group-label" />
 
-          <GridLayout columns="*" class="card row">
-            <StackLayout col="0">
+          <GridLayout rows="auto, auto" class="card">
+            <StackLayout row="0">
               <Label text="Text size" class="row-title" />
               <Label text="Scales the conversation and the interface" class="row-sub" />
             </StackLayout>
-          </GridLayout>
-
-          <GridLayout columns="*, *, *" class="segment">
-            <Label
-              v-for="scale in scales"
-              :key="scale.value"
-              :text="scale.label"
-              class="segment-item"
-              :class="{ 'segment-item--active': settings.textScale === scale.value }"
-              @tap="settings.setTextScale(scale.value)"
-            />
+            <!--
+              A horizontal StackLayout is used instead of a GridLayout:
+              in NativeScript-Vue the children of a 'v-for' inside a
+              GridLayout are all placed in column 0 and drawn on top of each
+              other (the segmented control rendered "Medium" and "Large"
+              overlapping). A StackLayout lays them out left to right, and
+              each label gets an equal third of the width.
+            -->
+            <StackLayout row="1" orientation="horizontal" class="segment">
+              <Label
+                v-for="scale in scales"
+                :key="scale.value"
+                :text="scale.label"
+                class="segment-item"
+                :class="{ 'segment-item--active': settings.textScale === scale.value }"
+                @tap="settings.setTextScale(scale.value)"
+              />
+            </StackLayout>
           </GridLayout>
 
           <!-- ── Conversation ─────────────────────────────────────────────── -->
@@ -206,7 +213,7 @@ function clearHistory() {
   color: #9aa1ad;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 1.3;
+  letter-spacing: 0.13;
   text-transform: uppercase;
   margin-bottom: 8;
   margin-top: 14;
@@ -267,10 +274,10 @@ function clearHistory() {
 
 /* ---------- Segmented control ---------- */
 .segment {
-  background-color: #e6e8ed;
-  border-radius: 12;
+  background-color: #eceef2;
+  border-radius: 11;
   padding: 3;
-  margin-bottom: 8;
+  margin-top: 12;
 }
 
 .segment-item {
@@ -279,11 +286,15 @@ function clearHistory() {
   font-weight: 600;
   text-align: center;
   padding: 9 0;
-  border-radius: 10;
+  border-radius: 9;
+  /* Equal thirds of the control, minus the gap between the segments. */
+  width: 33%;
+  margin-right: 2;
 }
 
 .segment-item--active {
   background-color: #ffffff;
   color: #0f1115;
+  font-weight: 700;
 }
 </style>

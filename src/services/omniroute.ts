@@ -94,6 +94,9 @@ class OmniRouteService {
    */
   public async loadModels(force = false): Promise<OmniRouteModel[]> {
     if (this.modelsLoaded && !force) {
+      // The list is cached - the gateway is obviously reachable, so keep the
+      // connection state in sync (the app may have been reloaded).
+      this.notifyStatus('connected');
       return this.availableModels;
     }
 

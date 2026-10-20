@@ -166,7 +166,7 @@ const paragraphs = computed(() =>
   color: #79808d;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 0.7;
+  letter-spacing: 0.1;
   text-transform: uppercase;
   vertical-align: center;
 }

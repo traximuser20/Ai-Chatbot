@@ -194,11 +194,11 @@ function tokenWeight(token: InlineToken): string {
 }
 
 .md-heading--1 {
-  letter-spacing: -0.4;
+  letter-spacing: -0.02;
 }
 
 .md-heading--2 {
-  letter-spacing: -0.2;
+  letter-spacing: -0.015;
 }
 
 /* ---------- List ---------- */
@@ -216,6 +216,9 @@ function tokenWeight(token: InlineToken): string {
   width: 22;
   text-align: left;
   padding-right: 2;
+  /* Align the marker with the FIRST line of the item, not with the centre
+     of the (possibly wrapped) text block. */
+  vertical-align: top;
 }
 
 .md-list-text {
@@ -255,14 +258,14 @@ function tokenWeight(token: InlineToken): string {
   color: #6f7887;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 1.2;
+  letter-spacing: 0.14;
   text-transform: uppercase;
 }
 
 .md-code-lang {
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 0.8;
+  letter-spacing: 0.1;
 }
 
 .md-code-rule {

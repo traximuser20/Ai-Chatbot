@@ -146,7 +146,7 @@ function providerOfModel(model: OmniRouteModel): string {
   color: #9aa1ad;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 0.6;
+  letter-spacing: 0.08;
   margin-top: 3;
 }
 
@@ -207,7 +207,7 @@ function providerOfModel(model: OmniRouteModel): string {
   color: #9aa1ad;
   font-family: monospace;
   font-size: 9;
-  letter-spacing: 1;
+  letter-spacing: 0.1;
   text-transform: uppercase;
 }
 

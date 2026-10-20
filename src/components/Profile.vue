@@ -227,7 +227,7 @@ function back() {
   color: #9aa1ad;
   font-family: monospace;
   font-size: 9;
-  letter-spacing: 1.2;
+  letter-spacing: 0.12;
   text-transform: uppercase;
   margin-top: 4;
 }
@@ -237,7 +237,7 @@ function back() {
   color: #9aa1ad;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 1.3;
+  letter-spacing: 0.13;
   text-transform: uppercase;
   margin-bottom: 8;
   margin-top: 4;
@@ -283,7 +283,7 @@ function back() {
   color: #9aa1ad;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 1;
+  letter-spacing: 0.1;
   text-transform: uppercase;
 }
 

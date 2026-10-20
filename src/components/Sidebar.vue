@@ -12,12 +12,13 @@
  * with the core `animate` API because NativeScript's CSS engine has no
  * transition support for `translate`.
  */
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useChatStore, type Conversation, formatRelativeTime } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
+import { readableOn } from '../utils/accent';
 
 /** Width of the panel in device independent pixels. */
-const PANEL_WIDTH = 300;
+const PANEL_WIDTH = 284;
 
 const emit = defineEmits<{
   close: [];
@@ -41,6 +42,9 @@ const scrimRef = ref<any>(null);
 const pendingDeleteId = ref<string | null>(null);
 
 const accent = () => props.accent ?? '#2F55F5';
+
+/** Readable foreground for a surface filled with the accent colour. */
+const onAccent = computed(() => readableOn(props.accent ?? '#2F55F5'));
 
 /**
  * Template refs point at the Vue element wrapper, the NativeScript view
@@ -133,9 +137,15 @@ function metaOf(conversation: Conversation): string {
       </GridLayout>
 
       <!-- New conversation -->
-      <GridLayout row="1" columns="auto, *" class="new-chat" @tap="onNewChat">
-        <Label col="0" text="✦" class="new-chat-mark" :color="accent()" />
-        <Label col="1" text="New conversation" class="new-chat-text" />
+      <GridLayout
+        row="1"
+        columns="auto, *"
+        class="new-chat"
+        :backgroundColor="accent()"
+        @tap="onNewChat"
+      >
+        <Label col="0" text="✦" class="new-chat-mark" :color="onAccent" />
+        <Label col="1" text="New conversation" class="new-chat-text" :color="onAccent" />
       </GridLayout>
 
       <!-- Section label -->
@@ -225,7 +235,7 @@ function metaOf(conversation: Conversation): string {
 
 /* ---------- Panel ---------- */
 .panel {
-  width: 300;
+  width: 284;
   background-color: #ffffff;
   horizontal-align: left;
   vertical-align: stretch;
@@ -247,14 +257,14 @@ function metaOf(conversation: Conversation): string {
   color: #0f1115;
   font-size: 17;
   font-weight: 700;
-  letter-spacing: -0.2;
+  letter-spacing: -0.015;
 }
 
 .brand-status {
   color: #0e8f6e;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 0.6;
+  letter-spacing: 0.08;
   margin-top: 2;
 }
 
@@ -264,11 +274,10 @@ function metaOf(conversation: Conversation): string {
 
 /* ---------- New conversation ---------- */
 .new-chat {
-  background-color: #f4f5f8;
+  background-color: #14171d;
   border-radius: 12;
-  border-left-width: 3;
   margin: 0 16 20 16;
-  padding: 12 14;
+  padding: 13 14;
 }
 
 .new-chat-mark {
@@ -278,7 +287,6 @@ function metaOf(conversation: Conversation): string {
 }
 
 .new-chat-text {
-  color: #16191f;
   font-size: 15;
   font-weight: 600;
   vertical-align: center;
@@ -293,7 +301,7 @@ function metaOf(conversation: Conversation): string {
   color: #9aa1ad;
   font-family: monospace;
   font-size: 10;
-  letter-spacing: 1.4;
+  letter-spacing: 0.14;
   text-transform: uppercase;
 }
 
