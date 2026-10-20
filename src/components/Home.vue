@@ -14,7 +14,7 @@
  */
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
-import { Screen } from '@nativescript/core';
+import { Application, Screen } from '@nativescript/core';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { useThemeStore } from '../stores/theme';
@@ -180,6 +180,9 @@ onMounted(async () => {
     chatStore.setConnectionStatus(status === 'connected');
   });
 
+  Application.on(Application.suspendEvent, onSuspend);
+  Application.on(Application.resumeEvent, onResume);
+
   // Probe the gateway so the header shows the real connection state.
   try {
     models.value = await omniAi.loadModels();
@@ -198,7 +201,25 @@ onMounted(async () => {
 onUnmounted(() => {
   unsubscribeStatus?.();
   stopAllLoops();
+  Application.off(Application.suspendEvent, onSuspend);
+  Application.off(Application.resumeEvent, onResume);
 });
+
+/**
+ * The endless animations are stopped while the app is in the background and
+ * started again when it comes back. An animation of a view that is not on
+ * screen is resolved at once, and a chain of those would spin the thread.
+ */
+function onSuspend() {
+  stopAllLoops();
+}
+
+function onResume() {
+  startLivePulse();
+  if (!chatStore.messages.length) {
+    animateHero();
+  }
+}
 
 // The empty state appears again whenever the last message is cleared.
 watch(
@@ -858,6 +879,8 @@ function stopGenerating() {
 .composer-input {
   background-color: var(--app-canvas);
   color: var(--app-ink);
+  /* Android takes the colour of the hint from the theme of the platform. */
+  placeholder-color: var(--app-ink-faint);
   border-radius: 22;
   border-width: 0;
   padding: 12 18;

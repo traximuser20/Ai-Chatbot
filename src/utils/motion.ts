@@ -169,18 +169,38 @@ export function loopAnimation(
     if (stopped || !view) {
       return;
     }
+    /*
+      A view that is not on screen cannot be animated: the animation is
+      resolved at once. Without this guard the chain would start the next
+      frame immediately, again and again - the thread then spins at full
+      speed, the app stops answering and it runs out of memory.
+    */
+    if (view.isLoaded === false) {
+      return;
+    }
+
     const frame = frames[index % frames.length];
+    const duration = frame.duration ?? DURATION.base;
+    const started = Date.now();
+
     view
       .animate({
         ...frame.properties,
-        duration: frame.duration ?? DURATION.base,
+        duration,
         curve: frame.curve ?? CURVE.inOut,
       })
       .then(() => {
+        // The same guard, for the case that the animation was skipped.
+        if (Date.now() - started < duration / 2) {
+          stopped = true;
+          return;
+        }
         index += 1;
         step();
       })
-      .catch(() => undefined);
+      .catch(() => {
+        stopped = true;
+      });
   };
 
   if (options.delay) {

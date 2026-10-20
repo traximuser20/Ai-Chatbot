@@ -234,6 +234,7 @@ onMounted(() => {
   background-color: transparent;
   border-width: 0;
   color: var(--app-ink);
+  placeholder-color: var(--app-ink-faint);
   font-size: 14;
   padding: 10 0;
   vertical-align: center;

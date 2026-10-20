@@ -155,7 +155,27 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | A `width` in the style sheet of an `Icon` | The icon sizes itself through its `size` prop, which overwrites the style | Use a `margin-right` for the gap, never a `width` |
 | `rotate` on a view | Android rotates around the pivot, which defaults to the **top left** corner, so a rotated shape swings out of its box | Set `originX` / `originY` to `0.5` on the rotated view |
 | `Application.systemAppearance()` while the app starts | The native context does not exist yet and the framework throws `Cannot read properties of undefined (reading 'getResources')` | Ask for the appearance once the app is on screen |
+| A colour bound as a property (`:backgroundColor="…"`), next to a rule that sets the same property | The property wins over the rule, so the rule is never seen - a themed colour stays in the colour of the light theme | Paint a themed surface with a rule, and give a runtime colour (the accent) a view of its own |
 | An endless animation that is never stopped | The animation chain keeps the view alive; a few of them fill the 192 MB V8 heap and the app dies with an OutOfMemoryError | `loopAnimation()` returns a stop function - call it when the view goes away |
+
+---
+
+## 7.1 Theming (light and dark)
+
+The palette lives in **`src/app.css`** as CSS custom properties, declared twice:
+
+```css
+.theme-light { --app-canvas: #f2f3f6; --app-surface: #ffffff; … }
+.theme-dark  { --app-canvas: #0b0e17; --app-surface: #171b2b; … }
+```
+
+- The **root frame** (`src/App.vue`) carries the class. NativeScript resolves `var(--app-*)` by walking up the view tree, so a token declared on the root reaches every view below it - including the pages that `$navigateTo` pushes onto the frame.
+- Changing the class re-applies the styles of the whole tree: the setter of `className` calls `_onCssStateChange()`, which walks the descendants. The switch is therefore instant, with no restart.
+- A token is only found by the **descendants** of the view that declares it, never by a sibling. The tokens belong on the root for that reason.
+- The user picks a mode in the settings screen (`system`, `light`, `dark`); `src/stores/theme.ts` turns it into the theme that is shown and follows the device when the mode is `system`. The mode is persisted with the rest of the settings.
+- A **property** (`:backgroundColor`, `:color`) always wins over a rule, so a surface that has to follow the theme is painted with a rule. The send button is the example: its accent fill is a view of its own, because the accent is a runtime value.
+- `Icon.vue` takes a `tone` (a token of the palette) or a `color` (the runtime accent). The tone is a rule, the colour is a property.
+- `placeholder-color` is a CSS property, so the hint of a text field follows the theme. Android would otherwise take it from the theme of the platform.
 
 ---
 
@@ -165,6 +185,7 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 - **Always set `orientation="horizontal"` on a `StackLayout` that holds side-by-side items.** The default is vertical.
 - `MarkdownView.vue` renders replies; `src/utils/markdown.ts` is a hand-written parser. A regex with a single capture group must be read with `[1]` — reading `[2]` passes `undefined` downstream and crashes the app (see the `asOrdered[2]` bug that was fixed in `parseList`).
 - The accent colour is derived from the provider prefix of the selected model (`src/utils/accent.ts`). Changing the model in the picker repaints the whole interface, so every accent-coloured surface must be bound to it rather than hard-coded.
+- The theme is a **palette of tokens**, not a second set of rules: `src/app.css` declares the light and the dark values, and every component uses `var(--app-*)`. A hardcoded hex in a component is a bug - it does not follow the theme.
 - `src/components/Icon.vue` draws the whole icon set with the `OmniIcons` font, a subset of Font Awesome (18 glyphs, 4 kB). It is built by `design/icons/build_font.py`; the font lives in `src/fonts`, which NativeScript copies into the app's `files/app/fonts` - the place the runtime looks for a font by its family name. A glyph in a `Label` is recoloured like any other text, so the icons follow the accent of the selected provider.
 - `src/utils/motion.ts` owns the timing of every animation (`enter`, `exit`, `pressIn`, `pressOut`, `pulse`, `loopAnimation`). `src/directives/press.ts` is registered globally as `v-press` and gives every tappable surface a tactile response; its `touch` handler always returns `false` so the `tap` still fires.
 - A `loopAnimation()` always has to be stopped again - see `stopAllLoops()` in `Home.vue` for the pattern.

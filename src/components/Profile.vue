@@ -261,6 +261,7 @@ function back() {
   border-color: var(--app-border-2);
   border-radius: 12;
   color: var(--app-ink);
+  placeholder-color: var(--app-ink-faint);
   font-size: 15;
   padding: 12 14;
   /* The field fills the row, the action sits next to it. */
