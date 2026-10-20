@@ -388,6 +388,10 @@ def main() -> int:
     render(AURORA_B_SVG, RUNTIME / "aurora-b.png", 512)
     render_rect(GRID_SVG, RUNTIME / "grid.png", 256, 256)
 
+    # Smooth gradients compress badly as truecolour; a palette is plenty.
+    for name in ("prism-glow.png", "aurora-a.png", "aurora-b.png"):
+        optimize(RUNTIME / name)
+
     # 3. Android launcher icons -------------------------------------------
     for density, size in ANDROID_DENSITIES.items():
         folder = ANDROID_RES / f"mipmap-{density}"

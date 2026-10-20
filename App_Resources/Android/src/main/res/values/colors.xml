@@ -11,4 +11,7 @@
 
     <!-- this is unused in the default themes, so we might want to remove it? -->
     <!-- <color name="ns_blue">#272734</color> -->
+
+    <!-- The launch screen ground. Matches the ink field of the app's splash. -->
+    <color name="ns_splash_background">#0B0E17</color>
 </resources>
