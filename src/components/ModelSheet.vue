@@ -105,7 +105,16 @@ onMounted(() => {
       <!-- Routes -->
       <ListView v-if="filtered.length" row="3" class="sheet-list" :items="filtered">
         <template #default="{ item: model }">
+          <!--
+            The provider and the model id are two rows of their own, so the
+            dot can sit on the provider line and the tick on the model line.
+
+            `width: 100%` keeps the row inside the sheet: a ListView measures
+            its items without a width, so a long model id would push the tick
+            off the edge.
+          -->
           <GridLayout
+            rows="auto, auto"
             columns="auto, *, auto"
             class="model-row"
             :class="{ 'model-row--active': model.id === selected }"
@@ -114,18 +123,30 @@ onMounted(() => {
           >
             <Icon
               col="0"
+              row="0"
               name="dot"
               :size="7"
               :color="accent ?? '#2F55F5'"
               class="model-dot"
             />
-            <StackLayout col="1">
-              <Label :text="providerOfModel(model)" class="model-provider" />
-              <Label :text="model.id" textWrap="true" class="model-id" />
-            </StackLayout>
+            <Label
+              col="1"
+              row="0"
+              :text="providerOfModel(model)"
+              class="model-provider"
+            />
+            <Label
+              col="1"
+              row="1"
+              :text="model.id"
+              textWrap="true"
+              class="model-id"
+            />
             <GridLayout
               v-if="model.id === selected"
               col="2"
+              row="0"
+              rowSpan="2"
               columns="auto"
               class="model-check"
             >
@@ -224,6 +245,7 @@ onMounted(() => {
 }
 
 .model-row {
+  width: 100%;
   padding: 10 8;
   border-radius: 10;
 }
@@ -233,7 +255,7 @@ onMounted(() => {
 }
 
 .model-dot {
-  width: 16;
+  margin-right: 6;
   vertical-align: center;
   opacity: 0.7;
 }

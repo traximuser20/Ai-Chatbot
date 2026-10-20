@@ -33,7 +33,7 @@ onMounted(() => {
 /** Distinct providers the user has talked to so far. */
 const providerCount = computed(() => {
   const providers = new Set<string>();
-  chatStore.conversations.forEach((conversation) => {
+  chatStore.history.forEach((conversation) => {
     conversation.messages.forEach((message) => {
       if (message.model) {
         providers.add(providerOf(message.model));
@@ -90,7 +90,7 @@ function back() {
           <!-- ── Stats ───────────────────────────────────────────────────── -->
           <GridLayout columns="*, *, *" class="stats">
             <StackLayout col="0" class="stat">
-              <Label :text="`${chatStore.conversations.length}`" class="stat-value" />
+              <Label :text="`${chatStore.history.length}`" class="stat-value" />
               <Label text="Chats" class="stat-label" />
             </StackLayout>
             <StackLayout col="1" class="stat">
@@ -123,15 +123,12 @@ function back() {
               @tap="saveName"
             />
           </GridLayout>
-
           <!-- ── Active route ───────────────────────────────────────────── -->
           <Label text="Active route" class="field-label" />
-          <GridLayout columns="auto, *" class="card route">
-            <Icon col="0" name="dot" :size="8" color="#0FB6D6" class="route-dot" />
-            <StackLayout col="1">
-              <Label :text="currentRoute.provider" class="route-provider" />
-              <Label :text="currentRoute.name" class="route-name" />
-            </StackLayout>
+          <GridLayout rows="auto, auto" columns="auto, *" class="card route">
+            <Label col="0" row="0" colSpan="2" :text="currentRoute.provider" class="route-provider" />
+            <Icon col="0" row="1" name="dot" :size="8" color="#0FB6D6" class="route-dot" />
+            <Label col="1" row="1" :text="currentRoute.name" class="route-name" />
           </GridLayout>
         </StackLayout>
       </ScrollView>
@@ -266,15 +263,16 @@ function back() {
   color: #1b1e24;
   font-size: 15;
   padding: 12 14;
-  margin-right: 10;
+  /* The field fills the row, the action sits next to it. */
+  width: 100%;
 }
 
 .field-action {
   color: #2f55f5;
-  font-size: 14;
+  font-size: 13;
   font-weight: 700;
   vertical-align: center;
-  width: 54;
+  margin-left: 12;
   text-align: right;
 }
 
@@ -284,7 +282,7 @@ function back() {
 
 /* ---------- Route ---------- */
 .route-dot {
-  width: 20;
+  margin-right: 6;
   vertical-align: center;
 }
 
@@ -294,6 +292,7 @@ function back() {
   font-size: 10;
   letter-spacing: 0.1;
   text-transform: uppercase;
+  margin-bottom: 4;
 }
 
 .route-name {

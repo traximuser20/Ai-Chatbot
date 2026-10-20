@@ -151,6 +151,9 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | `<View>` in a template | Not a registered element, so it renders nothing at all | Use `ContentView` for a plain, drawable box (`Placeholder` creates no native view either) |
 | `view.animate(props, options)` | The two argument form is ignored, nothing moves | Use the single definition form: `view.animate({ opacity: 1, duration: 280, curve: 'easeOut' })` |
 | `getMeasuredWidth()` | Reports **device pixels**, the layout works in dip | Divide by `Screen.mainScreen.scale` before using it as a dip value |
+| A `ListView` item that is wider than the list | The item is measured without a width, so a long title pushes the trailing button out of the drawer or the sheet | Give the item's root `width: 100%` |
+| A `width` in the style sheet of an `Icon` | The icon sizes itself through its `size` prop, which overwrites the style | Use a `margin-right` for the gap, never a `width` |
+| An endless animation that is never stopped | The animation chain keeps the view alive; a few of them fill the 192 MB V8 heap and the app dies with an OutOfMemoryError | `loopAnimation()` returns a stop function - call it when the view goes away |
 
 ---
 
@@ -162,6 +165,9 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 - The accent colour is derived from the provider prefix of the selected model (`src/utils/accent.ts`). Changing the model in the picker repaints the whole interface, so every accent-coloured surface must be bound to it rather than hard-coded.
 - `src/components/Icon.vue` draws the whole icon set from native views on a 24x24 grid, so every glyph is crisp, follows the accent and can be animated. It uses `ContentView` for the parts — never `<View>`.
 - `src/utils/motion.ts` owns the timing of every animation (`enter`, `exit`, `pressIn`, `pressOut`, `pulse`, `loopAnimation`). `src/directives/press.ts` is registered globally as `v-press` and gives every tappable surface a tactile response; its `touch` handler always returns `false` so the `tap` still fires.
+- A `loopAnimation()` always has to be stopped again - see `stopAllLoops()` in `Home.vue` for the pattern.
+- A failed request is **not** a message of the conversation: it is reported in the banner above the composer, with a retry. Failures that older versions stored in the history are dropped when the conversations are read back.
+- The LiveSync transfer of `ns run android` does not always reach the device in this container, and the hot update chunks it leaves behind are re-applied on top of the fresh bundle - which silently reverts the newest code. Copy `bundle.js` into `files/app` of the app data directory by hand and delete the `*.hot-update.*` files to get a clean state.
 
 ---
 

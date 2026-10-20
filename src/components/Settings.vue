@@ -168,29 +168,30 @@ function clearHistory() {
           <!-- ── Gateway ──────────────────────────────────────────────────── -->
           <Label text="Gateway" class="group-label" />
 
-          <GridLayout columns="auto, *" class="card row row--stack">
+          <GridLayout rows="auto, auto, auto" columns="auto, *" class="card row">
             <Icon
               col="0"
+              row="0"
               name="dot"
               :size="8"
               :color="chatStore.isConnected ? '#0FB6D6' : '#C0392B'"
               class="status-dot"
             />
-            <StackLayout col="1">
-              <Label text="Omni Ai" class="row-title" />
-              <Label :text="BASE_URL" class="row-mono" />
-              <Label
-                :text="reconnectMessage || (chatStore.isConnected ? 'Connected' : 'Not reachable')"
-                class="row-sub"
-              />
-            </StackLayout>
+            <Label col="1" row="0" text="Omni Ai" class="row-title" />
+            <Label col="1" row="1" :text="BASE_URL" class="row-mono" />
+            <Label
+              col="1"
+              row="2"
+              :text="reconnectMessage || (chatStore.isConnected ? 'Connected' : 'Not reachable')"
+              class="row-sub"
+            />
           </GridLayout>
 
           <GridLayout columns="*, auto" class="card row" v-press @tap="reconnect">
             <Label col="0" text="Reconnect" class="row-title" />
             <Label
               col="1"
-              :text="reconnecting ? '…' : 'Run'"
+              :text="reconnecting ? '…' : 'Retry'"
               class="row-action"
             />
           </GridLayout>
@@ -309,9 +310,8 @@ function clearHistory() {
 }
 
 .status-dot {
-  width: 18;
-  vertical-align: top;
-  margin-top: 4;
+  margin-right: 6;
+  vertical-align: center;
 }
 
 /* ---------- Segmented control ---------- */

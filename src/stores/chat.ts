@@ -109,7 +109,13 @@ function sanitizeMessage(raw: any): Message {
 
 /** Normalises a conversation that came back from storage. */
 function sanitizeConversation(raw: any): Conversation {
-  const messages = Array.isArray(raw?.messages) ? raw.messages.map(sanitizeMessage) : [];
+  const messages = Array.isArray(raw?.messages)
+    ? raw.messages
+        .map(sanitizeMessage)
+        // Failures used to be stored as messages of the conversation. They
+        // are reported in a banner now, so the old ones are dropped.
+        .filter((message: Message) => !message.isError)
+    : [];
   return {
     id: typeof raw?.id === 'string' ? raw.id : makeId(),
     title: typeof raw?.title === 'string' && raw.title ? raw.title : 'New conversation',
@@ -166,6 +172,14 @@ export const useChatStore = defineStore('chat', {
     hasMessages(): boolean {
       return this.messages.length > 0;
     },
+    /**
+     * The conversations worth showing in the history: the ones something was
+     * actually said in, newest first.
+     */
+    history: (state) =>
+      state.conversations
+        .filter((conversation) => conversation.messages.length > 0)
+        .sort((a, b) => b.updatedAt - a.updatedAt),
     /** Total number of messages across every conversation. */
     totalMessages: (state) =>
       state.conversations.reduce((sum, conversation) => sum + conversation.messages.length, 0),
@@ -206,17 +220,11 @@ export const useChatStore = defineStore('chat', {
 
     /** Starts a fresh conversation and makes it active. */
     newChat() {
-      const conversation: Conversation = {
-        id: makeId(),
-        title: 'New conversation',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        model: this.model,
-        messages: [],
-      };
-      this.conversations.unshift(conversation);
-      this.activeConversationId = conversation.id;
-      this.trim();
+      /*
+        No conversation is created yet: an empty one would show up in the
+        history before anything was said. The first message creates it.
+      */
+      this.activeConversationId = null;
       this.persist();
     },
 
@@ -269,6 +277,12 @@ export const useChatStore = defineStore('chat', {
       if (sender === 'user' && (conversation.title === 'New conversation' || !conversation.title)) {
         conversation.title = deriveTitle(text);
       }
+
+      // The conversation that was just used is the most recent one.
+      this.conversations = [
+        ...this.conversations.filter((item) => item.id !== conversation.id),
+        conversation,
+      ];
 
       this.persist();
     },

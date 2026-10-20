@@ -171,7 +171,7 @@ const paragraphs = computed(() =>
 }
 
 .ai-chip-dot {
-  width: 13;
+  margin-right: 6;
   vertical-align: center;
 }
 

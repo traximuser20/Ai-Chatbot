@@ -70,6 +70,12 @@ const statusText = computed(() => (chatStore.isConnected ? 'live' : 'offline'));
 /** The request that is currently in flight, so it can be stopped. */
 let inFlight: AbortController | undefined;
 
+/** The message that failed, so it can be sent again. */
+let failedText = '';
+
+/** A short, actionable description of the last failure. */
+const lastError = ref('');
+
 /* ------------------------------------------------------------------ */
 /* Motion                                                               */
 /* ------------------------------------------------------------------ */
@@ -83,11 +89,22 @@ const liveDot = ref<any>(null);
 const typingDots = ref<any[]>([]);
 const sendButton = ref<any>(null);
 
-/** The loops that are currently running, so they can be stopped. */
-let stopLoops: (() => void)[] = [];
+/**
+ * The loops that are currently running.
+ *
+ * Every loop keeps an animation chain alive, so it has to be stopped when
+ * its view goes away - otherwise the chains pile up and eat the heap.
+ */
+let stopHero: (() => void) | undefined;
+let stopLive: (() => void) | undefined;
+let stopBusy: (() => void) | undefined;
+let stopTyping: (() => void)[] = [];
 
 /** Brings the empty state in, one element after the other. */
 function animateHero() {
+  stopHero?.();
+  stopHero = undefined;
+
   nextTick(() => {
     enter(heroMark.value?.nativeView, { distance: 22, duration: 700, curve: 'easeOut' });
     enter(heroTitle.value?.nativeView, { delay: 90, distance: 16 });
@@ -97,29 +114,28 @@ function animateHero() {
     });
 
     // The mark breathes while the screen is idle.
-    stopLoops.push(
-      loopAnimation(heroMark.value?.nativeView, [
-        { properties: { scale: { x: 1.06, y: 1.06 } }, duration: 2600 },
-        { properties: { scale: { x: 1, y: 1 } }, duration: 2600 },
-      ]),
-    );
+    stopHero = loopAnimation(heroMark.value?.nativeView, [
+      { properties: { scale: { x: 1.06, y: 1.06 } }, duration: 2600 },
+      { properties: { scale: { x: 1, y: 1 } }, duration: 2600 },
+    ]);
   });
 }
 
 /** The live indicator pulses while the gateway is reachable. */
 function startLivePulse() {
-  stopLoops.push(
-    loopAnimation(liveDot.value?.nativeView, [
-      { properties: { opacity: 0.5, scale: { x: 0.85, y: 0.85 } }, duration: 1100 },
-      { properties: { opacity: 1, scale: { x: 1.1, y: 1.1 } }, duration: 1100 },
-    ]),
-  );
+  stopLive = loopAnimation(liveDot.value?.nativeView, [
+    { properties: { opacity: 0.5, scale: { x: 0.85, y: 0.85 } }, duration: 1100 },
+    { properties: { opacity: 1, scale: { x: 1.1, y: 1.1 } }, duration: 1100 },
+  ]);
 }
 
 /** The three dots hop while the answer is on its way. */
 function startTypingDots() {
+  stopTyping.forEach((stop) => stop());
+  stopTyping = [];
+
   typingDots.value.forEach((dot, index) => {
-    stopLoops.push(
+    stopTyping.push(
       loopAnimation(
         dot?.nativeView,
         [
@@ -131,6 +147,26 @@ function startTypingDots() {
       ),
     );
   });
+}
+
+/** The send button throbs while it waits for the answer. */
+function startBusyLoop() {
+  stopBusy = loopAnimation(sendButton.value?.nativeView, [
+    { properties: { scale: { x: 1.06, y: 1.06 } }, duration: 800 },
+    { properties: { scale: { x: 1, y: 1 } }, duration: 800 },
+  ]);
+}
+
+/** Stops every loop that is running. */
+function stopAllLoops() {
+  stopHero?.();
+  stopLive?.();
+  stopBusy?.();
+  stopTyping.forEach((stop) => stop());
+  stopHero = undefined;
+  stopLive = undefined;
+  stopBusy = undefined;
+  stopTyping = [];
 }
 
 let unsubscribeStatus: (() => void) | undefined;
@@ -157,8 +193,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   unsubscribeStatus?.();
-  stopLoops.forEach((stop) => stop());
-  stopLoops = [];
+  stopAllLoops();
 });
 
 // The empty state appears again whenever the last message is cleared.
@@ -167,6 +202,10 @@ watch(
   (length) => {
     if (length === 0) {
       animateHero();
+    } else {
+      // The mark is gone, its loop has to go with it.
+      stopHero?.();
+      stopHero = undefined;
     }
   },
 );
@@ -179,13 +218,13 @@ watch(
     if (typing) {
       nextTick(() => {
         startTypingDots();
-        stopLoops.push(
-          loopAnimation(sendButton.value?.nativeView, [
-            { properties: { scale: { x: 1.06, y: 1.06 } }, duration: 800 },
-            { properties: { scale: { x: 1, y: 1 } }, duration: 800 },
-          ]),
-        );
+        startBusyLoop();
       });
+    } else {
+      stopBusy?.();
+      stopBusy = undefined;
+      stopTyping.forEach((stop) => stop());
+      stopTyping = [];
     }
   },
 );
@@ -298,15 +337,17 @@ async function sendMessage() {
 
   const controller = new AbortController();
   inFlight = controller;
+  failedText = text;
 
   try {
     const reply = await omniAi.sendChat(history, chatStore.model, undefined, controller.signal);
     chatStore.setTypingStatus(false);
+    lastError.value = '';
 
     if (reply && reply.trim()) {
       chatStore.addMessage(reply, 'ai');
     } else {
-      chatStore.addMessage('(empty response)', 'ai', true);
+      lastError.value = 'The gateway answered with an empty reply.';
     }
     scrollToBottom();
     // The layout can still change afterwards (the keyboard closing for
@@ -320,13 +361,37 @@ async function sendMessage() {
       return;
     }
 
-    const message =
-      error instanceof Error ? error.message : 'Unknown error while contacting the Omni Ai gateway.';
-    chatStore.addMessage(message, 'ai', true);
-    scrollToBottom();
+    /*
+      A failure is not a message of the conversation: it would be stored with
+      the chat and would show up in the history for ever. It is reported in a
+      banner above the composer instead, with a way to try again.
+    */
+    lastError.value = describeError(error);
+    console.error('The request failed:', error);
   } finally {
     inFlight = undefined;
   }
+}
+
+/** Turns an error into something a person can act on. */
+function describeError(error: unknown): string {
+  if (error instanceof OmniAiError && error.status) {
+    return `The gateway answered with an error (${error.status}).`;
+  }
+  if (error instanceof Error && /Could not reach/i.test(error.message)) {
+    return 'The gateway is unreachable. Check that Omni Ai is running.';
+  }
+  return 'The request failed. Tap retry to try again.';
+}
+
+/** Sends the last message again. */
+function retryLastMessage() {
+  if (!failedText || chatStore.isTyping) {
+    return;
+  }
+  lastError.value = '';
+  userInput.value = failedText;
+  sendMessage();
 }
 
 /** Stops the request that is currently in flight. */
@@ -455,7 +520,23 @@ function stopGenerating() {
       </ScrollView>
 
       <!-- ============ Composer ============ -->
-      <GridLayout row="2" class="composer">
+      <StackLayout row="2" class="composer-area">
+        <!--
+          A failure is reported here instead of in the conversation: it is
+          not part of what was said, and it can be acted on right here.
+        -->
+        <GridLayout v-if="lastError" columns="auto, *, auto" class="error-bar">
+          <Icon col="0" name="dot" :size="8" color="#C0392B" class="error-bar-dot" />
+          <Label col="1" :text="lastError" textWrap="true" class="error-bar-text" />
+          <Label
+            col="2"
+            text="Retry"
+            class="error-bar-action"
+            v-press
+            @tap="retryLastMessage"
+          />
+        </GridLayout>
+
         <GridLayout columns="*, auto" class="composer-inner">
           <TextField
             col="0"
@@ -491,7 +572,7 @@ function stopGenerating() {
             </GridLayout>
           </GridLayout>
         </GridLayout>
-      </GridLayout>
+      </StackLayout>
 
       <!-- ============ Drawer ============ -->
       <GridLayout
@@ -567,7 +648,9 @@ function stopGenerating() {
 }
 
 .route-chip-dot {
-  width: 12;
+  /* The gap is a margin: the icon sizes itself through its prop, a width in
+     the style sheet would be overwritten by it. */
+  margin-right: 6;
   vertical-align: center;
 }
 
@@ -691,12 +774,42 @@ function stopGenerating() {
 }
 
 /* ---------- Composer ---------- */
-.composer {
+.composer-area {
   background-color: #ffffff;
   border-top-width: 1;
   border-top-color: #e9ebef;
   padding: 10 14 12 14;
   horizontal-align: stretch;
+}
+
+/* The banner that reports a failed request. */
+.error-bar {
+  background-color: #fdf0ef;
+  border-left-width: 3;
+  border-left-color: #c0392b;
+  border-radius: 8;
+  padding: 10 12;
+  margin-bottom: 10;
+}
+
+.error-bar-dot {
+  margin-right: 4;
+  vertical-align: top;
+  margin-top: 4;
+}
+
+.error-bar-text {
+  color: #8c2f24;
+  font-size: 13;
+  vertical-align: center;
+}
+
+.error-bar-action {
+  color: #c0392b;
+  font-size: 13;
+  font-weight: 700;
+  vertical-align: center;
+  padding-left: 12;
 }
 
 .composer-inner {

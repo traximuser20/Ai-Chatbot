@@ -164,21 +164,26 @@ function metaOf(conversation: Conversation): string {
       <GridLayout row="2" columns="*, auto" class="section">
         <Label col="0" text="Recent" class="section-label" />
         <Label
-          v-if="chatStore.conversations.length"
+          v-if="chatStore.history.length"
           col="1"
-          :text="`${chatStore.conversations.length}`"
+          :text="`${chatStore.history.length}`"
           class="section-count"
         />
       </GridLayout>
 
       <!-- Conversation history -->
       <ListView
-        v-if="chatStore.conversations.length"
+        v-if="chatStore.history.length"
         row="3"
         class="history"
-        :items="chatStore.conversations"
+        :items="chatStore.history"
       >
         <template #default="{ item: conversation }">
+          <!--
+            `width: 100%` keeps the row inside the panel: a ListView measures
+            its items without a width, so a long title would push the delete
+            button off the edge of the drawer.
+          -->
           <GridLayout columns="*, auto" class="history-row-wrap">
             <GridLayout
               col="0"
@@ -335,7 +340,7 @@ function metaOf(conversation: Conversation): string {
 }
 
 .section-count {
-  color: #b6bcc6;
+  color: #9aa1ad;
   font-family: monospace;
   font-size: 10;
   vertical-align: center;
@@ -348,6 +353,7 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-row-wrap {
+  width: 100%;
   padding: 0 12 0 14;
 }
 
@@ -360,9 +366,13 @@ function metaOf(conversation: Conversation): string {
   background-color: #f4f5f8;
 }
 
+/* The dot marks the provider of the conversation. It sits on the first line
+   of the title, so it is aligned to the top rather than to the middle of the
+   two line block. */
 .history-dot {
-  width: 14;
-  vertical-align: center;
+  vertical-align: top;
+  margin-top: 4;
+  margin-right: 8;
   opacity: 0.55;
 }
 
@@ -384,7 +394,6 @@ function metaOf(conversation: Conversation): string {
   vertical-align: center;
   padding-right: 4;
 }
-
 .history-confirm {
   vertical-align: center;
   padding-right: 6;
