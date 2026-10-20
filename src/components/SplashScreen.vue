@@ -35,13 +35,13 @@ const PAPER = '#F2F3F6';
 
 /**
  * How long the splash stays on screen once the native views are up.
- * The entrance beats below take ~1.6s, so the mark gets a moment to breathe
- * before it leaves.
+ * The entrance beats below take ~2.4s, so the mark gets a long moment to
+ * breathe before it leaves.
  */
-const HOLD_MS = 1800;
+const HOLD_MS = 3000;
 
 /** How long the whole exit takes. */
-const EXIT_MS = 560;
+const EXIT_MS = 1000;
 
 /**
  * Safety net: if the native `loaded` event never arrives the splash must
@@ -145,14 +145,14 @@ function startEntrance() {
   const copy = copyRef.value?.nativeView;
 
   // The field itself.
-  ink?.animate({ opacity: 1, duration: 520, curve: 'easeOut' });
+  ink?.animate({ opacity: 1, duration: 900, curve: 'easeOut' });
 
   // The mark: out of the glow, into place.
   hero?.animate({
     opacity: 1,
     scale: { x: 1, y: 1 },
-    duration: 900,
-    delay: 120,
+    duration: 1500,
+    delay: 200,
     curve: 'easeOut',
   });
 
@@ -160,8 +160,8 @@ function startEntrance() {
   copy?.animate({
     opacity: 1,
     translate: { x: 0, y: 0 },
-    duration: 800,
-    delay: 700,
+    duration: 1300,
+    delay: 1000,
     curve: 'easeOut',
   });
 }
@@ -183,23 +183,23 @@ function leave() {
   hero?.animate({
     opacity: 0,
     scale: { x: 1.16, y: 1.16 },
-    duration: 280,
+    duration: 420,
     curve: 'easeIn',
   });
   copy?.animate({
     opacity: 0,
     translate: { x: 0, y: -16 },
-    duration: 260,
+    duration: 380,
     curve: 'easeIn',
   });
-  ink?.animate({ opacity: 0, duration: 300, delay: 40, curve: 'easeIn' });
+  ink?.animate({ opacity: 0, duration: 480, delay: 80, curve: 'easeIn' });
   // The ground lightens from ink to paper while it dissolves, so the app
   // arrives on exactly the colour it uses.
   paper?.animate({
     backgroundColor: new Color(PAPER),
     opacity: 0,
-    duration: 300,
-    delay: 240,
+    duration: 560,
+    delay: 400,
     curve: 'easeIn',
   });
 
@@ -333,7 +333,7 @@ function applyStatusBar(dark: boolean) {
   margin-top: -140;
   opacity: 0.6;
   animation-name: splashGridDrift;
-  animation-duration: 26000ms;
+  animation-duration: 44000ms;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
@@ -350,7 +350,7 @@ function applyStatusBar(dark: boolean) {
   margin-left: -170;
   margin-top: -120;
   animation-name: splashDriftA;
-  animation-duration: 17000ms;
+  animation-duration: 28000ms;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   animation-fill-mode: both;
@@ -362,7 +362,7 @@ function applyStatusBar(dark: boolean) {
   margin-right: -190;
   margin-bottom: -150;
   animation-name: splashDriftB;
-  animation-duration: 21000ms;
+  animation-duration: 34000ms;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   animation-fill-mode: both;
@@ -379,7 +379,7 @@ function applyStatusBar(dark: boolean) {
   width: 262;
   height: 262;
   animation-name: splashOrbitOuter;
-  animation-duration: 16000ms;
+  animation-duration: 26000ms;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
@@ -388,7 +388,7 @@ function applyStatusBar(dark: boolean) {
   width: 196;
   height: 196;
   animation-name: splashOrbitInner;
-  animation-duration: 11000ms;
+  animation-duration: 18000ms;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
@@ -451,7 +451,7 @@ function applyStatusBar(dark: boolean) {
   opacity: 0.55;
   transform: scale(0.9);
   animation-name: splashBreathe;
-  animation-duration: 4200ms;
+  animation-duration: 6800ms;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   animation-fill-mode: both;
@@ -463,7 +463,7 @@ function applyStatusBar(dark: boolean) {
   horizontal-align: center;
   vertical-align: middle;
   animation-name: splashFloat;
-  animation-duration: 5200ms;
+  animation-duration: 8200ms;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   animation-fill-mode: both;
@@ -483,7 +483,7 @@ function applyStatusBar(dark: boolean) {
   vertical-align: middle;
   opacity: 0.72;
   animation-name: splashBeamPulse;
-  animation-duration: 2600ms;
+  animation-duration: 4200ms;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   animation-fill-mode: both;

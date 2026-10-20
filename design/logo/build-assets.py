@@ -275,6 +275,30 @@ def tile_svg(size: int, padding_ratio: float = 0.195, rounded: bool = True) -> s
 """
 
 
+def adaptive_monochrome_svg(size: int) -> str:
+    """The themed-icon layer: the mark as a single shape with the beam cut out."""
+    inner = size * 0.52
+    scale = inner / 512.0
+    pad = (size - inner) / 2
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 {size} {size}" width="{size}" height="{size}">
+  <defs>
+    <path id="prism" d="{PRISM_PATH}"/>
+    <mask id="cut">
+      <rect x="0" y="0" width="{size}" height="{size}" fill="#fff"/>
+      <g transform="translate({pad} {pad}) scale({scale})">
+        {beam_rect(BEAM_WIDTH + 6, "#000", 1)}
+      </g>
+    </mask>
+  </defs>
+  <g mask="url(#cut)">
+    <g transform="translate({pad} {pad}) scale({scale})">
+      <use xlink:href="#prism" fill="#ffffff"/>
+    </g>
+  </g>
+</svg>
+"""
+
+
 def adaptive_foreground_svg(size: int) -> str:
     """Adaptive icon foreground: the mark inside the 66% safe zone."""
     inner = size * 0.52
@@ -403,6 +427,7 @@ def main() -> int:
         folder.mkdir(parents=True, exist_ok=True)
         render(adaptive_foreground_svg(size), folder / "ic_launcher_foreground.png", size)
         render(adaptive_background_svg(size), folder / "ic_launcher_background.png", size)
+        render(adaptive_monochrome_svg(size), folder / "ic_launcher_monochrome.png", size)
 
     # 4. Android native splash --------------------------------------------
     for density, size in {

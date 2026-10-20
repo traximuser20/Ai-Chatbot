@@ -17,7 +17,7 @@ import { $navigateTo } from 'nativescript-vue';
 import { Screen } from '@nativescript/core';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
-import { omniRoute, type OmniRouteModel } from '../services/omniroute';
+import { omniRoute, OmniRouteError, type OmniRouteModel } from '../services/omniroute';
 import { accentFor, providerOf } from '../utils/accent';
 import ChatMessage from './ChatMessage.vue';
 import Sidebar from './Sidebar.vue';
@@ -25,6 +25,7 @@ import ModelSheet from './ModelSheet.vue';
 import Profile from './Profile.vue';
 import Settings from './Settings.vue';
 import SplashScreen from './SplashScreen.vue';
+import Icon from './Icon.vue';
 
 const chatStore = useChatStore();
 const settings = useSettingsStore();
@@ -64,6 +65,9 @@ const modelLabel = computed(() => {
 const canSend = computed(() => userInput.value.trim().length > 0 && !chatStore.isTyping);
 
 const statusText = computed(() => (chatStore.isConnected ? 'live' : 'offline'));
+
+/** The request that is currently in flight, so it can be stopped. */
+let inFlight: AbortController | undefined;
 
 let unsubscribeStatus: (() => void) | undefined;
 
@@ -154,12 +158,12 @@ function onNewChat() {
 
 function openProfile() {
   drawerOpen.value = false;
-  $navigateTo(Profile);
+  $navigateTo(Profile, { transition: { name: 'slide', duration: 260 } });
 }
 
 function openSettings() {
   drawerOpen.value = false;
-  $navigateTo(Settings);
+  $navigateTo(Settings, { transition: { name: 'slide', duration: 260 } });
 }
 
 /* ------------------------------------------------------------------ */
@@ -191,8 +195,11 @@ async function sendMessage() {
     'You are a helpful assistant. Answer concisely and use Markdown.',
   );
 
+  const controller = new AbortController();
+  inFlight = controller;
+
   try {
-    const reply = await omniRoute.sendChat(history, chatStore.model);
+    const reply = await omniRoute.sendChat(history, chatStore.model, undefined, controller.signal);
     chatStore.setTypingStatus(false);
 
     if (reply && reply.trim()) {
@@ -206,11 +213,24 @@ async function sendMessage() {
     setTimeout(() => scrollToBottom(false), 320);
   } catch (error) {
     chatStore.setTypingStatus(false);
+
+    // A cancelled request is not an error - the user pressed stop.
+    if (error instanceof OmniRouteError && error.cancelled) {
+      return;
+    }
+
     const message =
       error instanceof Error ? error.message : 'Unknown error while contacting OmniRoute.';
     chatStore.addMessage(message, 'ai', true);
     scrollToBottom();
+  } finally {
+    inFlight = undefined;
   }
+}
+
+/** Stops the request that is currently in flight. */
+function stopGenerating() {
+  inFlight?.abort();
 }
 </script>
 
@@ -220,23 +240,38 @@ async function sendMessage() {
       <!-- ============ App bar ============ -->
       <GridLayout row="0" columns="auto, *, auto" class="header">
         <!-- Drawer handle -->
-        <Label col="0" text="☰" class="icon-button" @tap="drawerOpen = true" />
+        <GridLayout
+          col="0"
+          columns="auto"
+          class="icon-button"
+          v-press
+          @tap="drawerOpen = true"
+        >
+          <Icon col="0" name="menu" :size="20" color="#14171D" />
+        </GridLayout>
 
         <!-- Active route: tapping it opens the model picker. -->
-        <GridLayout col="1" columns="auto, auto, auto, auto" class="route-chip" @tap="openModelPicker">
-          <Label col="0" text="●" class="route-chip-dot" :color="accent" />
+        <GridLayout
+          col="1"
+          columns="auto, auto, auto, auto"
+          class="route-chip"
+          v-press
+          @tap="openModelPicker"
+        >
+          <Icon col="0" name="dot" :size="8" :color="accent" class="route-chip-dot" />
           <Label col="1" :text="provider" class="route-chip-provider" />
           <Label col="2" :text="modelLabel" class="route-chip-model" />
-          <Label col="3" text="⌄" class="route-chip-caret" />
+          <Icon col="3" name="chevron-down" :size="13" color="#9AA1AD" />
         </GridLayout>
 
         <!-- Gateway state -->
         <GridLayout col="2" columns="auto, auto" class="status-chip">
-          <Label
+          <Icon
             col="0"
-            text="●"
-            class="status-dot"
+            name="dot"
+            :size="8"
             :color="chatStore.isConnected ? '#0FB6D6' : '#C0392B'"
+            :class="{ 'status-dot--live': chatStore.isConnected }"
           />
           <Label col="1" :text="statusText" class="status-text" />
         </GridLayout>
@@ -269,10 +304,12 @@ async function sendMessage() {
 
           <WrapLayout class="hero-chips">
             <Label
-              v-for="suggestion in suggestions"
+              v-for="(suggestion, index) in suggestions"
               :key="suggestion"
               :text="suggestion"
               class="hero-chip"
+              :class="`hero-chip--${index}`"
+              v-press
               @tap="useSuggestion(suggestion)"
             />
           </WrapLayout>

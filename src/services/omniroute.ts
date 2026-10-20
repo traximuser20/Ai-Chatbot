@@ -53,7 +53,12 @@ type StatusListener = (status: ConnectionStatus) => void;
 type StreamListener = (chunk: string) => void;
 
 export class OmniRouteError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(
+    message: string,
+    readonly status?: number,
+    /** True when the user cancelled the request (the stop button). */
+    readonly cancelled = false,
+  ) {
     super(message);
     this.name = 'OmniRouteError';
   }
@@ -124,17 +129,22 @@ class OmniRouteService {
    * NativeScript's XMLHttpRequest (which backs `fetch`) buffers the whole
    * response, so the completion is streamed to the caller in one piece
    * rather than token by token.
+   *
+   * `signal` aborts the request in flight - the composer uses it for the
+   * stop button.
    */
   public async sendChat(
     messages: ChatMessagePayload[],
     model: string = DEFAULT_MODEL,
     onChunk?: StreamListener,
+    signal?: AbortSignal,
   ): Promise<string> {
     try {
       const response = await this.request('/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model, messages, stream: false }),
+        signal,
       });
 
       const payload = await this.parseJson(response);
@@ -163,6 +173,10 @@ class OmniRouteService {
     try {
       response = await fetch(`${BASE_URL}${path}`, { ...init, headers });
     } catch (err) {
+      // An aborted request is not a failure - the user pressed stop.
+      if ((init as RequestInit)?.signal?.aborted) {
+        throw new OmniRouteError('Request cancelled.', undefined, true);
+      }
       // `fetch` rejects for network-level failures (host unreachable, DNS,
       // connection refused). Turn that into a readable error.
       throw new OmniRouteError(
