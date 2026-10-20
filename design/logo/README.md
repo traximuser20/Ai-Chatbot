@@ -27,7 +27,6 @@ as a light beam rather than as a decorative slash.
 | `omni-prism-glyph.svg` | The plain diamond, no beam. For sizes where a 52 px wide beam would only be noise (the sidebar brand). |
 | `omni-prism-mono.svg` | Single colour version, for print and favicons. |
 | `glow.svg`, `aurora-a.svg`, `aurora-b.svg` | The light around the mark: one bloom and two slow drifting blobs. |
-| `grid.svg` | The hairline technical grid that gives the splash screen its "routing diagram" texture. |
 
 ## Palette
 
@@ -77,10 +76,15 @@ disc of radius `CORNER` - without having to spell out four arcs.
    in front of the real one.
 2. The app takes over on the same ink, so the hand-over is invisible - one
    dark screen that comes alive.
-3. The grid, the aurora blobs and the two orbit rings drift in.
-4. The mark scales up out of the glow while its beam pulses.
-5. The wordmark, the eyebrow and the live gateway state rise into place.
-6. The exit is a two stage crossfade: the ink field dissolves into the paper
+3. The screen is a set of planes at different depths, each moving at its own
+   rate: the aurora drifts far in the background (96s and 118s), the two
+   orbit rings turn at 44s and 30s, the mark floats closest to the eye
+   (13s) with its glow breathing at 9s and its beam pulsing at 6s. Nothing
+   moves in lockstep, so the composition reads as depth.
+4. The planes arrive from the back, one long beat at a time: the field, the
+   aurora, the orbits, the mark, and last the wordmark and the live gateway
+   state.
+5. The exit is a two stage crossfade: the ink field dissolves into the paper
    colour the app uses, and only then does the paper dissolve into the chat
    screen. Nothing of the app is ever visible through the ink, so text never
    sits on top of text.

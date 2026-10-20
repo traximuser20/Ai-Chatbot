@@ -194,21 +194,6 @@ AURORA_B_SVG = radial_svg(
     size=512,
 )
 
-# A hairline technical grid - the "routing diagram" texture.
-GRID_SVG = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <g stroke="#FFFFFF" stroke-width="1" fill="none" opacity="0.1">
-    <path d="M0 0.5 H256 M0 32.5 H256 M0 64.5 H256 M0 96.5 H256 M0 128.5 H256 M0 160.5 H256 M0 192.5 H256 M0 224.5 H256"/>
-    <path d="M0.5 0 V256 M32.5 0 V256 M64.5 0 V256 M96.5 0 V256 M128.5 0 V256 M160.5 0 V256 M192.5 0 V256 M224.5 0 V256"/>
-  </g>
-  <g fill="#FFFFFF" opacity="0.16">
-    <circle cx="32.5" cy="32.5" r="1.6"/>
-    <circle cx="160.5" cy="96.5" r="1.6"/>
-    <circle cx="96.5" cy="192.5" r="1.6"/>
-    <circle cx="224.5" cy="160.5" r="1.6"/>
-  </g>
-</svg>
-"""
-
 
 def render(svg_text: str, out_png: pathlib.Path, size: int) -> None:
     tmp = out_png.with_suffix(".tmp.svg")
@@ -401,7 +386,6 @@ def main() -> int:
     (DESIGN / "glow.svg").write_text(GLOW_SVG)
     (DESIGN / "aurora-a.svg").write_text(AURORA_A_SVG)
     (DESIGN / "aurora-b.svg").write_text(AURORA_B_SVG)
-    (DESIGN / "grid.svg").write_text(GRID_SVG)
 
     # 2. Runtime images ----------------------------------------------------
     render(MARK_SVG, RUNTIME / "prism.png", 512)
@@ -410,7 +394,6 @@ def main() -> int:
     render(GLOW_SVG, RUNTIME / "prism-glow.png", 512)
     render(AURORA_A_SVG, RUNTIME / "aurora-a.png", 512)
     render(AURORA_B_SVG, RUNTIME / "aurora-b.png", 512)
-    render_rect(GRID_SVG, RUNTIME / "grid.png", 256, 256)
 
     # Smooth gradients compress badly as truecolour; a palette is plenty.
     for name in ("prism-glow.png", "aurora-a.png", "aurora-b.png"):
