@@ -83,6 +83,37 @@ function makeId(): string {
   return `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * Normalises a message that came back from storage.
+ *
+ * The stored JSON is written by an older version of the app (or by a
+ * half-finished write), so a message can be missing its text. Everything
+ * downstream assumes a string - a single `undefined` would otherwise take the
+ * whole UI down when the Markdown parser reads it.
+ */
+function sanitizeMessage(raw: any): Message {
+  return {
+    text: typeof raw?.text === 'string' ? raw.text : '',
+    sender: raw?.sender === 'user' ? 'user' : 'ai',
+    timestamp: typeof raw?.timestamp === 'string' ? raw.timestamp : '',
+    isError: !!raw?.isError,
+    model: typeof raw?.model === 'string' ? raw.model : undefined,
+  };
+}
+
+/** Normalises a conversation that came back from storage. */
+function sanitizeConversation(raw: any): Conversation {
+  const messages = Array.isArray(raw?.messages) ? raw.messages.map(sanitizeMessage) : [];
+  return {
+    id: typeof raw?.id === 'string' ? raw.id : makeId(),
+    title: typeof raw?.title === 'string' && raw.title ? raw.title : 'New conversation',
+    createdAt: typeof raw?.createdAt === 'number' ? raw.createdAt : Date.now(),
+    updatedAt: typeof raw?.updatedAt === 'number' ? raw.updatedAt : Date.now(),
+    model: typeof raw?.model === 'string' ? raw.model : 'auto/best-fast',
+    messages,
+  };
+}
+
 function readStored(): { conversations: Conversation[]; activeId: string | null } {
   try {
     const raw = ApplicationSettings.getString(STORAGE_KEY, '');
@@ -94,7 +125,7 @@ function readStored(): { conversations: Conversation[]; activeId: string | null 
       return { conversations: [], activeId: null };
     }
     return {
-      conversations: parsed.conversations as Conversation[],
+      conversations: parsed.conversations.map(sanitizeConversation),
       activeId: (parsed.activeId as string) ?? null,
     };
   } catch (err) {

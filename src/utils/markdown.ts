@@ -51,6 +51,9 @@ const WORD_RE = /[A-Za-z0-9]/;
  */
 export function parseInline(input: string): InlineToken[] {
   const tokens: InlineToken[] = [];
+  // Guard against a missing/blank input: a single malformed block must never
+  // take the whole app down.
+  const text = input ?? '';
   let buffer = '';
   let index = 0;
 
@@ -76,35 +79,35 @@ export function parseInline(input: string): InlineToken[] {
     nested.forEach((token) => tokens.push({ ...token, [flag]: true } as InlineToken));
   };
 
-  while (index < input.length) {
-    const char = input[index];
+  while (index < text.length) {
+    const char = text[index];
 
     // `inline code`
     if (char === '`') {
-      const close = input.indexOf('`', index + 1);
+      const close = text.indexOf('`', index + 1);
       if (close > index + 1) {
-        push(input.slice(index + 1, close), 'code');
+        push(text.slice(index + 1, close), 'code');
         index = close + 1;
         continue;
       }
     }
 
     // ~~strike~~
-    if (char === '~' && input[index + 1] === '~') {
-      const close = input.indexOf('~~', index + 2);
+    if (char === '~' && text[index + 1] === '~') {
+      const close = text.indexOf('~~', index + 2);
       if (close > index + 1) {
-        push(input.slice(index + 2, close), 'strike');
+        push(text.slice(index + 2, close), 'strike');
         index = close + 2;
         continue;
       }
     }
 
     if (char === '*' || char === '_') {
-      const doubled = input[index + 1] === char;
+      const doubled = text[index + 1] === char;
 
       if (doubled) {
-        const close = input.indexOf(char + char, index + 2);
-        const inner = close > -1 ? input.slice(index + 2, close) : '';
+        const close = text.indexOf(char + char, index + 2);
+        const inner = close > -1 ? text.slice(index + 2, close) : '';
         if (inner.length) {
           push(inner, 'bold');
           index = close + 2;
@@ -112,11 +115,11 @@ export function parseInline(input: string): InlineToken[] {
         }
       } else {
         // `_` inside a word (snake_case) is not emphasis.
-        const before = index > 0 ? input[index - 1] : '';
-        const after = input[index + 1] ?? '';
+        const before = index > 0 ? text[index - 1] : '';
+        const after = text[index + 1] ?? '';
         const wordInternal = char === '_' && WORD_RE.test(before) && WORD_RE.test(after);
-        const close = wordInternal ? -1 : input.indexOf(char, index + 1);
-        const inner = close > -1 ? input.slice(index + 1, close) : '';
+        const close = wordInternal ? -1 : text.indexOf(char, index + 1);
+        const inner = close > -1 ? text.slice(index + 1, close) : '';
         if (inner.length && !/\s/.test(inner[0]) && !/\s/.test(inner[inner.length - 1])) {
           push(inner, 'italic');
           index = close + 1;
@@ -131,6 +134,68 @@ export function parseInline(input: string): InlineToken[] {
 
   flush();
   return tokens;
+}
+
+/** Number of leading whitespace characters on a line. */
+function indentOf(line: string): number {
+  const match = line.match(/^[ \t]*/);
+  return match ? match[0].length : 0;
+}
+
+/**
+ * Parses one list (and any lists nested inside it).
+ *
+ * Returns the blocks to emit plus the index of the first line that does not
+ * belong to the list. A nested list is emitted as a sibling block right
+ * after its parent, so "1. a" / "   - b" / "2. c" stays a single numbered
+ * list of two items instead of being torn into three separate blocks.
+ */
+function parseList(
+  lines: string[],
+  start: number,
+): { blocks: Block[]; next: number } {
+  const first = lines[start];
+  const ordered = !!first.match(OL_RE);
+  const baseIndent = indentOf(first);
+  const items: InlineToken[][] = [];
+  const nested: Block[] = [];
+  let index = start;
+
+  while (index < lines.length) {
+    const current = lines[index];
+    const asOrdered = current.match(OL_RE);
+    const asUnordered = current.match(UL_RE);
+    const match = ordered ? asOrdered : asUnordered;
+    const indent = indentOf(current);
+
+    if (match && indent <= baseIndent) {
+      // A sibling item. Both UL_RE and OL_RE have a single capture group,
+      // so the item text is always [1].
+      //
+      // (Reading [2] for ordered items passed `undefined` into parseInline
+      // and crashed the app with "Cannot read properties of undefined
+      // (reading 'length')" on any reply containing a numbered list.)
+      items.push(parseInline(match[1] ?? ''));
+      index += 1;
+      continue;
+    }
+
+    // A more-indented list item is a nested list: parse it separately and
+    // keep the parent list going.
+    if ((asOrdered || asUnordered) && indent > baseIndent) {
+      const sub = parseList(lines, index);
+      nested.push(...sub.blocks);
+      index = sub.next;
+      continue;
+    }
+
+    break;
+  }
+
+  return {
+    blocks: [{ kind: 'list', ordered, items }, ...nested],
+    next: index,
+  };
 }
 
 /**
@@ -217,22 +282,9 @@ export function parseMarkdown(source: string): Block[] {
     const unordered = line.match(UL_RE);
     const ordered = line.match(OL_RE);
     if (unordered || ordered) {
-      const isOrdered = !!ordered;
-      const items: InlineToken[][] = [];
-      while (index < lines.length) {
-        const current = lines[index];
-        const asUnordered = current.match(UL_RE);
-        const asOrdered = current.match(OL_RE);
-        if (isOrdered && asOrdered) {
-          items.push(parseInline(asOrdered[2]));
-        } else if (!isOrdered && asUnordered) {
-          items.push(parseInline(asUnordered[1]));
-        } else {
-          break;
-        }
-        index += 1;
-      }
-      blocks.push({ kind: 'list', ordered: isOrdered, items });
+      const parsed = parseList(lines, index);
+      blocks.push(...parsed.blocks);
+      index = parsed.next;
       continue;
     }
 

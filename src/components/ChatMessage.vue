@@ -104,12 +104,12 @@ const paragraphs = computed(() =>
       <!-- Error notice. -->
       <GridLayout v-if="isError" columns="auto, *" class="ai-error">
         <Label col="0" text="!" class="ai-error-mark" />
-        <Label col="1" textWrap="true" class="ai-error-text" :text="text" />
+        <Label col="1" textWrap="true" class="ai-error-text" :text="text ?? ''" />
       </GridLayout>
 
       <MarkdownView
         v-else
-        :text="text"
+        :text="text ?? ''"
         :accent="accent"
         :scale="scale"
       />
