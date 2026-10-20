@@ -23,7 +23,7 @@ export function paintStatusBar(background: string, dark: boolean): void {
       const controller = activity.getWindow().getInsetsController();
       const lightBars = (android.view as any).WindowInsetsController
         .APPEARANCE_LIGHT_STATUS_BARS;
-      controller.setSystemBarsAppearance(dark ? 0 : lightBars, lightBars);
+      controller?.setSystemBarsAppearance(dark ? 0 : lightBars, lightBars);
     }
   } catch (err) {
     // Not fatal - the bar simply keeps the platform default.

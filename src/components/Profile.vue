@@ -71,7 +71,7 @@ function back() {
       <!-- ── Header ─────────────────────────────────────────────────────── -->
       <GridLayout row="0" columns="auto, *" class="screen-header">
         <GridLayout col="0" columns="auto" class="back-button" v-press @tap="back">
-          <Icon col="0" name="chevron-left" :size="19" color="#1B1E24" />
+          <Icon col="0" name="chevron-left" :size="19" tone="ink" />
         </GridLayout>
         <Label col="1" text="Profile" class="screen-title" />
       </GridLayout>
@@ -127,7 +127,7 @@ function back() {
           <Label text="Active route" class="field-label" />
           <GridLayout rows="auto, auto" columns="auto, *" class="card route">
             <Label col="0" row="0" colSpan="2" :text="currentRoute.provider" class="route-provider" />
-            <Icon col="0" row="1" name="dot" :size="8" color="#0FB6D6" class="route-dot" />
+            <Icon col="0" row="1" name="dot" :size="8" tone="live" class="route-dot" />
             <Label col="1" row="1" :text="currentRoute.name" class="route-name" />
           </GridLayout>
         </StackLayout>
@@ -138,14 +138,14 @@ function back() {
 
 <style scoped>
 .screen {
-background-color: var(--app-canvas);
+  background-color: var(--app-canvas);
 }
 
 /* ---------- Header ---------- */
 .screen-header {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-bottom-width: 1;
-border-bottom-color: var(--app-border);
+  border-bottom-color: var(--app-border);
   padding: 14 16;
 }
 
@@ -156,14 +156,14 @@ border-bottom-color: var(--app-border);
 }
 
 .screen-title {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-size: 17;
   font-weight: 700;
   vertical-align: center;
 }
 
 .screen-scroll {
-background-color: var(--app-canvas);
+  background-color: var(--app-canvas);
 }
 
 .body {
@@ -172,10 +172,10 @@ background-color: var(--app-canvas);
 
 /* ---------- Card ---------- */
 .card {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-radius: 14;
   border-width: 1;
-border-color: var(--app-border);
+  border-color: var(--app-border);
   padding: 16;
   margin-bottom: 12;
 }
@@ -185,8 +185,8 @@ border-color: var(--app-border);
   width: 54;
   height: 54;
   border-radius: 27;
-background-color: var(--app-ink-strong);
-color: var(--app-on-ink);
+  background-color: var(--app-ink-strong);
+  color: var(--app-on-ink);
   font-family: monospace;
   font-size: 18;
   font-weight: 700;
@@ -196,14 +196,14 @@ color: var(--app-on-ink);
 }
 
 .identity-name {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-size: 18;
   font-weight: 700;
   vertical-align: center;
 }
 
 .identity-sub {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 11;
   margin-top: 3;
@@ -215,24 +215,24 @@ color: var(--app-ink-muted);
 }
 
 .stat {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-radius: 14;
   border-width: 1;
-border-color: var(--app-border);
+  border-color: var(--app-border);
   padding: 14 8;
   text-align: center;
   margin-right: 8;
 }
 
 .stat-value {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-family: monospace;
   font-size: 20;
   font-weight: 700;
 }
 
 .stat-label {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 9;
   letter-spacing: 0.12;
@@ -242,7 +242,7 @@ color: var(--app-ink-muted);
 
 /* ---------- Fields ---------- */
 .field-label {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.13;
@@ -256,11 +256,11 @@ color: var(--app-ink-muted);
 }
 
 .field {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-width: 1;
-border-color: var(--app-border-2);
+  border-color: var(--app-border-2);
   border-radius: 12;
-color: var(--app-ink);
+  color: var(--app-ink);
   font-size: 15;
   padding: 12 14;
   /* The field fills the row, the action sits next to it. */
@@ -268,7 +268,7 @@ color: var(--app-ink);
 }
 
 .field-action {
-color: var(--app-link);
+  color: var(--app-link);
   font-size: 13;
   font-weight: 700;
   vertical-align: center;
@@ -277,7 +277,7 @@ color: var(--app-link);
 }
 
 .field-action--saved {
-color: var(--app-success);
+  color: var(--app-success);
 }
 
 /* ---------- Route ---------- */
@@ -287,7 +287,7 @@ color: var(--app-success);
 }
 
 .route-provider {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.1;
@@ -296,7 +296,7 @@ color: var(--app-ink-muted);
 }
 
 .route-name {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-family: monospace;
   font-size: 15;
   margin-top: 2;

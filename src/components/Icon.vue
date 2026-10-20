@@ -14,12 +14,13 @@
 import { computed } from 'vue';
 
 /** The theme tokens an icon can be painted with. */
-export type IconTone =
+type IconTone =
   | 'ink'
   | 'strong'
   | 'muted'
   | 'subtle'
   | 'faint'
+  | 'dim'
   | 'live'
   | 'offline'
   | 'danger'
@@ -114,6 +115,10 @@ const glyph = computed(() => GLYPHS[props.name] ?? GLYPHS['info']);
 
 .icon.icon--faint {
   color: var(--app-ink-faint);
+}
+
+.icon.icon--dim {
+  color: var(--app-ink-dim);
 }
 
 .icon.icon--live {

@@ -153,6 +153,8 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | `getMeasuredWidth()` | Reports **device pixels**, the layout works in dip | Divide by `Screen.mainScreen.scale` before using it as a dip value |
 | A `ListView` item that is wider than the list | The item is measured without a width, so a long title pushes the trailing button out of the drawer or the sheet | Give the item's root `width: 100%` |
 | A `width` in the style sheet of an `Icon` | The icon sizes itself through its `size` prop, which overwrites the style | Use a `margin-right` for the gap, never a `width` |
+| `rotate` on a view | Android rotates around the pivot, which defaults to the **top left** corner, so a rotated shape swings out of its box | Set `originX` / `originY` to `0.5` on the rotated view |
+| `Application.systemAppearance()` while the app starts | The native context does not exist yet and the framework throws `Cannot read properties of undefined (reading 'getResources')` | Ask for the appearance once the app is on screen |
 | An endless animation that is never stopped | The animation chain keeps the view alive; a few of them fill the 192 MB V8 heap and the app dies with an OutOfMemoryError | `loopAnimation()` returns a stop function - call it when the view goes away |
 
 ---
@@ -163,7 +165,7 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 - **Always set `orientation="horizontal"` on a `StackLayout` that holds side-by-side items.** The default is vertical.
 - `MarkdownView.vue` renders replies; `src/utils/markdown.ts` is a hand-written parser. A regex with a single capture group must be read with `[1]` — reading `[2]` passes `undefined` downstream and crashes the app (see the `asOrdered[2]` bug that was fixed in `parseList`).
 - The accent colour is derived from the provider prefix of the selected model (`src/utils/accent.ts`). Changing the model in the picker repaints the whole interface, so every accent-coloured surface must be bound to it rather than hard-coded.
-- `src/components/Icon.vue` draws the whole icon set from native views on a 24x24 grid, so every glyph is crisp, follows the accent and can be animated. It uses `ContentView` for the parts — never `<View>`.
+- `src/components/Icon.vue` draws the whole icon set with the `OmniIcons` font, a subset of Font Awesome (18 glyphs, 4 kB). It is built by `design/icons/build_font.py`; the font lives in `src/fonts`, which NativeScript copies into the app's `files/app/fonts` - the place the runtime looks for a font by its family name. A glyph in a `Label` is recoloured like any other text, so the icons follow the accent of the selected provider.
 - `src/utils/motion.ts` owns the timing of every animation (`enter`, `exit`, `pressIn`, `pressOut`, `pulse`, `loopAnimation`). `src/directives/press.ts` is registered globally as `v-press` and gives every tappable surface a tactile response; its `touch` handler always returns `false` so the `tap` still fires.
 - A `loopAnimation()` always has to be stopped again - see `stopAllLoops()` in `Home.vue` for the pattern.
 - A failed request is **not** a message of the conversation: it is reported in the banner above the composer, with a retry. Failures that older versions stored in the history are dropped when the conversations are read back.

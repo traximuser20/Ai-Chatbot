@@ -209,7 +209,7 @@ function metaOf(conversation: Conversation): string {
               v-press
               @tap="onDelete(conversation)"
             >
-              <Icon col="0" name="trash" :size="15" color="#B6BCC6" />
+              <Icon col="0" name="trash" :size="15" tone="faint" />
             </GridLayout>
             <StackLayout
               v-else
@@ -249,7 +249,7 @@ function metaOf(conversation: Conversation): string {
           v-press
           @tap="emit('openSettings')"
         >
-          <Icon col="0" name="sliders" :size="16" color="#6B7280" class="footer-mark" />
+          <Icon col="0" name="sliders" :size="16" tone="dim" class="footer-mark" />
           <Label col="1" text="Settings" class="footer-text" />
         </GridLayout>
       </GridLayout>
@@ -269,7 +269,7 @@ function metaOf(conversation: Conversation): string {
 /* ---------- Panel ---------- */
 .panel {
   width: 284;
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   horizontal-align: left;
   vertical-align: stretch;
   padding: 18 0 0 0;
@@ -288,14 +288,14 @@ background-color: var(--app-surface);
 }
 
 .brand-name {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-size: 17;
   font-weight: 700;
   letter-spacing: -0.015;
 }
 
 .brand-status {
-color: var(--app-live);
+  color: var(--app-live);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.08;
@@ -303,12 +303,12 @@ color: var(--app-live);
 }
 
 .brand-status--offline {
-color: var(--app-offline);
+  color: var(--app-offline);
 }
 
 /* ---------- New conversation ---------- */
 .new-chat {
-background-color: var(--app-ink-strong);
+  background-color: var(--app-ink-strong);
   border-radius: 12;
   margin: 0 16 20 16;
   padding: 13 14;
@@ -332,7 +332,7 @@ background-color: var(--app-ink-strong);
 }
 
 .section-label {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.14;
@@ -340,7 +340,7 @@ color: var(--app-ink-muted);
 }
 
 .section-count {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   vertical-align: center;
@@ -363,7 +363,7 @@ color: var(--app-ink-muted);
 }
 
 .history-row--active {
-background-color: var(--app-surface-2);
+  background-color: var(--app-surface-2);
 }
 
 /* The dot marks the provider of the conversation. It sits on the first line
@@ -377,12 +377,12 @@ background-color: var(--app-surface-2);
 }
 
 .history-title {
-color: var(--app-ink);
+  color: var(--app-ink);
   font-size: 14;
 }
 
 .history-meta {
-color: var(--app-ink-faint);
+  color: var(--app-ink-faint);
   font-family: monospace;
   font-size: 10;
   margin-top: 3;
@@ -400,14 +400,14 @@ color: var(--app-ink-faint);
 }
 
 .history-confirm-label {
-color: var(--app-ink-subtle);
+  color: var(--app-ink-subtle);
   font-size: 11;
   vertical-align: center;
   margin-right: 6;
 }
 
 .history-confirm-yes {
-color: var(--app-danger);
+  color: var(--app-danger);
   font-size: 12;
   font-weight: 700;
   vertical-align: center;
@@ -415,7 +415,7 @@ color: var(--app-danger);
 }
 
 .history-confirm-no {
-color: var(--app-ink-dim);
+  color: var(--app-ink-dim);
   font-size: 12;
   vertical-align: center;
 }
@@ -425,13 +425,13 @@ color: var(--app-ink-dim);
 }
 
 .history-empty-title {
-color: var(--app-ink-dim);
+  color: var(--app-ink-dim);
   font-size: 13;
   font-weight: 600;
 }
 
 .history-empty-text {
-color: var(--app-ink-faint);
+  color: var(--app-ink-faint);
   font-size: 12;
   margin-top: 3;
 }
@@ -439,7 +439,7 @@ color: var(--app-ink-faint);
 /* ---------- Footer ---------- */
 .footer {
   border-top-width: 1;
-border-top-color: var(--app-border);
+  border-top-color: var(--app-border);
   padding: 8 14 16 14;
 }
 
@@ -460,13 +460,13 @@ border-top-color: var(--app-border);
   height: 26;
   border-radius: 13;
   border-width: 1;
-border-color: var(--app-border-2);
+  border-color: var(--app-border-2);
   text-align: center;
   vertical-align: center;
 }
 
 .footer-text {
-color: var(--app-ink);
+  color: var(--app-ink);
   font-size: 14;
   vertical-align: center;
 }

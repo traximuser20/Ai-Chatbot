@@ -86,13 +86,13 @@ onMounted(() => {
           v-press
           @tap="emit('close')"
         >
-          <Icon col="0" name="close" :size="17" color="#8D94A0" />
+          <Icon col="0" name="close" :size="17" tone="subtle" />
         </GridLayout>
       </GridLayout>
 
       <!-- Search -->
       <GridLayout row="2" columns="auto, *" class="sheet-search">
-        <Icon col="0" name="search" :size="16" color="#9AA1AD" class="sheet-search-icon" />
+        <Icon col="0" name="search" :size="16" tone="muted" class="sheet-search-icon" />
         <TextField
           col="1"
           v-model="filter"
@@ -174,7 +174,7 @@ onMounted(() => {
 }
 
 .sheet {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-top-left-radius: 22;
   border-top-right-radius: 22;
   horizontal-align: stretch;
@@ -187,7 +187,7 @@ background-color: var(--app-surface);
   width: 40;
   height: 4;
   border-radius: 2;
-background-color: var(--app-border-2);
+  background-color: var(--app-border-2);
   margin-top: 10;
   margin-bottom: 8;
   horizontal-align: center;
@@ -198,13 +198,13 @@ background-color: var(--app-border-2);
 }
 
 .sheet-title {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-size: 18;
   font-weight: 700;
 }
 
 .sheet-subtitle {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.08;
@@ -219,7 +219,7 @@ color: var(--app-ink-muted);
 
 /* ---------- Search ---------- */
 .sheet-search {
-background-color: var(--app-canvas);
+  background-color: var(--app-canvas);
   border-radius: 12;
   padding: 0 12;
   margin-bottom: 10;
@@ -233,7 +233,7 @@ background-color: var(--app-canvas);
 .sheet-search-field {
   background-color: transparent;
   border-width: 0;
-color: var(--app-ink);
+  color: var(--app-ink);
   font-size: 14;
   padding: 10 0;
   vertical-align: center;
@@ -251,7 +251,7 @@ color: var(--app-ink);
 }
 
 .model-row--active {
-background-color: var(--app-surface-2);
+  background-color: var(--app-surface-2);
 }
 
 .model-dot {
@@ -261,7 +261,7 @@ background-color: var(--app-surface-2);
 }
 
 .model-provider {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 9;
   letter-spacing: 0.1;
@@ -269,7 +269,7 @@ color: var(--app-ink-muted);
 }
 
 .model-id {
-color: var(--app-ink);
+  color: var(--app-ink);
   font-family: monospace;
   font-size: 13;
   margin-top: 2;
@@ -285,7 +285,7 @@ color: var(--app-ink);
 }
 
 .sheet-empty-text {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-size: 13;
   text-align: center;
 }

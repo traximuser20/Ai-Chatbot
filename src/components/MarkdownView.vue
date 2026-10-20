@@ -181,13 +181,13 @@ function tokenWeight(token: InlineToken): string {
 
 /* ---------- Paragraph ---------- */
 .md-paragraph {
-color: var(--app-ink);
+  color: var(--app-ink);
   margin-bottom: 10;
 }
 
 /* ---------- Heading ---------- */
 .md-heading {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-weight: 700;
   margin-top: 6;
   margin-bottom: 6;
@@ -222,7 +222,7 @@ color: var(--app-ink-strong);
 }
 
 .md-list-text {
-color: var(--app-ink);
+  color: var(--app-ink);
 }
 
 /* ---------- Quote ---------- */
@@ -233,18 +233,18 @@ color: var(--app-ink);
 .md-quote-bar {
   width: 3;
   border-radius: 2;
-background-color: var(--app-quote-bar);
+  background-color: var(--app-quote-bar);
   margin-right: 10;
 }
 
 .md-quote-text {
-color: var(--app-quote-ink);
+  color: var(--app-quote-ink);
   font-style: italic;
 }
 
 /* ---------- Code block ---------- */
 .md-code {
-background-color: var(--app-code-bg);
+  background-color: var(--app-code-bg);
   border-radius: 12;
   padding: 0;
   margin-bottom: 10;
@@ -255,7 +255,7 @@ background-color: var(--app-code-bg);
 }
 
 .md-code-tag {
-color: var(--app-code-tag);
+  color: var(--app-code-tag);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.14;
@@ -270,11 +270,11 @@ color: var(--app-code-tag);
 
 .md-code-rule {
   height: 1;
-background-color: var(--app-code-rule);
+  background-color: var(--app-code-rule);
 }
 
 .md-code-text {
-color: var(--app-code-ink);
+  color: var(--app-code-ink);
   font-family: monospace;
   padding: 10 12 12 12;
 }
@@ -282,7 +282,7 @@ color: var(--app-code-ink);
 /* ---------- Rule ---------- */
 .md-rule {
   height: 1;
-background-color: var(--app-rule);
+  background-color: var(--app-rule);
   margin: 4 0 12 0;
 }
 </style>

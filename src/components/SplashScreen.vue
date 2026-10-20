@@ -20,23 +20,28 @@
  * moment where text sits on top of text.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { Application, Color } from '@nativescript/core';
 import { omniAi, type ConnectionStatus } from '../services/omni-ai';
+import { useThemeStore } from '../stores/theme';
+import { paintStatusBar } from '../utils/status-bar';
+import { themeToken } from '../utils/theme';
 
 /** Fires once the splash has finished animating away. */
 const emit = defineEmits(['done']);
 
+/** The theme the app is in - the splash hands over to it. */
+const theme = useThemeStore();
+
 /* ------------------------------------------------------------------ */
 /* Palette                                                             */
 /* ------------------------------------------------------------------ */
-const INK = '#0B0E17';
-const PAPER = '#F2F3F6';
 /**
- * The app bar of the chat screen. The system status bar sits above it, so
- * it has to carry the same colour - otherwise a grey band shows up between
- * the two.
+ * The ink of the launch sequence.
+ *
+ * The splash is a dark moment in both themes - the mark is drawn on ink, not
+ * on the canvas of the app. The paper underneath it is the canvas of the
+ * current theme, so the app fades in on exactly the colour it uses.
  */
-const SURFACE = '#FFFFFF';
+const INK = '#0B0E17';
 
 /**
  * How long the splash stays on screen once the native views are up.
@@ -66,7 +71,6 @@ const paperRef = ref(null);
 
 const status = ref<ConnectionStatus>('connecting');
 const modelCount = ref(0);
-
 let holdTimer: ReturnType<typeof setTimeout> | undefined;
 let exitTimer: ReturnType<typeof setTimeout> | undefined;
 let safetyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -211,10 +215,9 @@ function leave() {
     curve: 'easeIn',
   });
   view(inkRef)?.animate({ opacity: 0, duration: 700, curve: 'easeIn' });
-  // The ground lightens from ink to paper while it dissolves, so the app
-  // arrives on exactly the colour it uses.
+  // The paper is the canvas of the current theme, so the app dissolves into
+  // exactly the colour it uses.
   view(paperRef)?.animate({
-    backgroundColor: new Color(PAPER),
     opacity: 0,
     duration: 900,
     delay: 500,
@@ -227,28 +230,17 @@ function leave() {
   }, EXIT_MS);
 }
 
-/** Paints the system status bar to match whatever is on screen. */
-function applyStatusBar(dark: boolean) {
-  try {
-    // The page owns the window, so this is the supported way to recolour the
-    // status bar on Android.
-    const page = rootRef.value?.nativeView?.page;
-    if (page) {
-      page.androidStatusBarBackground = new Color(dark ? INK : SURFACE);
-    }
-
-    // Light icons on the dark splash, dark icons on the light app.
-    const activity = Application.android?.foregroundActivity;
-    if (activity && android.os.Build.VERSION.SDK_INT >= 30) {
-      const controller = activity.getWindow().getInsetsController();
-      const lightBars = (android.view as any).WindowInsetsController
-        .APPEARANCE_LIGHT_STATUS_BARS;
-      controller.setSystemBarsAppearance(dark ? 0 : lightBars, lightBars);
-    }
-  } catch (err) {
-    // Not fatal - the splash simply keeps the platform default.
-    console.error('Could not restyle the status bar:', err);
-  }
+/**
+ * Paints the system status bar to match whatever is on screen.
+ *
+ * While the splash is up the bar sits on ink, so its icons are light. Once
+ * the app is there the bar sits on the app bar of the chat screen, which
+ * carries the surface of the current theme.
+ */
+function applyStatusBar(onInk: boolean) {
+  const surface = themeToken('--app-surface', '#FFFFFF');
+  const dark = onInk || theme.isDark;
+  paintStatusBar(onInk ? INK : surface, dark);
 }
 </script>
 
@@ -320,7 +312,7 @@ function applyStatusBar(dark: boolean) {
 }
 
 .splash-paper {
-  background-color: #0b0e17;
+  background-color: var(--app-canvas);
   horizontal-align: stretch;
   vertical-align: stretch;
 }

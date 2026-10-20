@@ -5,7 +5,6 @@ import { useSettingsStore } from './settings';
 import {
   resolveTheme,
   systemAppearance,
-  themeToken,
   THEME_CLASS,
   type ThemeMode,
   type ThemeName,
@@ -40,31 +39,6 @@ export const useThemeStore = defineStore('theme', () => {
   const isDark = computed(() => name.value === 'dark');
 
   /**
-   * The palette, read back from the root view.
-   *
-   * The colours live in the style sheet, so they are read from there. Only a
-   * handful of places need a concrete colour - the status bar of the window
-   * and the fill of a button that is painted with a property rather than
-   * with a rule - and for those the palette is the source of truth.
-   *
-   * The dependency on the theme name is what refreshes the values: the root
-   * view is repainted before the screens are, so the tokens are current by the
-   * time a screen reads them.
-   */
-  const palette = computed(() => {
-    const applied = name.value;
-    return {
-      applied,
-      canvas: themeToken('--app-canvas', '#F2F3F6'),
-      surface: themeToken('--app-surface', '#FFFFFF'),
-      surface2: themeToken('--app-surface-2', '#F4F5F8'),
-      surface3: themeToken('--app-surface-3', '#ECEEF2'),
-      danger: themeToken('--app-danger', '#C0392B'),
-      onAccent: themeToken('--app-on-accent', '#FFFFFF'),
-    };
-  });
-
-  /**
    * The device changed its appearance.
    *
    * The framework keeps `ns-light` / `ns-dark` on the root view for its own
@@ -76,10 +50,21 @@ export const useThemeStore = defineStore('theme', () => {
 
   Application.on('systemAppearanceChanged', onSystemAppearanceChanged);
 
+  /**
+   * The appearance of the device can only be read once the app is on screen:
+   * before that the native context does not exist yet. So the value is
+   * picked up again when the app is launched.
+   */
+  if (!Application.hasLaunched()) {
+    Application.on(Application.launchEvent, () => {
+      system.value = systemAppearance();
+    });
+  }
+
   /** Picks a theme and remembers it. */
   function setMode(next: ThemeMode): void {
     settings.setTheme(next);
   }
 
-  return { mode, name, themeClass, isDark, system, palette, setMode };
+  return { mode, name, themeClass, isDark, system, setMode };
 });

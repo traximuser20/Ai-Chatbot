@@ -10,12 +10,14 @@ import { ref, onMounted, nextTick } from 'vue';
 import { $navigateBack } from 'nativescript-vue';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore, type TextScale } from '../stores/settings';
+import { useThemeStore } from '../stores/theme';
 import { omniAi, BASE_URL } from '../services/omni-ai';
 import { enter, pulse } from '../utils/motion';
 import Icon from './Icon.vue';
 
 const chatStore = useChatStore();
 const settings = useSettingsStore();
+const theme = useThemeStore();
 
 const reconnecting = ref(false);
 const reconnectMessage = ref('');
@@ -32,6 +34,8 @@ const scales: { value: TextScale; label: string }[] = [
 
 /** The segmented control, so the picked option can be popped. */
 const segmentRef = ref<any>(null);
+/** The segmented control of the theme. */
+const themeSegmentRef = ref<any>(null);
 /** The body of the screen, so it can rise into place. */
 const bodyRef = ref<any>(null);
 
@@ -42,6 +46,14 @@ const bodyRef = ref<any>(null);
 function popSegment(scale: TextScale) {
   const index = scales.findIndex((item) => item.value === scale);
   const view = segmentRef.value?.nativeView?.children?.[index]?.nativeView;
+  if (view) {
+    pulse(view, 1.08);
+  }
+}
+
+/** The same for the theme. */
+function popThemeSegment(index: number) {
+  const view = themeSegmentRef.value?.nativeView?.children?.[index]?.nativeView;
   if (view) {
     pulse(view, 1.08);
   }
@@ -90,7 +102,7 @@ function clearHistory() {
       <!-- ── Header ─────────────────────────────────────────────────────── -->
       <GridLayout row="0" columns="auto, *" class="screen-header">
         <GridLayout col="0" columns="auto" class="back-button" v-press @tap="back">
-          <Icon col="0" name="chevron-left" :size="19" color="#1B1E24" />
+          <Icon col="0" name="chevron-left" :size="19" tone="ink" />
         </GridLayout>
         <Label col="1" text="Settings" class="screen-title" />
       </GridLayout>
@@ -99,6 +111,44 @@ function clearHistory() {
         <StackLayout ref="bodyRef" class="body">
           <!-- ── Appearance ───────────────────────────────────────────────── -->
           <Label text="Appearance" class="group-label" />
+
+          <GridLayout columns="*" rows="auto, auto" class="card">
+            <StackLayout row="0">
+              <Label text="Theme" class="row-title" />
+              <Label text="Follows the device unless you pick a theme" class="row-sub" />
+            </StackLayout>
+            <!--
+              The segmented control. The options are written out one by one:
+              the children of a `v-for` inside a GridLayout are all placed in
+              column 0 and drawn on top of each other.
+            -->
+            <GridLayout ref="themeSegmentRef" row="1" columns="*, *, *" class="segment">
+              <Label
+                col="0"
+                text="System"
+                class="segment-item"
+                :class="{ 'segment-item--active': theme.mode === 'system' }"
+                v-press
+                @tap="theme.setMode('system'); popThemeSegment(0)"
+              />
+              <Label
+                col="1"
+                text="Light"
+                class="segment-item"
+                :class="{ 'segment-item--active': theme.mode === 'light' }"
+                v-press
+                @tap="theme.setMode('light'); popThemeSegment(1)"
+              />
+              <Label
+                col="2"
+                text="Dark"
+                class="segment-item"
+                :class="{ 'segment-item--active': theme.mode === 'dark' }"
+                v-press
+                @tap="theme.setMode('dark'); popThemeSegment(2)"
+              />
+            </GridLayout>
+          </GridLayout>
 
           <GridLayout ref="cardRef" columns="*" rows="auto, auto" class="card">
             <StackLayout row="0">
@@ -174,7 +224,7 @@ function clearHistory() {
               row="0"
               name="dot"
               :size="8"
-              :color="chatStore.isConnected ? '#0FB6D6' : '#C0392B'"
+              :tone="chatStore.isConnected ? 'live' : 'offline'"
               class="status-dot"
             />
             <Label col="1" row="0" text="Omni Ai" class="row-title" />
@@ -225,14 +275,14 @@ function clearHistory() {
 
 <style scoped>
 .screen {
-background-color: var(--app-canvas);
+  background-color: var(--app-canvas);
 }
 
 /* ---------- Header ---------- */
 .screen-header {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-bottom-width: 1;
-border-bottom-color: var(--app-border);
+  border-bottom-color: var(--app-border);
   padding: 14 16;
 }
 
@@ -243,14 +293,14 @@ border-bottom-color: var(--app-border);
 }
 
 .screen-title {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-size: 17;
   font-weight: 700;
   vertical-align: center;
 }
 
 .screen-scroll {
-background-color: var(--app-canvas);
+  background-color: var(--app-canvas);
 }
 
 .body {
@@ -259,7 +309,7 @@ background-color: var(--app-canvas);
 
 /* ---------- Groups ---------- */
 .group-label {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.13;
@@ -270,35 +320,35 @@ color: var(--app-ink-muted);
 
 /* ---------- Rows ---------- */
 .card {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-radius: 14;
   border-width: 1;
-border-color: var(--app-border);
+  border-color: var(--app-border);
   padding: 14 16;
   margin-bottom: 8;
 }
 
 .row-title {
-color: var(--app-ink);
+  color: var(--app-ink);
   font-size: 15;
   vertical-align: center;
 }
 
 .row-sub {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-size: 12;
   margin-top: 2;
 }
 
 .row-mono {
-color: var(--app-ink-dim);
+  color: var(--app-ink-dim);
   font-family: monospace;
   font-size: 11;
   margin-top: 3;
 }
 
 .row-action {
-color: var(--app-link);
+  color: var(--app-link);
   font-size: 14;
   font-weight: 700;
   vertical-align: center;
@@ -306,7 +356,7 @@ color: var(--app-link);
 }
 
 .row-action--danger {
-color: var(--app-danger);
+  color: var(--app-danger);
 }
 
 .status-dot {
@@ -316,7 +366,7 @@ color: var(--app-danger);
 
 /* ---------- Segmented control ---------- */
 .segment {
-background-color: var(--app-surface-3);
+  background-color: var(--app-surface-3);
   border-radius: 11;
   padding: 3;
   margin-top: 12;
@@ -328,7 +378,7 @@ background-color: var(--app-surface-3);
   top: 3;
   bottom: 3;
   width: 30;
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-radius: 9;
 }
 
@@ -339,7 +389,7 @@ background-color: var(--app-surface);
 }
 
 .segment-item {
-color: var(--app-ink-dim);
+  color: var(--app-ink-dim);
   font-size: 13;
   font-weight: 600;
   text-align: center;
@@ -349,8 +399,8 @@ color: var(--app-ink-dim);
 }
 
 .segment-item--active {
-background-color: var(--app-surface);
-color: var(--app-ink-strong);
+  background-color: var(--app-surface);
+  color: var(--app-ink-strong);
   font-weight: 700;
 }
 </style>

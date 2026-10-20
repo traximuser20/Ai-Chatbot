@@ -22,6 +22,7 @@ import { omniAi, OmniAiError, type OmniAiModel } from '../services/omni-ai';
 import { accentFor, providerOf } from '../utils/accent';
 import { enter, loopAnimation } from '../utils/motion';
 import { paintStatusBar } from '../utils/status-bar';
+import { themeToken } from '../utils/theme';
 import ChatMessage from './ChatMessage.vue';
 import Sidebar from './Sidebar.vue';
 import ModelSheet from './ModelSheet.vue';
@@ -67,23 +68,6 @@ const modelLabel = computed(() => {
 });
 
 const canSend = computed(() => userInput.value.trim().length > 0 && !chatStore.isTyping);
-
-/**
- * The fill of the send button.
- *
- * The button is painted with a property rather than with a rule, because the
- * accent of the provider is a runtime value. The two other states - idle and
- * waiting for the answer - come from the palette, so they follow the theme.
- */
-const sendButtonBackground = computed(() => {
-  if (chatStore.isTyping) {
-    return theme.palette.danger;
-  }
-  if (canSend.value) {
-    return accent.value;
-  }
-  return theme.palette.surface3;
-});
 
 const statusText = computed(() => (chatStore.isConnected ? 'live' : 'offline'));
 
@@ -227,6 +211,22 @@ watch(
       stopHero?.();
       stopHero = undefined;
     }
+  },
+);
+
+/*
+  The status bar sits above the app bar, so it has to follow the theme: the
+  icons of the bar are dark on a light surface and light on a dark one.
+
+  The bar is painted on the next tick, because the root view - which carries
+  the palette - is repainted with the rest of the interface.
+*/
+watch(
+  () => theme.name,
+  () => {
+    nextTick(() => {
+      paintStatusBar(themeToken('--app-surface', '#FFFFFF'), theme.isDark);
+    });
   },
 );
 
@@ -573,11 +573,24 @@ function stopGenerating() {
             col="1"
             columns="auto"
             class="send-button"
-            :class="{ 'send-button--idle': !canSend }"
-            :backgroundColor="sendButtonBackground"
+            :class="{
+              'send-button--idle': !canSend && !chatStore.isTyping,
+              'send-button--busy': chatStore.isTyping,
+            }"
             v-press
             @tap="chatStore.isTyping ? stopGenerating() : sendMessage()"
           >
+            <!--
+              The accent of the provider is a runtime value, so the fill of
+              the button is a view of its own. The two other states - idle
+              and waiting for the answer - are rules, and follow the theme.
+            -->
+            <GridLayout
+              v-if="canSend"
+              col="0"
+              class="send-button-fill"
+              :backgroundColor="accent"
+            />
             <GridLayout col="0" columns="auto" class="send-glyph-wrap">
               <Icon
                 v-if="!chatStore.isTyping"
@@ -636,14 +649,14 @@ function stopGenerating() {
 
 <style scoped>
 .page-root {
-background-color: var(--app-canvas);
+  background-color: var(--app-canvas);
 }
 
 /* ---------- App bar ---------- */
 .header {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-bottom-width: 1;
-border-bottom-color: var(--app-border);
+  border-bottom-color: var(--app-border);
   padding: 10 14;
   horizontal-align: stretch;
 }
@@ -657,7 +670,7 @@ border-bottom-color: var(--app-border);
 }
 
 .route-chip {
-background-color: var(--app-canvas);
+  background-color: var(--app-canvas);
   border-radius: 14;
   padding: 6 10;
   margin-right: 10;
@@ -672,7 +685,7 @@ background-color: var(--app-canvas);
 }
 
 .route-chip-provider {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.1;
@@ -682,7 +695,7 @@ color: var(--app-ink-muted);
 }
 
 .route-chip-model {
-color: var(--app-ink);
+  color: var(--app-ink);
   font-family: monospace;
   font-size: 11;
   font-weight: 700;
@@ -695,7 +708,7 @@ color: var(--app-ink);
 }
 
 .status-text {
-color: var(--app-ink-muted);
+  color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.1;
@@ -713,7 +726,7 @@ color: var(--app-ink-muted);
 
 /* ---------- Conversation ---------- */
 .message-scroll {
-background-color: var(--app-canvas);
+  background-color: var(--app-canvas);
 }
 
 .message-list {
@@ -744,14 +757,14 @@ background-color: var(--app-canvas);
 }
 
 .hero-title {
-color: var(--app-ink-strong);
+  color: var(--app-ink-strong);
   font-size: 24;
   font-weight: 700;
   letter-spacing: -0.02;
 }
 
 .hero-sub {
-color: var(--app-ink-subtle);
+  color: var(--app-ink-subtle);
   font-size: 14;
   margin-top: 8;
 }
@@ -761,11 +774,11 @@ color: var(--app-ink-subtle);
 }
 
 .hero-chip {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-width: 1;
-border-color: var(--app-border-2);
+  border-color: var(--app-border-2);
   border-radius: 18;
-color: var(--app-ink);
+  color: var(--app-ink);
   font-size: 13;
   padding: 9 14;
   margin-right: 8;
@@ -778,7 +791,7 @@ color: var(--app-ink);
 }
 
 .typing-bubble {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-width: 1;
   border-color: var(--app-border);
   border-radius: 18;
@@ -792,18 +805,18 @@ background-color: var(--app-surface);
 
 /* ---------- Composer ---------- */
 .composer-area {
-background-color: var(--app-surface);
+  background-color: var(--app-surface);
   border-top-width: 1;
-border-top-color: var(--app-border);
+  border-top-color: var(--app-border);
   padding: 10 14 12 14;
   horizontal-align: stretch;
 }
 
 /* The banner that reports a failed request. */
 .error-bar {
-background-color: var(--app-danger-bg);
+  background-color: var(--app-danger-bg);
   border-left-width: 3;
-border-left-color: var(--app-danger);
+  border-left-color: var(--app-danger);
   border-radius: 8;
   padding: 10 12;
   margin-bottom: 10;
@@ -816,7 +829,7 @@ border-left-color: var(--app-danger);
 }
 
 .error-bar-text {
-color: var(--app-danger-ink);
+  color: var(--app-danger-ink);
   font-size: 13;
   vertical-align: center;
 }
@@ -832,7 +845,7 @@ color: var(--app-danger-ink);
 }
 
 .error-bar-action {
-color: var(--app-danger);
+  color: var(--app-danger);
   font-size: 13;
   font-weight: 700;
   vertical-align: center;
@@ -843,8 +856,8 @@ color: var(--app-danger);
 }
 
 .composer-input {
-background-color: var(--app-canvas);
-color: var(--app-ink);
+  background-color: var(--app-canvas);
+  color: var(--app-ink);
   border-radius: 22;
   border-width: 0;
   padding: 12 18;
@@ -861,7 +874,20 @@ color: var(--app-ink);
 }
 
 .send-button--idle {
-background-color: var(--app-surface-3);
+  background-color: var(--app-surface-3);
+}
+
+.send-button--busy {
+  background-color: var(--app-danger);
+}
+
+/* The fill of the button, in the accent of the provider. */
+.send-button-fill {
+  width: 42;
+  height: 42;
+  border-radius: 21;
+  horizontal-align: center;
+  vertical-align: center;
 }
 
 .send-glyph-wrap {

@@ -50,10 +50,21 @@ export function resolveTheme(mode: ThemeMode, system: ThemeName): ThemeName {
  * `Application.primaryWindow` is not there yet while the app boots, so the
  * deprecated instance method is the fallback - it reads the configuration
  * directly.
+ *
+ * That fallback is not available before the native context exists though, and
+ * the store asks for the appearance while the app is still starting. The
+ * framework throws in that case, so the light appearance is assumed and the
+ * store asks again once the app is on screen.
  */
 export function systemAppearance(): ThemeName {
-  const appearance =
-    Application.primaryWindow?.systemAppearance?.() ?? Application.systemAppearance();
+  let appearance: string | null | undefined;
+  try {
+    appearance =
+      Application.primaryWindow?.systemAppearance?.() ?? Application.systemAppearance();
+  } catch (err) {
+    // The native context is not ready yet.
+    appearance = undefined;
+  }
   return appearance === 'dark' ? 'dark' : 'light';
 }
 

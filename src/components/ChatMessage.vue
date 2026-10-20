@@ -145,7 +145,7 @@ const paragraphs = computed(() =>
 
 /* ---------- User bubble ---------- */
 .user-bubble {
-background-color: var(--app-bubble);
+  background-color: var(--app-bubble);
   border-top-left-radius: 20;
   border-top-right-radius: 20;
   border-bottom-left-radius: 20;
@@ -156,7 +156,7 @@ background-color: var(--app-bubble);
 }
 
 .user-text {
-color: var(--app-on-bubble);
+  color: var(--app-on-bubble);
   font-weight: 400;
   margin-bottom: 2;
 }
@@ -176,7 +176,7 @@ color: var(--app-on-bubble);
 }
 
 .ai-chip-text {
-color: var(--app-ink-subtle);
+  color: var(--app-ink-subtle);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.1;
@@ -185,7 +185,7 @@ color: var(--app-ink-subtle);
 }
 
 .ai-timestamp {
-color: var(--app-ink-faint);
+  color: var(--app-ink-faint);
   font-family: monospace;
   font-size: 10;
   margin-top: 4;
@@ -193,16 +193,16 @@ color: var(--app-ink-faint);
 
 /* ---------- Error ---------- */
 .ai-error {
-background-color: var(--app-danger-bg);
+  background-color: var(--app-danger-bg);
   border-left-width: 3;
-border-left-color: var(--app-danger);
+  border-left-color: var(--app-danger);
   border-radius: 8;
   padding: 10 12;
   margin-bottom: 4;
 }
 
 .ai-error-mark {
-color: var(--app-danger);
+  color: var(--app-danger);
   font-weight: 700;
   font-size: 13;
   width: 18;
@@ -210,7 +210,7 @@ color: var(--app-danger);
 }
 
 .ai-error-text {
-color: var(--app-danger-ink);
+  color: var(--app-danger-ink);
   font-size: 14;
 }
 </style>
