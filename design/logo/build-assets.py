@@ -195,15 +195,16 @@ AURORA_B_SVG = radial_svg(
 )
 
 # A hairline technical grid - the "routing diagram" texture.
-GRID_SVG = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <g stroke="#FFFFFF" stroke-width="1" fill="none">
-    <path d="M0 0.5 H128 M0 32.5 H128 M0 64.5 H128 M0 96.5 H128"/>
-    <path d="M0.5 0 V128 M32.5 0 V128 M64.5 0 V128 M96.5 0 V128"/>
+GRID_SVG = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <g stroke="#FFFFFF" stroke-width="1" fill="none" opacity="0.1">
+    <path d="M0 0.5 H256 M0 32.5 H256 M0 64.5 H256 M0 96.5 H256 M0 128.5 H256 M0 160.5 H256 M0 192.5 H256 M0 224.5 H256"/>
+    <path d="M0.5 0 V256 M32.5 0 V256 M64.5 0 V256 M96.5 0 V256 M128.5 0 V256 M160.5 0 V256 M192.5 0 V256 M224.5 0 V256"/>
   </g>
-  <g fill="#FFFFFF" opacity="0.9">
-    <circle cx="0.5" cy="0.5" r="1.6"/>
-    <circle cx="64.5" cy="32.5" r="1.6"/>
-    <circle cx="32.5" cy="96.5" r="1.6"/>
+  <g fill="#FFFFFF" opacity="0.16">
+    <circle cx="32.5" cy="32.5" r="1.6"/>
+    <circle cx="160.5" cy="96.5" r="1.6"/>
+    <circle cx="96.5" cy="192.5" r="1.6"/>
+    <circle cx="224.5" cy="160.5" r="1.6"/>
   </g>
 </svg>
 """
@@ -314,6 +315,14 @@ def adaptive_background_svg(size: int) -> str:
   <circle cx="{size / 2}" cy="{size * 0.46}" r="{size * 0.46}" fill="url(#halo)"/>
 </svg>
 """
+
+
+def optimize(path: pathlib.Path) -> None:
+    """Quantize a smooth gradient down to a palette: smaller and faster to decode."""
+    with Image.open(path) as img:
+        rgba = img.convert("RGBA")
+        quantized = rgba.quantize(colors=192, method=Image.FASTOCTREE)
+        quantized.save(path, optimize=True)
 
 
 # --------------------------------------------------------------------------

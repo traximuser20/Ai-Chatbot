@@ -244,7 +244,7 @@ function tokenWeight(token: InlineToken): string {
 
 /* ---------- Code block ---------- */
 .md-code {
-  background-color: #12151b;
+  background-color: #0e111b;
   border-radius: 12;
   padding: 0;
   margin-bottom: 10;
@@ -270,7 +270,7 @@ function tokenWeight(token: InlineToken): string {
 
 .md-code-rule {
   height: 1;
-  background-color: #232830;
+  background-color: #1d2230;
 }
 
 .md-code-text {

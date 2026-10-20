@@ -131,7 +131,7 @@ const paragraphs = computed(() =>
 
 /* ---------- User bubble ---------- */
 .user-bubble {
-  background-color: #14171d;
+  background-color: #0e111b;
   border-top-left-radius: 20;
   border-top-right-radius: 20;
   border-bottom-left-radius: 20;

@@ -24,6 +24,7 @@ import Sidebar from './Sidebar.vue';
 import ModelSheet from './ModelSheet.vue';
 import Profile from './Profile.vue';
 import Settings from './Settings.vue';
+import SplashScreen from './SplashScreen.vue';
 
 const chatStore = useChatStore();
 const settings = useSettingsStore();
@@ -36,6 +37,9 @@ const models = ref<OmniRouteModel[]>([]);
 const showModelPicker = ref(false);
 const drawerOpen = ref(false);
 const loadingModels = ref(false);
+
+/** The launch sequence plays once, on top of the chat screen. */
+const showSplash = ref(true);
 
 /** Suggestions offered on the empty screen. */
 const suggestions = [
@@ -137,6 +141,11 @@ function selectModel(model: OmniRouteModel) {
 /* Drawer actions                                                      */
 /* ------------------------------------------------------------------ */
 
+/** The splash has finished animating away. */
+function onSplashDone() {
+  showSplash.value = false;
+}
+
 function onNewChat() {
   chatStore.newChat();
   userInput.value = '';
@@ -227,7 +236,7 @@ async function sendMessage() {
             col="0"
             text="●"
             class="status-dot"
-            :color="chatStore.isConnected ? '#0E8F6E' : '#C0392B'"
+            :color="chatStore.isConnected ? '#0FB6D6' : '#C0392B'"
           />
           <Label col="1" :text="statusText" class="status-text" />
         </GridLayout>
@@ -237,7 +246,20 @@ async function sendMessage() {
       <ScrollView row="1" ref="scrollRef" class="message-scroll">
         <!-- Empty state -->
         <StackLayout v-if="!chatStore.messages.length" class="hero">
-          <Label text="◈" class="hero-mark" :color="accent" />
+          <!--
+            The brand mark: a rotated square split by a single beam - one
+            request in, one answer out.
+          -->
+          <GridLayout rows="auto" columns="auto" class="hero-mark-wrap">
+            <Image
+              row="0"
+              col="0"
+              src="~/assets/img/prism-glow.png"
+              class="hero-glow"
+              opacity="0.5"
+            />
+            <Image row="0" col="0" src="~/assets/img/prism.png" class="hero-mark" />
+          </GridLayout>
           <Label text="What should we route?" class="hero-title" />
           <Label
             textWrap="true"
@@ -304,6 +326,7 @@ async function sendMessage() {
             columns="auto"
             class="send-button"
             :class="{ 'send-button--idle': !canSend }"
+            :backgroundColor="canSend ? accent : '#E6E8ED'"
             @tap="sendMessage"
           >
             <Label col="0" text="↑" class="send-glyph" :color="canSend ? '#FFFFFF' : '#B4BAC4'" />
@@ -344,6 +367,11 @@ async function sendMessage() {
           @close="closeModelPicker"
           @select="selectModel"
         />
+      </GridLayout>
+
+      <!-- ============ Launch sequence ============ -->
+      <GridLayout v-if="showSplash" row="0" rowSpan="3" col="0" class="splash-host">
+        <SplashScreen @done="onSplashDone" />
       </GridLayout>
     </GridLayout>
   </Page>
@@ -443,9 +471,22 @@ async function sendMessage() {
   padding: 36 26 24 26;
 }
 
+.hero-mark-wrap {
+  margin-bottom: 14;
+}
+
+.hero-glow {
+  width: 104;
+  height: 104;
+  horizontal-align: center;
+  vertical-align: center;
+}
+
 .hero-mark {
-  font-size: 34;
-  margin-bottom: 12;
+  width: 58;
+  height: 58;
+  horizontal-align: center;
+  vertical-align: center;
 }
 
 .hero-title {
@@ -524,7 +565,6 @@ async function sendMessage() {
   width: 42;
   height: 42;
   border-radius: 21;
-  background-color: #2f55f5;
   horizontal-align: right;
   vertical-align: center;
 }
@@ -541,6 +581,11 @@ async function sendMessage() {
 
 /* ---------- Overlays ---------- */
 .overlay {
+  horizontal-align: stretch;
+  vertical-align: stretch;
+}
+
+.splash-host {
   horizontal-align: stretch;
   vertical-align: stretch;
 }

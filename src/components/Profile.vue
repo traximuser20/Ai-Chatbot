@@ -177,7 +177,7 @@ function back() {
   width: 54;
   height: 54;
   border-radius: 27;
-  background-color: #14171d;
+  background-color: #0e111b;
   color: #ffffff;
   font-family: monospace;
   font-size: 18;

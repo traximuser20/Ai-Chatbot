@@ -125,7 +125,7 @@ function metaOf(conversation: Conversation): string {
     >
       <!-- Gateway identity -->
       <GridLayout row="0" columns="auto, *" class="brand">
-        <Label col="0" text="◈" class="brand-mark" :color="accent()" />
+        <Image col="0" src="~/assets/img/prism-glyph.png" class="brand-mark" />
         <StackLayout col="1">
           <Label text="OmniRoute" class="brand-name" />
           <Label
@@ -248,20 +248,21 @@ function metaOf(conversation: Conversation): string {
 }
 
 .brand-mark {
-  font-size: 22;
-  width: 30;
+  width: 26;
+  height: 26;
+  margin-right: 12;
   vertical-align: center;
 }
 
 .brand-name {
-  color: #0f1115;
+  color: #0e111b;
   font-size: 17;
   font-weight: 700;
   letter-spacing: -0.015;
 }
 
 .brand-status {
-  color: #0e8f6e;
+  color: #0fb6d6;
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.08;

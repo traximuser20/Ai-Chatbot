@@ -10,9 +10,27 @@
  * stable hash-derived hue so the interface never ends up colourless.
  */
 
+/**
+ * Brand tokens - see `design/logo/build-assets.py` for the source of truth.
+ */
+export const BRAND = {
+  /** Primary - the app's own default accent. */
+  cobalt: '#2F55F5',
+  /** Mid stop of the brand spectrum. */
+  iris: '#6D3BF5',
+  /** The live-route accent. */
+  cyan: '#0FB6D6',
+  /** Deep ground - used for the ink surfaces. */
+  ink: '#0E111B',
+  /** Raised ground. */
+  ink2: '#171B2B',
+  /** App canvas. */
+  paper: '#F2F3F6',
+};
+
 /** Accent colour per provider prefix. */
 const PROVIDER_ACCENTS: Record<string, string> = {
-  auto: '#6D4AFF',
+  auto: BRAND.iris,
   aihorde: '#0E8F6E',
   dva: '#C2410C',
   ollamacloud: '#0F766E',
@@ -23,7 +41,7 @@ const PROVIDER_ACCENTS: Record<string, string> = {
   cfp: '#4338CA',
   zc: '#7C3AED',
   'no-think': '#64748B',
-  oc: '#0891B2',
+  oc: BRAND.cyan,
   ddgw: '#A21CAF',
   felo: '#EA580C',
   unc: '#4D7C0F',
@@ -38,7 +56,7 @@ const PROVIDER_ACCENTS: Record<string, string> = {
 };
 
 /** Used when a model id carries no provider prefix at all. */
-export const DEFAULT_ACCENT = '#2F55F5';
+export const DEFAULT_ACCENT = BRAND.cobalt;
 
 /**
  * Extracts the provider prefix from a model id.
