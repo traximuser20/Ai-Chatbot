@@ -147,6 +147,10 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | `v-for` directly inside a `GridLayout` | All children land in column 0 and are drawn on top of each other (e.g. a segmented control rendered "Medium" and "Large" overlapping) | Put the `v-for` inside a `StackLayout orientation="horizontal"` (or a `WrapLayout`) instead of a `GridLayout` |
 | `StackLayout` without `orientation="horizontal"` | Children stack vertically (e.g. the typing indicator became a tall narrow pill instead of a row of dots) | Set `orientation="horizontal"` explicitly |
 | `letter-spacing: <n>` | Android's `TextView.setLetterSpacing()` takes **em**, not px, so `0.8` on a 10px label adds 8px between every character, and a negative value collapses the whole string into one glyph | Treat the value as a fraction of the font size: `0.08` for a tracked-out 10px label, `-0.02` for a tight headline |
+| `@keyframes` in a component's `<style scoped>` | The animation never runs, and `animation-fill-mode: both` then holds the element at the `from` state — the empty state and the profile screen stayed invisible | Drive the motion from `src/utils/motion.ts` with the animation API, not from CSS |
+| `<View>` in a template | Not a registered element, so it renders nothing at all | Use `ContentView` for a plain, drawable box (`Placeholder` creates no native view either) |
+| `view.animate(props, options)` | The two argument form is ignored, nothing moves | Use the single definition form: `view.animate({ opacity: 1, duration: 280, curve: 'easeOut' })` |
+| `getMeasuredWidth()` | Reports **device pixels**, the layout works in dip | Divide by `Screen.mainScreen.scale` before using it as a dip value |
 
 ---
 
@@ -156,6 +160,8 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 - **Always set `orientation="horizontal"` on a `StackLayout` that holds side-by-side items.** The default is vertical.
 - `MarkdownView.vue` renders replies; `src/utils/markdown.ts` is a hand-written parser. A regex with a single capture group must be read with `[1]` — reading `[2]` passes `undefined` downstream and crashes the app (see the `asOrdered[2]` bug that was fixed in `parseList`).
 - The accent colour is derived from the provider prefix of the selected model (`src/utils/accent.ts`). Changing the model in the picker repaints the whole interface, so every accent-coloured surface must be bound to it rather than hard-coded.
+- `src/components/Icon.vue` draws the whole icon set from native views on a 24x24 grid, so every glyph is crisp, follows the accent and can be animated. It uses `ContentView` for the parts — never `<View>`.
+- `src/utils/motion.ts` owns the timing of every animation (`enter`, `exit`, `pressIn`, `pressOut`, `pulse`, `loopAnimation`). `src/directives/press.ts` is registered globally as `v-press` and gives every tappable surface a tactile response; its `touch` handler always returns `false` so the `tap` still fires.
 
 ---
 
