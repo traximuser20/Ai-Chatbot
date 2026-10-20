@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Android 12+ draws its own launch screen. Point it at the brand:
+        the same ink ground and the same mark the in-app splash opens with,
+        so the hand-over from the system splash to the app splash is
+        invisible.
+    -->
+    <style name="LaunchScreenTheme" parent="LaunchScreenThemeBase">
+        <item name="android:windowSplashScreenBackground">@color/ns_splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+    </style>
+
+</resources>
