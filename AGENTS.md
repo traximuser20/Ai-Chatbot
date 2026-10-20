@@ -146,6 +146,7 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | A `ScrollView` with hundreds of `Label`s | Only the first item is laid out; the rest never appear | Use a `ListView` with an item template - it recycles rows |
 | `v-for` directly inside a `GridLayout` | All children land in column 0 and are drawn on top of each other (e.g. a segmented control rendered "Medium" and "Large" overlapping) | Put the `v-for` inside a `StackLayout orientation="horizontal"` (or a `WrapLayout`) instead of a `GridLayout` |
 | `StackLayout` without `orientation="horizontal"` | Children stack vertically (e.g. the typing indicator became a tall narrow pill instead of a row of dots) | Set `orientation="horizontal"` explicitly |
+| `letter-spacing: <n>` | Android's `TextView.setLetterSpacing()` takes **em**, not px, so `0.8` on a 10px label adds 8px between every character, and a negative value collapses the whole string into one glyph | Treat the value as a fraction of the font size: `0.08` for a tracked-out 10px label, `-0.02` for a tight headline |
 
 ---
 
@@ -154,6 +155,7 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 - **Never put a `v-for` directly in a `GridLayout`.** GridLayout columns are not assigned reliably to `v-for` children in NativeScript-Vue.
 - **Always set `orientation="horizontal"` on a `StackLayout` that holds side-by-side items.** The default is vertical.
 - `MarkdownView.vue` renders replies; `src/utils/markdown.ts` is a hand-written parser. A regex with a single capture group must be read with `[1]` — reading `[2]` passes `undefined` downstream and crashes the app (see the `asOrdered[2]` bug that was fixed in `parseList`).
+- The accent colour is derived from the provider prefix of the selected model (`src/utils/accent.ts`). Changing the model in the picker repaints the whole interface, so every accent-coloured surface must be bound to it rather than hard-coded.
 
 ---
 
