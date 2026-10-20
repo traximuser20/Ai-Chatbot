@@ -115,17 +115,55 @@ onUnmounted(() => {
 
 /**
  * The native views are up: this is the real "frame zero" of the sequence.
- * The CSS entrance beats are triggered by the same event, so the timeline
- * and the animations start together.
+ * The timeline is anchored here rather than in the Vue mount - on a slow
+ * device those are seconds apart.
  */
 function onStageLoaded() {
   // The activity theme has been swapped by now, so this is the first moment
   // the status bar can be painted to match the splash.
   applyStatusBar(true);
+  startEntrance();
 
   clearTimeout(safetyTimer);
   safetyTimer = setTimeout(leave, MAX_LIFE_MS);
   holdTimer = setTimeout(leave, HOLD_MS);
+}
+
+/**
+ * The entrance.
+ *
+ * These beats are driven through the NativeScript animation API rather than
+ * CSS keyframes: the CSS `animation-delay` is not reliable on Android (a
+ * delayed keyframe animation can be restarted before its delay elapses and
+ * therefore never start), and the API lets the whole sequence be timed from
+ * one place. The infinite ambience - the drifting aurora, the turning
+ * orbits, the breathing glow - stays in CSS, where an endless loop belongs.
+ */
+function startEntrance() {
+  const ink = inkRef.value?.nativeView;
+  const hero = heroRef.value?.nativeView;
+  const copy = copyRef.value?.nativeView;
+
+  // The field itself.
+  ink?.animate({ opacity: 1, duration: 420, curve: 'easeOut' });
+
+  // The mark: out of the glow, into place.
+  hero?.animate({
+    opacity: 1,
+    scale: { x: 1, y: 1 },
+    duration: 760,
+    delay: 90,
+    curve: 'easeOut',
+  });
+
+  // The wordmark and the state of the gateway.
+  copy?.animate({
+    opacity: 1,
+    translate: { x: 0, y: 0 },
+    duration: 700,
+    delay: 620,
+    curve: 'easeOut',
+  });
 }
 
 /**
@@ -142,8 +180,18 @@ function leave() {
   const copy = copyRef.value?.nativeView;
   const paper = paperRef.value?.nativeView;
 
-  hero?.animate({ opacity: 0, scaleX: 1.16, scaleY: 1.16, duration: 280, curve: 'easeIn' });
-  copy?.animate({ opacity: 0, translateY: -16, duration: 260, curve: 'easeIn' });
+  hero?.animate({
+    opacity: 0,
+    scale: { x: 1.16, y: 1.16 },
+    duration: 280,
+    curve: 'easeIn',
+  });
+  copy?.animate({
+    opacity: 0,
+    translate: { x: 0, y: -16 },
+    duration: 260,
+    curve: 'easeIn',
+  });
   ink?.animate({ opacity: 0, duration: 300, delay: 40, curve: 'easeIn' });
   // The ground lightens from ink to paper while it dissolves, so the app
   // arrives on exactly the colour it uses.
@@ -269,10 +317,6 @@ function applyStatusBar(dark: boolean) {
   horizontal-align: stretch;
   vertical-align: stretch;
   opacity: 0;
-  animation-name: splashFadeIn;
-  animation-duration: 620ms;
-  animation-timing-function: ease-out;
-  animation-fill-mode: both;
 }
 
 .splash-stage {
@@ -397,11 +441,6 @@ function applyStatusBar(dark: boolean) {
   margin-bottom: 26;
   opacity: 0;
   transform: scale(0.62);
-  animation-name: splashHeroIn;
-  animation-duration: 900ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-delay: 90ms;
-  animation-fill-mode: both;
 }
 
 .splash-glow {
@@ -456,11 +495,6 @@ function applyStatusBar(dark: boolean) {
   padding: 0 28 68 28;
   opacity: 0;
   transform: translate(0, 18);
-  animation-name: splashRise;
-  animation-duration: 760ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-delay: 640ms;
-  animation-fill-mode: both;
 }
 
 .splash-wordmark {
@@ -512,39 +546,8 @@ function applyStatusBar(dark: boolean) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Keyframes                                                           */
+/* Keyframes - the endless ambience                                   */
 /* ------------------------------------------------------------------ */
-@keyframes splashFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes splashHeroIn {
-  from {
-    opacity: 0;
-    transform: scale(0.62);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes splashRise {
-  from {
-    opacity: 0;
-    transform: translate(0, 18);
-  }
-  to {
-    opacity: 1;
-    transform: translate(0, 0);
-  }
-}
-
 @keyframes splashBreathe {
   from {
     opacity: 0.42;

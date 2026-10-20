@@ -80,7 +80,16 @@ disc of radius `CORNER` - without having to spell out four arcs.
    screen. Nothing of the app is ever visible through the ink, so text never
    sits on top of text.
 
-The entrance beats are CSS keyframes with `animation-delay`; the exit is
-driven through the NativeScript animation API so it can be sequenced
-precisely. The whole timeline is anchored to the native `loaded` event, not
-to the Vue mount - on a slow device those are seconds apart.
+The entrance and the exit are driven through the NativeScript animation
+API so the whole sequence is timed from one place; the endless ambience - the
+drifting aurora, the turning orbits, the breathing glow and the pulsing beam -
+stays in CSS, where an infinite loop belongs.
+
+Two things are worth knowing if the splash is changed:
+
+- The timeline is anchored to the native `loaded` event, not to the Vue
+  mount. On a slow device those are seconds apart, and the CSS entrance
+  animations only start when the native views are up.
+- CSS `animation-delay` is not reliable on Android: a delayed keyframe
+  animation can be restarted before its delay elapses and then never start.
+  That is why the staggered entrance uses `view.animate({ delay })` instead.
