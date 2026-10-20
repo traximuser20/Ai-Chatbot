@@ -2,217 +2,133 @@
 /**
  * The icon set.
  *
- * Every glyph in the interface is drawn from native views instead of a font
- * character. That buys three things a text glyph cannot give:
+ * The glyphs come from Font Awesome, cut down to the eighteen icons the
+ * interface uses and renamed to `OmniIcons` (see
+ * `design/icons/build_font.py` - the font is 4 kB instead of 400 kB).
  *
- *  - it is recolourable at runtime (`background-color` / `border-color`),
- *    which is what lets the accent follow the selected provider;
- *  - it is crisp at every density, with no icon font to ship;
- *  - every part can be animated - a chevron can rotate, a check can draw
- *    itself, the send arrow can morph into a stop square.
- *
- * The geometry is a 24x24 grid. `size` scales the whole thing, `stroke` the
- * weight of the line work.
- *
- * Every icon is described as a list of parts (see `PARTS`). The template then
- * renders that list with a single `v-for` - a `v-if` on a `<template>` block
- * does not work inside a native view in NativeScript-Vue.
+ * A font is used rather than hand drawn views because it gives a proper,
+ * consistent icon set, and because a glyph in a `Label` can be recoloured
+ * like any other text - which is what lets the icons follow the accent of
+ * the selected provider.
  */
 import { computed } from 'vue';
 
+/** The theme tokens an icon can be painted with. */
+export type IconTone =
+  | 'ink'
+  | 'strong'
+  | 'muted'
+  | 'subtle'
+  | 'faint'
+  | 'live'
+  | 'offline'
+  | 'danger'
+  | 'on-accent';
+
+/** The codepoint of every icon in the font. */
+const GLYPHS: Record<string, string> = {
+  menu: '\uf0c9', // bars
+  'chevron-down': '\uf078',
+  'chevron-left': '\uf053',
+  'arrow-up': '\uf062',
+  stop: '\uf04d', // square
+  plus: '\u002b',
+  close: '\uf00d', // xmark
+  search: '\uf002', // magnifying-glass
+  sliders: '\uf1de',
+  user: '\uf007',
+  dot: '\uf111', // circle
+  check: '\uf00c',
+  dots: '\uf141', // ellipsis
+  trash: '\uf1f8',
+  retry: '\uf2f1', // rotate
+  warning: '\uf071', // triangle-exclamation
+  plane: '\uf1d8', // paper-plane
+  info: '\uf05a', // circle-info
+};
+
 const props = withDefaults(
   defineProps<{
-    /** Name of the icon, see `PARTS` for the set. */
+    /** Name of the icon, see `GLYPHS` for the set. */
     name: string;
-    /** Overall size in device independent pixels. */
+    /** Size of the glyph in device independent pixels. */
     size?: number;
-    /** Colour of the stroke / fill. */
+    /**
+     * A concrete colour. Wins over the tone, and is what the provider accent
+     * needs - the accent changes with the selected model, so it cannot live
+     * in the palette.
+     */
     color?: string;
-    /** Stroke weight in grid units (1 unit = size / 24 px). */
-    stroke?: number;
+    /**
+     * A theme token. The glyph is then painted with the colour the palette
+     * gives it, so it follows the light or the dark theme.
+     */
+    tone?: IconTone;
   }>(),
   {
     size: 20,
-    color: '#14171D',
-    stroke: 2,
+    tone: 'ink',
   },
 );
 
-/** One piece of an icon, in grid units. */
-interface Part {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  /** Filled with the colour (otherwise only the border is drawn). */
-  fill?: boolean;
-  /** Which edges carry the stroke. */
-  edges?: 'all' | 'right-bottom' | 'none';
-  /** Border radius in grid units. */
-  radius?: number;
-  /** Border radius on the two top corners only. */
-  radiusTop?: number;
-  /** Rotation in degrees. */
-  rotate?: number;
-}
+/** The class that paints the glyph with a theme token. */
+const toneClass = computed(() => `icon--${props.tone}`);
 
-/** The chevron is one L shape, rotated to point in a direction. */
-const CHEVRON: Part = { left: 7.5, top: 7.5, width: 9, height: 9, edges: 'right-bottom' };
-
-/** All icons, in grid units. */
-const PARTS: Record<string, Part[]> = {
-  menu: [
-    { left: 3, top: 6, width: 18, height: 2, fill: true },
-    { left: 3, top: 11, width: 18, height: 2, fill: true },
-    { left: 3, top: 16, width: 18, height: 2, fill: true },
-  ],
-  'chevron-down': [{ ...CHEVRON, rotate: 45 }],
-  'chevron-up': [{ ...CHEVRON, rotate: 225 }],
-  'chevron-left': [{ ...CHEVRON, rotate: 135 }],
-  'chevron-right': [{ ...CHEVRON, rotate: 315 }],
-  'arrow-up': [
-    { ...CHEVRON, top: 3, rotate: 225 },
-    { left: 11, top: 11, width: 2, height: 10, fill: true },
-  ],
-  stop: [{ left: 6, top: 6, width: 12, height: 12, fill: true, radius: 2.5 }],
-  plus: [
-    { left: 4, top: 11, width: 16, height: 2, fill: true },
-    { left: 11, top: 4, width: 2, height: 16, fill: true },
-  ],
-  close: [
-    { left: 5.5, top: 11, width: 13, height: 2, fill: true, rotate: 45 },
-    { left: 5.5, top: 11, width: 13, height: 2, fill: true, rotate: -45 },
-  ],
-  search: [
-    { left: 3.5, top: 3.5, width: 12, height: 12, edges: 'all', radius: 6 },
-    { left: 16.4, top: 13.6, width: 2, height: 8, fill: true, rotate: 45 },
-  ],
-  sliders: [
-    { left: 4, top: 6, width: 16, height: 2, fill: true },
-    { left: 4, top: 12, width: 16, height: 2, fill: true },
-    { left: 4, top: 18, width: 16, height: 2, fill: true },
-    { left: 6, top: 4, width: 6, height: 6, fill: true, radius: 3 },
-    { left: 13, top: 10, width: 6, height: 6, fill: true, radius: 3 },
-    { left: 8, top: 16, width: 6, height: 6, fill: true, radius: 3 },
-  ],
-  user: [
-    { left: 7.5, top: 2, width: 9, height: 9, fill: true, radius: 4.5 },
-    { left: 4, top: 14, width: 16, height: 9, fill: true, radiusTop: 8 },
-  ],
-  dot: [{ left: 0, top: 0, width: 24, height: 24, fill: true, radius: 12 }],
-  check: [
-    { left: 5, top: 11.5, width: 7, height: 2, fill: true, rotate: 45 },
-    { left: 9.5, top: 11, width: 13, height: 2, fill: true, rotate: -45 },
-  ],
-  dots: [
-    { left: 3, top: 9.5, width: 5, height: 5, fill: true, radius: 2.5 },
-    { left: 9.5, top: 9.5, width: 5, height: 5, fill: true, radius: 2.5 },
-    { left: 16, top: 9.5, width: 5, height: 5, fill: true, radius: 2.5 },
-  ],
-  trash: [
-    { left: 9, top: 2.5, width: 6, height: 2, fill: true },
-    { left: 3, top: 6, width: 18, height: 2, fill: true },
-    { left: 6, top: 9, width: 12, height: 13, edges: 'all', radius: 1.5 },
-  ],
-};
-
-/** Grid unit -> device independent pixels. */
-const unit = computed(() => props.size / 24);
-
-/** The stroke thickness in pixels. */
-const thickness = computed(() => Math.round(props.stroke * unit.value * 100) / 100);
-
-/**
- * The icon, scaled to the requested size.
- */
-const parts = computed(() =>
-  (PARTS[props.name] ?? []).map((part) => ({
-    ...part,
-    left: Math.round(part.left * unit.value * 100) / 100,
-    top: Math.round(part.top * unit.value * 100) / 100,
-    width: Math.round(part.width * unit.value * 100) / 100,
-    height: Math.round(part.height * unit.value * 100) / 100,
-    radius: part.radius !== undefined
-      ? Math.round(part.radius * unit.value * 100) / 100
-      : undefined,
-    radiusTop: part.radiusTop !== undefined
-      ? Math.round(part.radiusTop * unit.value * 100) / 100
-      : undefined,
-  })),
-);
-
-/** The stroke width of one edge (0 when the edge carries no stroke). */
-function edgeWidth(part: Part, edge: 'all' | 'top' | 'right' | 'bottom' | 'left'): number {
-  if (part.edges === 'none') {
-    return 0;
-  }
-  if (part.edges === 'right-bottom') {
-    return edge === 'right' || edge === 'bottom' ? thickness.value : 0;
-  }
-  return thickness.value;
-}
-
-/** The rotation class of a part. */
-function rotateClass(part: Part): string {
-  if (!part.rotate) {
-    return '';
-  }
-  return part.rotate < 0 ? 'rot-neg-45' : `rot-${part.rotate}`;
-}
+/** The character of the icon, or a question mark if the name is unknown. */
+const glyph = computed(() => GLYPHS[props.name] ?? GLYPHS['info']);
 </script>
 
 <template>
-  <AbsoluteLayout :width="props.size" :height="props.size" class="icon">
-    <!--
-      `ContentView` is the plain, drawable box of NativeScript.
-      NativeScript-Vue only registers a fixed set of elements, and a bare
-      <View> is not one of them (`Placeholder` has no native view at all).
-    -->
-    <ContentView
-      v-for="(part, index) in parts"
-      :key="index"
-      :left="part.left"
-      :top="part.top"
-      :width="part.width"
-      :height="part.height"
-      :backgroundColor="part.fill ? props.color : 'transparent'"
-      :borderTopWidth="edgeWidth(part, 'top')"
-      :borderRightWidth="edgeWidth(part, 'right')"
-      :borderBottomWidth="edgeWidth(part, 'bottom')"
-      :borderLeftWidth="edgeWidth(part, 'left')"
-      :borderColor="props.color"
-      :borderRadius="part.radius"
-      :borderTopLeftRadius="part.radiusTop ?? part.radius"
-      :borderTopRightRadius="part.radiusTop ?? part.radius"
-      :class="rotateClass(part)"
-    />
-  </AbsoluteLayout>
+  <Label :text="glyph" class="icon" :class="toneClass" :fontSize="size" :color="color" />
 </template>
 
 <style scoped>
 .icon {
-  /* The icon is a pure container; every part positions itself. */
+  font-family: OmniIcons;
+  text-align: center;
+  vertical-align: center;
+  horizontal-align: center;
 }
 
-/* Rotations used by the chevrons, the arrow, the cross, the search handle
-   and the tick. The angles are fixed, so they live in CSS. */
-.rot-45 {
-  rotate: 45deg;
+/*
+  The tones. A tone is a token of the palette in `src/app.css`, so the glyph
+  follows the light or the dark theme. The rules carry the class of the icon
+  itself as well, so they win over the default of `.icon` whatever the order
+  of the style sheet is.
+*/
+.icon.icon--ink {
+  color: var(--app-ink);
 }
 
-.rot-135 {
-  rotate: 135deg;
+.icon.icon--strong {
+  color: var(--app-ink-strong);
 }
 
-.rot-225 {
-  rotate: 225deg;
+.icon.icon--muted {
+  color: var(--app-ink-muted);
 }
 
-.rot-315 {
-  rotate: 315deg;
+.icon.icon--subtle {
+  color: var(--app-ink-subtle);
 }
 
-.rot-neg-45 {
-  rotate: -45deg;
+.icon.icon--faint {
+  color: var(--app-ink-faint);
+}
+
+.icon.icon--live {
+  color: var(--app-live);
+}
+
+.icon.icon--offline {
+  color: var(--app-offline);
+}
+
+.icon.icon--danger {
+  color: var(--app-danger);
+}
+
+.icon.icon--on-accent {
+  color: var(--app-on-accent);
 }
 </style>

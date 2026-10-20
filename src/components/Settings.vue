@@ -225,14 +225,14 @@ function clearHistory() {
 
 <style scoped>
 .screen {
-  background-color: #f2f3f6;
+background-color: var(--app-canvas);
 }
 
 /* ---------- Header ---------- */
 .screen-header {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-bottom-width: 1;
-  border-bottom-color: #e9ebef;
+border-bottom-color: var(--app-border);
   padding: 14 16;
 }
 
@@ -243,14 +243,14 @@ function clearHistory() {
 }
 
 .screen-title {
-  color: #0f1115;
+color: var(--app-ink-strong);
   font-size: 17;
   font-weight: 700;
   vertical-align: center;
 }
 
 .screen-scroll {
-  background-color: #f2f3f6;
+background-color: var(--app-canvas);
 }
 
 .body {
@@ -259,7 +259,7 @@ function clearHistory() {
 
 /* ---------- Groups ---------- */
 .group-label {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.13;
@@ -270,35 +270,35 @@ function clearHistory() {
 
 /* ---------- Rows ---------- */
 .card {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-radius: 14;
   border-width: 1;
-  border-color: #e9ebef;
+border-color: var(--app-border);
   padding: 14 16;
   margin-bottom: 8;
 }
 
 .row-title {
-  color: #1b1e24;
+color: var(--app-ink);
   font-size: 15;
   vertical-align: center;
 }
 
 .row-sub {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-size: 12;
   margin-top: 2;
 }
 
 .row-mono {
-  color: #6b7280;
+color: var(--app-ink-dim);
   font-family: monospace;
   font-size: 11;
   margin-top: 3;
 }
 
 .row-action {
-  color: #2f55f5;
+color: var(--app-link);
   font-size: 14;
   font-weight: 700;
   vertical-align: center;
@@ -306,7 +306,7 @@ function clearHistory() {
 }
 
 .row-action--danger {
-  color: #c0392b;
+color: var(--app-danger);
 }
 
 .status-dot {
@@ -316,7 +316,7 @@ function clearHistory() {
 
 /* ---------- Segmented control ---------- */
 .segment {
-  background-color: #eceef2;
+background-color: var(--app-surface-3);
   border-radius: 11;
   padding: 3;
   margin-top: 12;
@@ -328,7 +328,7 @@ function clearHistory() {
   top: 3;
   bottom: 3;
   width: 30;
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-radius: 9;
 }
 
@@ -339,7 +339,7 @@ function clearHistory() {
 }
 
 .segment-item {
-  color: #6b7280;
+color: var(--app-ink-dim);
   font-size: 13;
   font-weight: 600;
   text-align: center;
@@ -349,8 +349,8 @@ function clearHistory() {
 }
 
 .segment-item--active {
-  background-color: #ffffff;
-  color: #0f1115;
+background-color: var(--app-surface);
+color: var(--app-ink-strong);
   font-weight: 700;
 }
 </style>

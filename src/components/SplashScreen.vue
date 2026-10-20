@@ -31,6 +31,12 @@ const emit = defineEmits(['done']);
 /* ------------------------------------------------------------------ */
 const INK = '#0B0E17';
 const PAPER = '#F2F3F6';
+/**
+ * The app bar of the chat screen. The system status bar sits above it, so
+ * it has to carry the same colour - otherwise a grey band shows up between
+ * the two.
+ */
+const SURFACE = '#FFFFFF';
 
 /**
  * How long the splash stays on screen once the native views are up.
@@ -228,7 +234,7 @@ function applyStatusBar(dark: boolean) {
     // status bar on Android.
     const page = rootRef.value?.nativeView?.page;
     if (page) {
-      page.androidStatusBarBackground = new Color(dark ? INK : PAPER);
+      page.androidStatusBarBackground = new Color(dark ? INK : SURFACE);
     }
 
     // Light icons on the dark splash, dark icons on the light app.

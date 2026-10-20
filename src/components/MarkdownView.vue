@@ -181,13 +181,13 @@ function tokenWeight(token: InlineToken): string {
 
 /* ---------- Paragraph ---------- */
 .md-paragraph {
-  color: #1b1e24;
+color: var(--app-ink);
   margin-bottom: 10;
 }
 
 /* ---------- Heading ---------- */
 .md-heading {
-  color: #0f1115;
+color: var(--app-ink-strong);
   font-weight: 700;
   margin-top: 6;
   margin-bottom: 6;
@@ -222,7 +222,7 @@ function tokenWeight(token: InlineToken): string {
 }
 
 .md-list-text {
-  color: #1b1e24;
+color: var(--app-ink);
 }
 
 /* ---------- Quote ---------- */
@@ -233,18 +233,18 @@ function tokenWeight(token: InlineToken): string {
 .md-quote-bar {
   width: 3;
   border-radius: 2;
-  background-color: #d5d9e0;
+background-color: var(--app-quote-bar);
   margin-right: 10;
 }
 
 .md-quote-text {
-  color: #5a6270;
+color: var(--app-quote-ink);
   font-style: italic;
 }
 
 /* ---------- Code block ---------- */
 .md-code {
-  background-color: #0e111b;
+background-color: var(--app-code-bg);
   border-radius: 12;
   padding: 0;
   margin-bottom: 10;
@@ -255,7 +255,7 @@ function tokenWeight(token: InlineToken): string {
 }
 
 .md-code-tag {
-  color: #6f7887;
+color: var(--app-code-tag);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.14;
@@ -270,11 +270,11 @@ function tokenWeight(token: InlineToken): string {
 
 .md-code-rule {
   height: 1;
-  background-color: #1d2230;
+background-color: var(--app-code-rule);
 }
 
 .md-code-text {
-  color: #e4e7ec;
+color: var(--app-code-ink);
   font-family: monospace;
   padding: 10 12 12 12;
 }
@@ -282,7 +282,7 @@ function tokenWeight(token: InlineToken): string {
 /* ---------- Rule ---------- */
 .md-rule {
   height: 1;
-  background-color: #e3e6ec;
+background-color: var(--app-rule);
   margin: 4 0 12 0;
 }
 </style>

@@ -138,14 +138,14 @@ function back() {
 
 <style scoped>
 .screen {
-  background-color: #f2f3f6;
+background-color: var(--app-canvas);
 }
 
 /* ---------- Header ---------- */
 .screen-header {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-bottom-width: 1;
-  border-bottom-color: #e9ebef;
+border-bottom-color: var(--app-border);
   padding: 14 16;
 }
 
@@ -156,14 +156,14 @@ function back() {
 }
 
 .screen-title {
-  color: #0f1115;
+color: var(--app-ink-strong);
   font-size: 17;
   font-weight: 700;
   vertical-align: center;
 }
 
 .screen-scroll {
-  background-color: #f2f3f6;
+background-color: var(--app-canvas);
 }
 
 .body {
@@ -172,10 +172,10 @@ function back() {
 
 /* ---------- Card ---------- */
 .card {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-radius: 14;
   border-width: 1;
-  border-color: #e9ebef;
+border-color: var(--app-border);
   padding: 16;
   margin-bottom: 12;
 }
@@ -185,8 +185,8 @@ function back() {
   width: 54;
   height: 54;
   border-radius: 27;
-  background-color: #0e111b;
-  color: #ffffff;
+background-color: var(--app-ink-strong);
+color: var(--app-on-ink);
   font-family: monospace;
   font-size: 18;
   font-weight: 700;
@@ -196,14 +196,14 @@ function back() {
 }
 
 .identity-name {
-  color: #0f1115;
+color: var(--app-ink-strong);
   font-size: 18;
   font-weight: 700;
   vertical-align: center;
 }
 
 .identity-sub {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 11;
   margin-top: 3;
@@ -215,24 +215,24 @@ function back() {
 }
 
 .stat {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-radius: 14;
   border-width: 1;
-  border-color: #e9ebef;
+border-color: var(--app-border);
   padding: 14 8;
   text-align: center;
   margin-right: 8;
 }
 
 .stat-value {
-  color: #0f1115;
+color: var(--app-ink-strong);
   font-family: monospace;
   font-size: 20;
   font-weight: 700;
 }
 
 .stat-label {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 9;
   letter-spacing: 0.12;
@@ -242,7 +242,7 @@ function back() {
 
 /* ---------- Fields ---------- */
 .field-label {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.13;
@@ -256,11 +256,11 @@ function back() {
 }
 
 .field {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-width: 1;
-  border-color: #e2e5ea;
+border-color: var(--app-border-2);
   border-radius: 12;
-  color: #1b1e24;
+color: var(--app-ink);
   font-size: 15;
   padding: 12 14;
   /* The field fills the row, the action sits next to it. */
@@ -268,7 +268,7 @@ function back() {
 }
 
 .field-action {
-  color: #2f55f5;
+color: var(--app-link);
   font-size: 13;
   font-weight: 700;
   vertical-align: center;
@@ -277,7 +277,7 @@ function back() {
 }
 
 .field-action--saved {
-  color: #0e8f6e;
+color: var(--app-success);
 }
 
 /* ---------- Route ---------- */
@@ -287,7 +287,7 @@ function back() {
 }
 
 .route-provider {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.1;
@@ -296,7 +296,7 @@ function back() {
 }
 
 .route-name {
-  color: #0f1115;
+color: var(--app-ink-strong);
   font-family: monospace;
   font-size: 15;
   margin-top: 2;

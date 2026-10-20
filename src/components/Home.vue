@@ -17,9 +17,11 @@ import { $navigateTo } from 'nativescript-vue';
 import { Screen } from '@nativescript/core';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
+import { useThemeStore } from '../stores/theme';
 import { omniAi, OmniAiError, type OmniAiModel } from '../services/omni-ai';
 import { accentFor, providerOf } from '../utils/accent';
 import { enter, loopAnimation } from '../utils/motion';
+import { paintStatusBar } from '../utils/status-bar';
 import ChatMessage from './ChatMessage.vue';
 import Sidebar from './Sidebar.vue';
 import ModelSheet from './ModelSheet.vue';
@@ -30,6 +32,7 @@ import Icon from './Icon.vue';
 
 const chatStore = useChatStore();
 const settings = useSettingsStore();
+const theme = useThemeStore();
 
 const userInput = ref('');
 const scrollRef = ref(null);
@@ -64,6 +67,23 @@ const modelLabel = computed(() => {
 });
 
 const canSend = computed(() => userInput.value.trim().length > 0 && !chatStore.isTyping);
+
+/**
+ * The fill of the send button.
+ *
+ * The button is painted with a property rather than with a rule, because the
+ * accent of the provider is a runtime value. The two other states - idle and
+ * waiting for the answer - come from the palette, so they follow the theme.
+ */
+const sendButtonBackground = computed(() => {
+  if (chatStore.isTyping) {
+    return theme.palette.danger;
+  }
+  if (canSend.value) {
+    return accent.value;
+  }
+  return theme.palette.surface3;
+});
 
 const statusText = computed(() => (chatStore.isConnected ? 'live' : 'offline'));
 
@@ -413,7 +433,7 @@ function stopGenerating() {
           v-press
           @tap="drawerOpen = true"
         >
-          <Icon col="0" name="menu" :size="20" color="#14171D" />
+          <Icon col="0" name="menu" :size="20" tone="ink" />
         </GridLayout>
 
         <!-- Active route: tapping it opens the model picker. -->
@@ -427,7 +447,7 @@ function stopGenerating() {
           <Icon col="0" name="dot" :size="8" :color="accent" class="route-chip-dot" />
           <Label col="1" :text="provider" class="route-chip-provider" />
           <Label col="2" :text="modelLabel" class="route-chip-model" />
-          <Icon col="3" name="chevron-down" :size="13" color="#9AA1AD" />
+          <Icon col="3" name="chevron-down" :size="13" tone="muted" />
         </GridLayout>
 
         <!-- Gateway state -->
@@ -437,7 +457,7 @@ function stopGenerating() {
             col="0"
             name="dot"
             :size="8"
-            :color="chatStore.isConnected ? '#0FB6D6' : '#C0392B'"
+            :tone="chatStore.isConnected ? 'live' : 'offline'"
           />
           <Label col="1" :text="statusText" class="status-text" />
         </GridLayout>
@@ -511,7 +531,7 @@ function stopGenerating() {
                 :ref="(el) => (typingDots[index] = el)"
                 name="dot"
                 :size="9"
-                color="#9AA1AD"
+                tone="muted"
                 class="typing-mark"
               />
             </StackLayout>
@@ -526,15 +546,12 @@ function stopGenerating() {
           not part of what was said, and it can be acted on right here.
         -->
         <GridLayout v-if="lastError" columns="auto, *, auto" class="error-bar">
-          <Icon col="0" name="dot" :size="8" color="#C0392B" class="error-bar-dot" />
+          <Icon col="0" name="warning" :size="13" tone="danger" class="error-bar-dot" />
           <Label col="1" :text="lastError" textWrap="true" class="error-bar-text" />
-          <Label
-            col="2"
-            text="Retry"
-            class="error-bar-action"
-            v-press
-            @tap="retryLastMessage"
-          />
+          <GridLayout col="2" columns="auto" class="error-bar-action-wrap" v-press @tap="retryLastMessage">
+            <Icon col="0" name="retry" :size="12" tone="danger" class="error-bar-action-icon" />
+            <Label col="1" text="Retry" class="error-bar-action" />
+          </GridLayout>
         </GridLayout>
 
         <GridLayout columns="*, auto" class="composer-inner">
@@ -557,7 +574,7 @@ function stopGenerating() {
             columns="auto"
             class="send-button"
             :class="{ 'send-button--idle': !canSend }"
-            :backgroundColor="chatStore.isTyping ? '#C0392B' : canSend ? accent : '#E6E8ED'"
+            :backgroundColor="sendButtonBackground"
             v-press
             @tap="chatStore.isTyping ? stopGenerating() : sendMessage()"
           >
@@ -566,9 +583,9 @@ function stopGenerating() {
                 v-if="!chatStore.isTyping"
                 name="arrow-up"
                 :size="17"
-                :color="canSend ? '#FFFFFF' : '#B4BAC4'"
+                :tone="canSend ? 'on-accent' : 'faint'"
               />
-              <Icon v-else name="stop" :size="15" color="#FFFFFF" />
+              <Icon v-else name="stop" :size="15" tone="on-accent" />
             </GridLayout>
           </GridLayout>
         </GridLayout>
@@ -619,14 +636,14 @@ function stopGenerating() {
 
 <style scoped>
 .page-root {
-  background-color: #f2f3f6;
+background-color: var(--app-canvas);
 }
 
 /* ---------- App bar ---------- */
 .header {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-bottom-width: 1;
-  border-bottom-color: #e9ebef;
+border-bottom-color: var(--app-border);
   padding: 10 14;
   horizontal-align: stretch;
 }
@@ -640,7 +657,7 @@ function stopGenerating() {
 }
 
 .route-chip {
-  background-color: #f2f3f6;
+background-color: var(--app-canvas);
   border-radius: 14;
   padding: 6 10;
   margin-right: 10;
@@ -655,7 +672,7 @@ function stopGenerating() {
 }
 
 .route-chip-provider {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.1;
@@ -665,7 +682,7 @@ function stopGenerating() {
 }
 
 .route-chip-model {
-  color: #1b1e24;
+color: var(--app-ink);
   font-family: monospace;
   font-size: 11;
   font-weight: 700;
@@ -678,7 +695,7 @@ function stopGenerating() {
 }
 
 .status-text {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.1;
@@ -696,7 +713,7 @@ function stopGenerating() {
 
 /* ---------- Conversation ---------- */
 .message-scroll {
-  background-color: #f2f3f6;
+background-color: var(--app-canvas);
 }
 
 .message-list {
@@ -727,14 +744,14 @@ function stopGenerating() {
 }
 
 .hero-title {
-  color: #0f1115;
+color: var(--app-ink-strong);
   font-size: 24;
   font-weight: 700;
   letter-spacing: -0.02;
 }
 
 .hero-sub {
-  color: #8d94a0;
+color: var(--app-ink-subtle);
   font-size: 14;
   margin-top: 8;
 }
@@ -744,11 +761,11 @@ function stopGenerating() {
 }
 
 .hero-chip {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-width: 1;
-  border-color: #e2e5ea;
+border-color: var(--app-border-2);
   border-radius: 18;
-  color: #3a4049;
+color: var(--app-ink);
   font-size: 13;
   padding: 9 14;
   margin-right: 8;
@@ -761,9 +778,9 @@ function stopGenerating() {
 }
 
 .typing-bubble {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-width: 1;
-  border-color: #e6e8ee;
+  border-color: var(--app-border);
   border-radius: 18;
   padding: 13 16;
   horizontal-align: left;
@@ -775,18 +792,18 @@ function stopGenerating() {
 
 /* ---------- Composer ---------- */
 .composer-area {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-top-width: 1;
-  border-top-color: #e9ebef;
+border-top-color: var(--app-border);
   padding: 10 14 12 14;
   horizontal-align: stretch;
 }
 
 /* The banner that reports a failed request. */
 .error-bar {
-  background-color: #fdf0ef;
+background-color: var(--app-danger-bg);
   border-left-width: 3;
-  border-left-color: #c0392b;
+border-left-color: var(--app-danger);
   border-radius: 8;
   padding: 10 12;
   margin-bottom: 10;
@@ -795,21 +812,30 @@ function stopGenerating() {
 .error-bar-dot {
   margin-right: 4;
   vertical-align: top;
-  margin-top: 4;
+  margin-top: 3;
 }
 
 .error-bar-text {
-  color: #8c2f24;
+color: var(--app-danger-ink);
   font-size: 13;
+  vertical-align: center;
+}
+
+.error-bar-action-wrap {
+  margin-left: 12;
+  vertical-align: center;
+}
+
+.error-bar-action-icon {
+  margin-right: 5;
   vertical-align: center;
 }
 
 .error-bar-action {
-  color: #c0392b;
+color: var(--app-danger);
   font-size: 13;
   font-weight: 700;
   vertical-align: center;
-  padding-left: 12;
 }
 
 .composer-inner {
@@ -817,8 +843,8 @@ function stopGenerating() {
 }
 
 .composer-input {
-  background-color: #f2f3f6;
-  color: #14171d;
+background-color: var(--app-canvas);
+color: var(--app-ink);
   border-radius: 22;
   border-width: 0;
   padding: 12 18;
@@ -835,7 +861,7 @@ function stopGenerating() {
 }
 
 .send-button--idle {
-  background-color: #e6e8ed;
+background-color: var(--app-surface-3);
 }
 
 .send-glyph-wrap {

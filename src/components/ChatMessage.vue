@@ -145,7 +145,7 @@ const paragraphs = computed(() =>
 
 /* ---------- User bubble ---------- */
 .user-bubble {
-  background-color: #0e111b;
+background-color: var(--app-bubble);
   border-top-left-radius: 20;
   border-top-right-radius: 20;
   border-bottom-left-radius: 20;
@@ -156,7 +156,7 @@ const paragraphs = computed(() =>
 }
 
 .user-text {
-  color: #ffffff;
+color: var(--app-on-bubble);
   font-weight: 400;
   margin-bottom: 2;
 }
@@ -176,7 +176,7 @@ const paragraphs = computed(() =>
 }
 
 .ai-chip-text {
-  color: #79808d;
+color: var(--app-ink-subtle);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.1;
@@ -185,7 +185,7 @@ const paragraphs = computed(() =>
 }
 
 .ai-timestamp {
-  color: #a2a8b3;
+color: var(--app-ink-faint);
   font-family: monospace;
   font-size: 10;
   margin-top: 4;
@@ -193,16 +193,16 @@ const paragraphs = computed(() =>
 
 /* ---------- Error ---------- */
 .ai-error {
-  background-color: #fdf0ef;
+background-color: var(--app-danger-bg);
   border-left-width: 3;
-  border-left-color: #c0392b;
+border-left-color: var(--app-danger);
   border-radius: 8;
   padding: 10 12;
   margin-bottom: 4;
 }
 
 .ai-error-mark {
-  color: #c0392b;
+color: var(--app-danger);
   font-weight: 700;
   font-size: 13;
   width: 18;
@@ -210,7 +210,7 @@ const paragraphs = computed(() =>
 }
 
 .ai-error-text {
-  color: #8c2f24;
+color: var(--app-danger-ink);
   font-size: 14;
 }
 </style>

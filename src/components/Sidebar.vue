@@ -269,7 +269,7 @@ function metaOf(conversation: Conversation): string {
 /* ---------- Panel ---------- */
 .panel {
   width: 284;
-  background-color: #ffffff;
+background-color: var(--app-surface);
   horizontal-align: left;
   vertical-align: stretch;
   padding: 18 0 0 0;
@@ -288,14 +288,14 @@ function metaOf(conversation: Conversation): string {
 }
 
 .brand-name {
-  color: #0e111b;
+color: var(--app-ink-strong);
   font-size: 17;
   font-weight: 700;
   letter-spacing: -0.015;
 }
 
 .brand-status {
-  color: #0fb6d6;
+color: var(--app-live);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.08;
@@ -303,12 +303,12 @@ function metaOf(conversation: Conversation): string {
 }
 
 .brand-status--offline {
-  color: #b3261e;
+color: var(--app-offline);
 }
 
 /* ---------- New conversation ---------- */
 .new-chat {
-  background-color: #14171d;
+background-color: var(--app-ink-strong);
   border-radius: 12;
   margin: 0 16 20 16;
   padding: 13 14;
@@ -332,7 +332,7 @@ function metaOf(conversation: Conversation): string {
 }
 
 .section-label {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.14;
@@ -340,7 +340,7 @@ function metaOf(conversation: Conversation): string {
 }
 
 .section-count {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   vertical-align: center;
@@ -363,7 +363,7 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-row--active {
-  background-color: #f4f5f8;
+background-color: var(--app-surface-2);
 }
 
 /* The dot marks the provider of the conversation. It sits on the first line
@@ -377,12 +377,12 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-title {
-  color: #1b1e24;
+color: var(--app-ink);
   font-size: 14;
 }
 
 .history-meta {
-  color: #a2a8b3;
+color: var(--app-ink-faint);
   font-family: monospace;
   font-size: 10;
   margin-top: 3;
@@ -400,14 +400,14 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-confirm-label {
-  color: #8d94a0;
+color: var(--app-ink-subtle);
   font-size: 11;
   vertical-align: center;
   margin-right: 6;
 }
 
 .history-confirm-yes {
-  color: #c0392b;
+color: var(--app-danger);
   font-size: 12;
   font-weight: 700;
   vertical-align: center;
@@ -415,7 +415,7 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-confirm-no {
-  color: #6b7280;
+color: var(--app-ink-dim);
   font-size: 12;
   vertical-align: center;
 }
@@ -425,13 +425,13 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-empty-title {
-  color: #6b7280;
+color: var(--app-ink-dim);
   font-size: 13;
   font-weight: 600;
 }
 
 .history-empty-text {
-  color: #a2a8b3;
+color: var(--app-ink-faint);
   font-size: 12;
   margin-top: 3;
 }
@@ -439,7 +439,7 @@ function metaOf(conversation: Conversation): string {
 /* ---------- Footer ---------- */
 .footer {
   border-top-width: 1;
-  border-top-color: #ecedf1;
+border-top-color: var(--app-border);
   padding: 8 14 16 14;
 }
 
@@ -460,20 +460,20 @@ function metaOf(conversation: Conversation): string {
   height: 26;
   border-radius: 13;
   border-width: 1;
-  border-color: #dfe2e8;
+border-color: var(--app-border-2);
   text-align: center;
   vertical-align: center;
 }
 
 .footer-text {
-  color: #1b1e24;
+color: var(--app-ink);
   font-size: 14;
   vertical-align: center;
 }
 
 /* ---------- Scrim ---------- */
 .scrim {
-  background-color: rgba(12, 14, 18, 0.45);
+  background-color: var(--app-scrim);
   horizontal-align: stretch;
   vertical-align: stretch;
 }

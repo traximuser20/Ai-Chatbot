@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ApplicationSettings } from '@nativescript/core';
+import { asThemeMode, type ThemeMode } from '../utils/theme';
 
 /**
  * User settings.
@@ -29,6 +30,8 @@ export interface SettingsState {
   showTimestamps: boolean;
   /** Submit the composer with the keyboard's send key. */
   sendOnEnter: boolean;
+  /** Follow the device theme, or pin light / dark. */
+  theme: ThemeMode;
 }
 
 const DEFAULTS: SettingsState = {
@@ -36,6 +39,7 @@ const DEFAULTS: SettingsState = {
   textScale: 'medium',
   showTimestamps: false,
   sendOnEnter: true,
+  theme: 'system',
 };
 
 /** Multiplier applied to every body font size. */
@@ -62,10 +66,15 @@ function readStored(): Partial<SettingsState> {
 }
 
 export const useSettingsStore = defineStore('settings', {
-  state: (): SettingsState => ({
-    ...DEFAULTS,
-    ...readStored(),
-  }),
+  state: (): SettingsState => {
+    const stored = readStored();
+    return {
+      ...DEFAULTS,
+      ...stored,
+      // The stored value comes from disk, so it is checked before it is used.
+      theme: asThemeMode(stored.theme),
+    };
+  },
   getters: {
     /** Numeric multiplier for body text. */
     fontScale: (state) => TEXT_SCALE_FACTOR[state.textScale] ?? 1,
@@ -94,6 +103,7 @@ export const useSettingsStore = defineStore('settings', {
             textScale: this.textScale,
             showTimestamps: this.showTimestamps,
             sendOnEnter: this.sendOnEnter,
+            theme: this.theme,
           }),
         );
       } catch (err) {
@@ -114,6 +124,10 @@ export const useSettingsStore = defineStore('settings', {
     },
     setDisplayName(name: string) {
       this.displayName = name.trim() || DEFAULTS.displayName;
+      this.persist();
+    },
+    setTheme(mode: ThemeMode) {
+      this.theme = asThemeMode(mode);
       this.persist();
     },
     reset() {

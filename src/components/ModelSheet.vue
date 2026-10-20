@@ -168,13 +168,13 @@ onMounted(() => {
 
 <style scoped>
 .sheet-backdrop {
-  background-color: rgba(12, 14, 18, 0.45);
+  background-color: var(--app-scrim);
   horizontal-align: stretch;
   vertical-align: stretch;
 }
 
 .sheet {
-  background-color: #ffffff;
+background-color: var(--app-surface);
   border-top-left-radius: 22;
   border-top-right-radius: 22;
   horizontal-align: stretch;
@@ -187,7 +187,7 @@ onMounted(() => {
   width: 40;
   height: 4;
   border-radius: 2;
-  background-color: #dfe2e8;
+background-color: var(--app-border-2);
   margin-top: 10;
   margin-bottom: 8;
   horizontal-align: center;
@@ -198,13 +198,13 @@ onMounted(() => {
 }
 
 .sheet-title {
-  color: #0f1115;
+color: var(--app-ink-strong);
   font-size: 18;
   font-weight: 700;
 }
 
 .sheet-subtitle {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 10;
   letter-spacing: 0.08;
@@ -219,7 +219,7 @@ onMounted(() => {
 
 /* ---------- Search ---------- */
 .sheet-search {
-  background-color: #f2f3f6;
+background-color: var(--app-canvas);
   border-radius: 12;
   padding: 0 12;
   margin-bottom: 10;
@@ -233,7 +233,7 @@ onMounted(() => {
 .sheet-search-field {
   background-color: transparent;
   border-width: 0;
-  color: #1b1e24;
+color: var(--app-ink);
   font-size: 14;
   padding: 10 0;
   vertical-align: center;
@@ -251,7 +251,7 @@ onMounted(() => {
 }
 
 .model-row--active {
-  background-color: #f4f5f8;
+background-color: var(--app-surface-2);
 }
 
 .model-dot {
@@ -261,7 +261,7 @@ onMounted(() => {
 }
 
 .model-provider {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-family: monospace;
   font-size: 9;
   letter-spacing: 0.1;
@@ -269,7 +269,7 @@ onMounted(() => {
 }
 
 .model-id {
-  color: #1b1e24;
+color: var(--app-ink);
   font-family: monospace;
   font-size: 13;
   margin-top: 2;
@@ -285,7 +285,7 @@ onMounted(() => {
 }
 
 .sheet-empty-text {
-  color: #9aa1ad;
+color: var(--app-ink-muted);
   font-size: 13;
   text-align: center;
 }

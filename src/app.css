@@ -7,11 +7,98 @@
   for the chrome, and near-black ink for the text. The one live colour in the
   interface is the *accent*, which is derived from the provider that answers
   (see src/utils/accent.ts) and therefore changes with the selected model.
+
+  The palette is declared twice - once for the light theme, once for the dark
+  one - as CSS custom properties. The root frame carries the class
+  (`theme-light` / `theme-dark`), and NativeScript resolves `var(--app-*)` by
+  walking up the view tree, so a token declared on the root reaches every view
+  below it. Changing the class on the root re-applies the styles of the whole
+  tree, which is what makes the switch instant.
+
+  A token is only defined once. Anything that needs the concrete colour of a
+  token outside of CSS (the Android status bar, for instance) reads it back
+  with `themeToken()` in src/utils/theme.ts.
 */
+
+/* ---------- Light ---------- */
+.theme-light {
+  --app-canvas: #f2f3f6;
+  --app-surface: #ffffff;
+  --app-surface-2: #f4f5f8;
+  --app-surface-3: #eceef2;
+  --app-border: #e9ebef;
+  --app-border-2: #e2e5ea;
+  --app-ink: #14171d;
+  --app-ink-strong: #0f1115;
+  --app-ink-muted: #9aa1ad;
+  --app-ink-subtle: #8d94a0;
+  --app-ink-faint: #a2a8b3;
+  --app-ink-dim: #6b7280;
+  --app-bubble: #0e111b;
+  --app-on-bubble: #ffffff;
+  --app-on-ink: #ffffff;
+  --app-on-accent: #ffffff;
+  --app-code-bg: #0e111b;
+  --app-code-ink: #e4e7ec;
+  --app-code-rule: #1d2230;
+  --app-code-tag: #6f7887;
+  --app-quote-bar: #d5d9e0;
+  --app-quote-ink: #5a6270;
+  --app-rule: #e3e6ec;
+  --app-danger: #c0392b;
+  --app-danger-ink: #8c2f24;
+  --app-danger-bg: #fdf0ef;
+  --app-success: #0e8f6e;
+  --app-link: #2f55f5;
+  --app-live: #0fb6d6;
+  --app-offline: #c0392b;
+  --app-scrim: rgba(12, 14, 18, 0.45);
+}
+
+/* ---------- Dark ---------- */
+.theme-dark {
+  --app-canvas: #0b0e17;
+  --app-surface: #171b2b;
+  --app-surface-2: #1e2434;
+  --app-surface-3: #232a3d;
+  --app-border: #262c3c;
+  --app-border-2: #333a4d;
+  --app-ink: #e8eaf0;
+  --app-ink-strong: #ffffff;
+  --app-ink-muted: #97a0b4;
+  --app-ink-subtle: #7c8598;
+  --app-ink-faint: #6b7488;
+  --app-ink-dim: #8a92a6;
+  --app-bubble: #1b2130;
+  --app-on-bubble: #e8eaf0;
+  --app-on-ink: #0b0e17;
+  --app-on-accent: #ffffff;
+  --app-code-bg: #10131d;
+  --app-code-ink: #d6dae4;
+  --app-code-rule: #232838;
+  --app-code-tag: #7e8798;
+  --app-quote-bar: #39415a;
+  --app-quote-ink: #a8b0c2;
+  --app-rule: #262c3c;
+  --app-danger: #ff6b6b;
+  --app-danger-ink: #f2a6a0;
+  --app-danger-bg: #2a1216;
+  --app-success: #3fd3a0;
+  --app-link: #6e8bff;
+  --app-live: #2fcbe8;
+  --app-offline: #ff6b6b;
+  --app-scrim: rgba(2, 4, 10, 0.62);
+}
+
 Page {
-  background-color: #f2f3f6;
-  color: #14171d;
+  background-color: var(--app-canvas);
+  color: var(--app-ink);
   font-size: 15;
+}
+
+/* The frame is the root view, so it carries the theme tokens. */
+Frame {
+  background-color: var(--app-canvas);
 }
 
 /*
