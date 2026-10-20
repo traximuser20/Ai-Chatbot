@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The name under the launcher icon and in the task switcher. -->
+    <string name="app_name">Omni Ai</string>
+    <string name="title_activity_kimera">Omni Ai</string>
+</resources>

@@ -1,5 +1,5 @@
 ---
-name: nativescript-vue-ai-chatbot
+name: nativescript-vue-omni-ai
 description: >-
   Workflows, runbooks, and debugging procedures for the NativeScript-Vue 3
   mobile AI Chatbot project, including running on the Docker Android emulator,
@@ -72,7 +72,7 @@ docker compose up
 
 ---
 
-## Runbook 3: Connecting to Host Backend (Omniroute / Socket.io)
+## Runbook 3: Connecting to the Host Gateway (OmniRoute)
 
 ### Emulator Network Mapping
 When the app executes inside the Android emulator, network requests to `localhost` or `127.0.0.1` do not reach the host machine.
@@ -81,7 +81,7 @@ When the app executes inside the Android emulator, network requests to `localhos
 1. Open `src/services/socket.ts`.
 2. Configure `SOCKET_URL` to use `10.0.2.2` (Android emulator's gateway to the host machine):
    ```typescript
-   // For Omniroute/backend server running on your host machine on port 3000:
+   // For the OmniRoute gateway running on your host machine:
    const SOCKET_URL = 'http://10.0.2.2:3000';
    ```
 3. If running on a physical Android device connected via Wi-Fi or USB:
@@ -110,7 +110,7 @@ When the app executes inside the Android emulator, network requests to `localhos
 
    <template>
      <Page>
-       <ActionBar title="Omniroute AI" />
+       <ActionBar title="Omni Ai" />
        <GridLayout rows="*, auto">
          <!-- NativeScript UI elements only -->
        </GridLayout>

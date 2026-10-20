@@ -17,7 +17,7 @@ import { $navigateTo } from 'nativescript-vue';
 import { Screen } from '@nativescript/core';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
-import { omniRoute, OmniRouteError, type OmniRouteModel } from '../services/omniroute';
+import { omniAi, OmniAiError, type OmniAiModel } from '../services/omni-ai';
 import { accentFor, providerOf } from '../utils/accent';
 import ChatMessage from './ChatMessage.vue';
 import Sidebar from './Sidebar.vue';
@@ -34,7 +34,7 @@ const userInput = ref('');
 const scrollRef = ref(null);
 const contentRef = ref(null);
 
-const models = ref<OmniRouteModel[]>([]);
+const models = ref<OmniAiModel[]>([]);
 const showModelPicker = ref(false);
 const drawerOpen = ref(false);
 const loadingModels = ref(false);
@@ -72,13 +72,13 @@ let inFlight: AbortController | undefined;
 let unsubscribeStatus: (() => void) | undefined;
 
 onMounted(async () => {
-  unsubscribeStatus = omniRoute.onStatus((status) => {
+  unsubscribeStatus = omniAi.onStatus((status) => {
     chatStore.setConnectionStatus(status === 'connected');
   });
 
   // Probe the gateway so the header shows the real connection state.
   try {
-    models.value = await omniRoute.loadModels();
+    models.value = await omniAi.loadModels();
   } catch (err) {
     console.error('Could not load models:', err);
   }
@@ -124,7 +124,7 @@ async function openModelPicker() {
   }
   loadingModels.value = true;
   try {
-    models.value = await omniRoute.loadModels(true);
+    models.value = await omniAi.loadModels(true);
   } catch (err) {
     console.error('Could not load models:', err);
   } finally {
@@ -136,7 +136,7 @@ function closeModelPicker() {
   showModelPicker.value = false;
 }
 
-function selectModel(model: OmniRouteModel) {
+function selectModel(model: OmniAiModel) {
   chatStore.setModel(model.id);
   closeModelPicker();
 }
@@ -199,7 +199,7 @@ async function sendMessage() {
   inFlight = controller;
 
   try {
-    const reply = await omniRoute.sendChat(history, chatStore.model, undefined, controller.signal);
+    const reply = await omniAi.sendChat(history, chatStore.model, undefined, controller.signal);
     chatStore.setTypingStatus(false);
 
     if (reply && reply.trim()) {
@@ -215,12 +215,12 @@ async function sendMessage() {
     chatStore.setTypingStatus(false);
 
     // A cancelled request is not an error - the user pressed stop.
-    if (error instanceof OmniRouteError && error.cancelled) {
+    if (error instanceof OmniAiError && error.cancelled) {
       return;
     }
 
     const message =
-      error instanceof Error ? error.message : 'Unknown error while contacting OmniRoute.';
+      error instanceof Error ? error.message : 'Unknown error while contacting the Omni Ai gateway.';
     chatStore.addMessage(message, 'ai', true);
     scrollToBottom();
   } finally {
@@ -338,9 +338,9 @@ function stopGenerating() {
               instead of a single horizontal row of dots.
             -->
             <StackLayout orientation="horizontal" class="typing-bubble">
-              <Label text="●" class="typing-mark typing-mark--1" />
-              <Label text="●" class="typing-mark typing-mark--2" />
-              <Label text="●" class="typing-mark typing-mark--3" />
+              <Icon name="dot" :size="9" color="#9AA1AD" class="typing-mark typing-mark--1" />
+              <Icon name="dot" :size="9" color="#9AA1AD" class="typing-mark typing-mark--2" />
+              <Icon name="dot" :size="9" color="#9AA1AD" class="typing-mark typing-mark--3" />
             </StackLayout>
           </StackLayout>
         </StackLayout>
@@ -358,15 +358,28 @@ function stopGenerating() {
             :returnKeyType="settings.sendOnEnter ? 'send' : 'done'"
             @submit="onSubmit"
           />
+          <!--
+            The button does double duty: it sends the message, and while a
+            reply is on its way it turns into a stop button.
+          -->
           <GridLayout
             col="1"
             columns="auto"
             class="send-button"
-            :class="{ 'send-button--idle': !canSend }"
-            :backgroundColor="canSend ? accent : '#E6E8ED'"
-            @tap="sendMessage"
+            :class="{ 'send-button--idle': !canSend, 'send-button--busy': chatStore.isTyping }"
+            :backgroundColor="chatStore.isTyping ? '#C0392B' : canSend ? accent : '#E6E8ED'"
+            v-press
+            @tap="chatStore.isTyping ? stopGenerating() : sendMessage()"
           >
-            <Label col="0" text="↑" class="send-glyph" :color="canSend ? '#FFFFFF' : '#B4BAC4'" />
+            <GridLayout col="0" columns="auto" class="send-glyph-wrap">
+              <Icon
+                v-if="!chatStore.isTyping"
+                name="arrow-up"
+                :size="17"
+                :color="canSend ? '#FFFFFF' : '#B4BAC4'"
+              />
+              <Icon v-else name="stop" :size="15" color="#FFFFFF" />
+            </GridLayout>
           </GridLayout>
         </GridLayout>
       </GridLayout>
@@ -429,11 +442,11 @@ function stopGenerating() {
 }
 
 .icon-button {
-  color: #14171d;
-  font-size: 20;
   width: 34;
-  text-align: left;
+  height: 34;
+  horizontal-align: left;
   vertical-align: center;
+  padding-left: 2;
 }
 
 .route-chip {
@@ -445,7 +458,6 @@ function stopGenerating() {
 }
 
 .route-chip-dot {
-  font-size: 7;
   width: 12;
   vertical-align: center;
 }
@@ -469,20 +481,8 @@ function stopGenerating() {
   margin-right: 5;
 }
 
-.route-chip-caret {
-  color: #9aa1ad;
-  font-size: 12;
-  vertical-align: center;
-}
-
 .status-chip {
   horizontal-align: right;
-}
-
-.status-dot {
-  font-size: 7;
-  width: 12;
-  vertical-align: center;
 }
 
 .status-text {
@@ -492,6 +492,14 @@ function stopGenerating() {
   letter-spacing: 0.1;
   text-transform: uppercase;
   vertical-align: center;
+}
+
+/* The live indicator breathes while the gateway is reachable. */
+.status-dot--live {
+  animation-name: livePulse;
+  animation-duration: 2200ms;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
 }
 
 /* ---------- Conversation ---------- */
@@ -510,6 +518,10 @@ function stopGenerating() {
 
 .hero-mark-wrap {
   margin-bottom: 14;
+  animation-name: heroRise;
+  animation-duration: 620ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
 }
 
 .hero-glow {
@@ -517,6 +529,10 @@ function stopGenerating() {
   height: 104;
   horizontal-align: center;
   vertical-align: center;
+  animation-name: heroBreathe;
+  animation-duration: 4200ms;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
 }
 
 .hero-mark {
@@ -524,6 +540,10 @@ function stopGenerating() {
   height: 58;
   horizontal-align: center;
   vertical-align: center;
+  animation-name: heroFloat;
+  animation-duration: 5200ms;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
 }
 
 .hero-title {
@@ -531,18 +551,29 @@ function stopGenerating() {
   font-size: 24;
   font-weight: 700;
   letter-spacing: -0.02;
+  animation-name: heroRise;
+  animation-duration: 620ms;
+  animation-delay: 90ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
 }
 
 .hero-sub {
   color: #8d94a0;
   font-size: 14;
   margin-top: 8;
+  animation-name: heroRise;
+  animation-duration: 620ms;
+  animation-delay: 160ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
 }
 
 .hero-chips {
   margin-top: 22;
 }
 
+/* The suggestions arrive one after the other. */
 .hero-chip {
   background-color: #ffffff;
   border-width: 1;
@@ -553,6 +584,26 @@ function stopGenerating() {
   padding: 9 14;
   margin-right: 8;
   margin-bottom: 8;
+  animation-name: heroRise;
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+.hero-chip--0 {
+  animation-delay: 230ms;
+}
+
+.hero-chip--1 {
+  animation-delay: 290ms;
+}
+
+.hero-chip--2 {
+  animation-delay: 350ms;
+}
+
+.hero-chip--3 {
+  animation-delay: 410ms;
 }
 
 /* ---------- Pending indicator ---------- */
@@ -569,10 +620,25 @@ function stopGenerating() {
   horizontal-align: left;
 }
 
+/* The dots hop in sequence while the answer is on its way. */
 .typing-mark {
-  color: #9aa1ad;
-  font-size: 11;
   margin: 0 3;
+  animation-name: dotHop;
+  animation-duration: 1100ms;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.typing-mark--1 {
+  animation-delay: 0ms;
+}
+
+.typing-mark--2 {
+  animation-delay: 140ms;
+}
+
+.typing-mark--3 {
+  animation-delay: 280ms;
 }
 
 /* ---------- Composer ---------- */
@@ -610,9 +676,15 @@ function stopGenerating() {
   background-color: #e6e8ed;
 }
 
-.send-glyph {
-  font-size: 19;
-  font-weight: 700;
+/* While a reply is on its way the button is a stop button. */
+.send-button--busy {
+  animation-name: busyGlow;
+  animation-duration: 1600ms;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.send-glyph-wrap {
   vertical-align: center;
 }
 
@@ -625,5 +697,74 @@ function stopGenerating() {
 .splash-host {
   horizontal-align: stretch;
   vertical-align: stretch;
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes heroRise {
+  from {
+    opacity: 0;
+    transform: translate(0, 16);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes heroBreathe {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes heroFloat {
+  0%,
+  100% {
+    transform: translate(0, -3);
+  }
+  50% {
+    transform: translate(0, 3);
+  }
+}
+
+@keyframes dotHop {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translate(0, 0);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(0, -4);
+  }
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes busyGlow {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
 }
 </style>

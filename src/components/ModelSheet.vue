@@ -1,18 +1,19 @@
 <script lang="ts" setup>
 /**
- * Model picker - a bottom sheet listing every route OmniRoute exposes.
+ * Model picker - a bottom sheet listing every route the gateway exposes.
  *
- * OmniRoute publishes several hundred models, so the list is rendered with a
+ * The gateway publishes several hundred models, so the list is rendered with a
  * `ListView` (which recycles its rows) and can be filtered by a search field.
  * Each row carries the accent colour of its provider, which makes the list
  * scannable by colour.
  */
-import { computed, ref } from 'vue';
-import type { OmniRouteModel } from '../services/omniroute';
+import { computed, ref, onMounted } from 'vue';
+import type { OmniAiModel } from '../services/omni-ai';
 import { providerOf } from '../utils/accent';
+import Icon from './Icon.vue';
 
 const props = defineProps<{
-  models: OmniRouteModel[];
+  models: OmniAiModel[];
   /** Currently selected model id. */
   selected: string;
   loading?: boolean;
@@ -22,7 +23,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  select: [model: OmniRouteModel];
+  select: [model: OmniAiModel];
 }>();
 
 const filter = ref('');
@@ -36,14 +37,36 @@ const filtered = computed(() => {
 });
 
 /** Provider prefix of a model id. */
-function providerOfModel(model: OmniRouteModel): string {
+function providerOfModel(model: OmniAiModel): string {
   return providerOf(model.id);
 }
+
+/** The sheet, so it can slide up into place. */
+const sheetRef = ref<any>(null);
+const backdropRef = ref<any>(null);
+
+onMounted(() => {
+  const sheet = sheetRef.value?.nativeView;
+  const backdrop = backdropRef.value?.nativeView;
+
+  if (backdrop) {
+    backdrop.opacity = 0;
+    backdrop.animate({ opacity: 1, duration: 200, curve: 'easeOut' });
+  }
+
+  if (sheet) {
+    // The sheet rises from the bottom of the screen.
+    sheet.translateY = 240;
+    sheet.animate(
+      { translate: { x: 0, y: 0 }, duration: 320, curve: 'easeOut' },
+    );
+  }
+});
 </script>
 
 <template>
-  <GridLayout class="sheet-backdrop" @tap="emit('close')">
-    <GridLayout class="sheet" rows="auto, auto, auto, *" @tap="() => {}">
+  <GridLayout ref="backdropRef" class="sheet-backdrop" @tap="emit('close')">
+    <GridLayout ref="sheetRef" class="sheet" rows="auto, auto, auto, *" @tap="() => {}">
       <!-- Drag handle -->
       <Label row="0" class="sheet-handle" />
 
@@ -56,12 +79,20 @@ function providerOfModel(model: OmniRouteModel): string {
             class="sheet-subtitle"
           />
         </StackLayout>
-        <Label col="1" text="×" class="sheet-close" @tap="emit('close')" />
+        <GridLayout
+          col="1"
+          columns="auto"
+          class="sheet-close"
+          v-press
+          @tap="emit('close')"
+        >
+          <Icon col="0" name="close" :size="17" color="#8D94A0" />
+        </GridLayout>
       </GridLayout>
 
       <!-- Search -->
       <GridLayout row="2" columns="auto, *" class="sheet-search">
-        <Label col="0" text="⌕" class="sheet-search-icon" />
+        <Icon col="0" name="search" :size="16" color="#9AA1AD" class="sheet-search-icon" />
         <TextField
           col="1"
           v-model="filter"
@@ -78,19 +109,28 @@ function providerOfModel(model: OmniRouteModel): string {
             columns="auto, *, auto"
             class="model-row"
             :class="{ 'model-row--active': model.id === selected }"
+            v-press
             @tap="emit('select', model)"
           >
-            <Label col="0" text="●" class="model-dot" :color="accent ?? '#2F55F5'" />
+            <Icon
+              col="0"
+              name="dot"
+              :size="7"
+              :color="accent ?? '#2F55F5'"
+              class="model-dot"
+            />
             <StackLayout col="1">
               <Label :text="providerOfModel(model)" class="model-provider" />
               <Label :text="model.id" textWrap="true" class="model-id" />
             </StackLayout>
-            <Label
+            <GridLayout
+              v-if="model.id === selected"
               col="2"
-              :text="model.id === selected ? '✓' : ''"
+              columns="auto"
               class="model-check"
-              :color="accent ?? '#2F55F5'"
-            />
+            >
+              <Icon col="0" name="check" :size="15" :color="accent ?? '#2F55F5'" />
+            </GridLayout>
           </GridLayout>
         </template>
       </ListView>
@@ -151,10 +191,8 @@ function providerOfModel(model: OmniRouteModel): string {
 }
 
 .sheet-close {
-  color: #8d94a0;
-  font-size: 24;
   width: 32;
-  text-align: center;
+  height: 32;
   vertical-align: center;
 }
 
@@ -167,8 +205,6 @@ function providerOfModel(model: OmniRouteModel): string {
 }
 
 .sheet-search-icon {
-  color: #9aa1ad;
-  font-size: 16;
   width: 22;
   vertical-align: center;
 }
@@ -197,7 +233,6 @@ function providerOfModel(model: OmniRouteModel): string {
 }
 
 .model-dot {
-  font-size: 7;
   width: 16;
   vertical-align: center;
   opacity: 0.7;
@@ -219,10 +254,7 @@ function providerOfModel(model: OmniRouteModel): string {
 }
 
 .model-check {
-  font-size: 15;
-  font-weight: 700;
   width: 24;
-  text-align: right;
   vertical-align: center;
 }
 

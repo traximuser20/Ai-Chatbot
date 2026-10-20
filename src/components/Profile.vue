@@ -12,6 +12,7 @@ import { $navigateBack } from 'nativescript-vue';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { providerOf } from '../utils/accent';
+import Icon from './Icon.vue';
 
 const chatStore = useChatStore();
 const settings = useSettingsStore();
@@ -61,7 +62,9 @@ function back() {
     <GridLayout rows="auto, *">
       <!-- ── Header ─────────────────────────────────────────────────────── -->
       <GridLayout row="0" columns="auto, *" class="screen-header">
-        <Label col="0" text="‹" class="back-button" @tap="back" />
+        <GridLayout col="0" columns="auto" class="back-button" v-press @tap="back">
+          <Icon col="0" name="chevron-left" :size="19" color="#1B1E24" />
+        </GridLayout>
         <Label col="1" text="Profile" class="screen-title" />
       </GridLayout>
 
@@ -72,7 +75,7 @@ function back() {
             <Label col="0" :text="settings.initials" class="avatar" />
             <StackLayout col="1">
               <Label :text="settings.displayName" class="identity-name" />
-              <Label text="Local gateway · OmniRoute" class="identity-sub" />
+              <Label text="Local gateway · Omni Ai" class="identity-sub" />
             </StackLayout>
           </GridLayout>
 
@@ -108,6 +111,7 @@ function back() {
               :text="saved ? 'Saved' : 'Save'"
               class="field-action"
               :class="{ 'field-action--saved': saved }"
+              v-press
               @tap="saveName"
             />
           </GridLayout>
@@ -115,7 +119,7 @@ function back() {
           <!-- ── Active route ───────────────────────────────────────────── -->
           <Label text="Active route" class="field-label" />
           <GridLayout columns="auto, *" class="card route">
-            <Label col="0" text="●" class="route-dot" />
+            <Icon col="0" name="dot" :size="8" color="#0FB6D6" class="route-dot" />
             <StackLayout col="1">
               <Label :text="currentRoute.provider" class="route-provider" />
               <Label :text="currentRoute.name" class="route-name" />
@@ -141,9 +145,8 @@ function back() {
 }
 
 .back-button {
-  color: #1b1e24;
-  font-size: 26;
   width: 30;
+  height: 30;
   vertical-align: center;
 }
 
@@ -160,6 +163,21 @@ function back() {
 
 .body {
   padding: 16;
+  animation-name: screenRise;
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes screenRise {
+  from {
+    opacity: 0;
+    transform: translate(0, 14);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
 }
 
 /* ---------- Card ---------- */
@@ -273,8 +291,6 @@ function back() {
 
 /* ---------- Route ---------- */
 .route-dot {
-  color: #0e8f6e;
-  font-size: 9;
   width: 20;
   vertical-align: center;
 }

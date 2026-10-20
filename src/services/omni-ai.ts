@@ -1,7 +1,7 @@
 import { Application } from '@nativescript/core';
 
 /**
- * OmniRoute client.
+ * Omni Ai client.
  *
  * OmniRoute exposes an OpenAI-compatible HTTP API:
  *
@@ -37,7 +37,7 @@ export const API_KEY = 'sk-cf2c8acbccfc179f-443d10-95acbd1b';
 /** Model used when the user has not picked one. */
 export const DEFAULT_MODEL = 'auto/best-fast';
 
-export interface OmniRouteModel {
+export interface OmniAiModel {
   id: string;
   owned_by?: string;
 }
@@ -52,7 +52,7 @@ export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'er
 type StatusListener = (status: ConnectionStatus) => void;
 type StreamListener = (chunk: string) => void;
 
-export class OmniRouteError extends Error {
+export class OmniAiError extends Error {
   constructor(
     message: string,
     readonly status?: number,
@@ -60,13 +60,13 @@ export class OmniRouteError extends Error {
     readonly cancelled = false,
   ) {
     super(message);
-    this.name = 'OmniRouteError';
+    this.name = 'OmniAiError';
   }
 }
 
-class OmniRouteService {
+class OmniAiService {
   private statusListeners: StatusListener[] = [];
-  private availableModels: OmniRouteModel[] = [];
+  private availableModels: OmniAiModel[] = [];
   private modelsLoaded = false;
 
   constructor() {
@@ -78,7 +78,7 @@ class OmniRouteService {
       try {
         listener(status);
       } catch (err) {
-        console.error('OmniRoute status listener error:', err);
+        console.error('Gateway status listener error:', err);
       }
     });
   }
@@ -93,11 +93,11 @@ class OmniRouteService {
   }
 
   /**
-   * Fetches the list of models exposed by OmniRoute.
+   * Fetches the list of models exposed by the gateway.
    * The list is cached - it changes rarely and the app only needs it when
    * the model picker is opened.
    */
-  public async loadModels(force = false): Promise<OmniRouteModel[]> {
+  public async loadModels(force = false): Promise<OmniAiModel[]> {
     if (this.modelsLoaded && !force) {
       // The list is cached - the gateway is obviously reachable, so keep the
       // connection state in sync (the app may have been reloaded).
@@ -108,7 +108,7 @@ class OmniRouteService {
     try {
       const response = await this.request('/v1/models', { method: 'GET' });
       const payload = await this.parseJson(response);
-      this.availableModels = (payload?.data ?? []) as OmniRouteModel[];
+      this.availableModels = (payload?.data ?? []) as OmniAiModel[];
       this.modelsLoaded = true;
       this.notifyStatus('connected');
       return this.availableModels;
@@ -118,7 +118,7 @@ class OmniRouteService {
     }
   }
 
-  public getModels(): OmniRouteModel[] {
+  public getModels(): OmniAiModel[] {
     return this.availableModels;
   }
 
@@ -175,12 +175,12 @@ class OmniRouteService {
     } catch (err) {
       // An aborted request is not a failure - the user pressed stop.
       if ((init as RequestInit)?.signal?.aborted) {
-        throw new OmniRouteError('Request cancelled.', undefined, true);
+        throw new OmniAiError('Request cancelled.', undefined, true);
       }
       // `fetch` rejects for network-level failures (host unreachable, DNS,
       // connection refused). Turn that into a readable error.
-      throw new OmniRouteError(
-        `Could not reach OmniRoute at ${BASE_URL}. Is it running? (${
+      throw new OmniAiError(
+        `Could not reach the Omni Ai gateway at ${BASE_URL}. Is it running? (${
           (err as Error)?.message ?? err
         })`,
       );
@@ -193,8 +193,8 @@ class OmniRouteService {
       } catch {
         /* ignore - the body may not be readable */
       }
-      throw new OmniRouteError(
-        `OmniRoute request failed (HTTP ${response.status})${
+      throw new OmniAiError(
+        `Gateway request failed (HTTP ${response.status})${
           detail ? `: ${detail.slice(0, 200)}` : ''
         }`,
         response.status,
@@ -209,9 +209,9 @@ class OmniRouteService {
     try {
       return JSON.parse(text);
     } catch {
-      throw new OmniRouteError('OmniRoute returned a malformed response.');
+      throw new OmniAiError('The gateway returned a malformed response.');
     }
   }
 }
 
-export const omniRoute = new OmniRouteService();
+export const omniAi = new OmniAiService();

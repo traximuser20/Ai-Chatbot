@@ -1,4 +1,4 @@
-# The OmniRoute mark
+# The Omni Ai mark
 
 Everything in this folder is generated. Edit `build-assets.py`, run it, and the
 SVG sources, the runtime PNGs and every platform icon are rewritten from the

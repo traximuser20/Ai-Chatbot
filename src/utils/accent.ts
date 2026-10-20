@@ -1,7 +1,7 @@
 /**
  * Provider accent colours.
  *
- * OmniRoute exposes ~580 models spread over ~25 provider prefixes
+ * The gateway exposes ~580 models spread over ~25 provider prefixes
  * ("auto/…", "aihorde/…", "dva/…"). The provider is the most useful piece of
  * metadata a chat UI can show: it tells you *who* is answering and it makes
  * switching routes feel like switching channels.

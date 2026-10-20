@@ -1,6 +1,6 @@
-# NativeScript-Vue 3 AI Chatbot - Agent Rules & Guidelines
+# Omni Ai - NativeScript-Vue 3 - Agent Rules & Guidelines
 
-Welcome to the **ai-chatbot** codebase. This project is a cross-platform mobile AI chat application built with **NativeScript 9**, **NativeScript-Vue 3**, **Pinia**, **Tailwind CSS 4**, and **Socket.io Client**, running in an Android containerized emulator via **budtmo/docker-android**.
+Welcome to the **Omni Ai** codebase. This project is a cross-platform mobile AI chat application built with **NativeScript 9**, **NativeScript-Vue 3**, **Pinia**, **Tailwind CSS 4**, and **Socket.io Client**, running in an Android containerized emulator via **budtmo/docker-android**.
 
 Whenever operating within this repository, all AI agents and assistants must strictly adhere to the following architecture rules, coding standards, and operational guidelines.
 
@@ -47,12 +47,12 @@ NativeScript renders to native mobile widgets, **not a browser DOM**.
 ## 3. Network & Backend Connectivity Rules
 
 ### 3.1 OmniRoute API (the backend)
-- The app talks to **OmniRoute** through its **OpenAI-compatible HTTP API** (`src/services/omniroute.ts`):
+- The app talks to **OmniRoute** through its **OpenAI-compatible HTTP API** (`src/services/omni-ai.ts`):
   - `GET  /v1/models` - list of available models (578+ on a typical install).
   - `POST /v1/chat/completions` - chat completion, standard OpenAI request/response shape.
 - **OmniRoute does NOT speak Socket.IO.** An earlier version of this app used `socket.io-client`; that backend no longer exists. The `socket.io-client` dependency has been removed.
 - OmniRoute also exposes a **Responses API over WebSocket** at `/v1/responses` and a management dashboard on the same port. **Do not use the WebSocket endpoint from the app**: NativeScript 9 has no global `WebSocket` implementation (`globalThis.WebSocket` is `undefined`).
-- **Auth**: requests carry `Authorization: Bearer <OMNIROUTE_API_KEY>`. The key is read from the `OMNIROUTE_API_KEY` environment variable on the machine running OmniRoute and is hard-coded in `src/services/omniroute.ts` (it is a local developer gateway key).
+- **Auth**: requests carry `Authorization: Bearer <OMNIROUTE_API_KEY>`. The key is read from the `OMNIROUTE_API_KEY` environment variable on the machine running OmniRoute and is hard-coded in `src/services/omni-ai.ts` (it is a local developer gateway key).
 
 ### 3.2 Android Emulator Host Loopback (`10.0.2.2`)
 - **CRITICAL**: From within an Android emulator, `localhost` and `127.0.0.1` refer to the emulator's own internal loopback interface, **not** the developer's computer.

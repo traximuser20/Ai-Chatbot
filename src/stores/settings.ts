@@ -10,7 +10,13 @@ import { ApplicationSettings } from '@nativescript/core';
  * which keeps the first render free of flicker.
  */
 
-const STORAGE_KEY = 'omniroute.settings.v1';
+const STORAGE_KEY = 'omniai.settings.v1';
+
+/**
+ * The key the app used before it was renamed. It is read once, so renaming
+ * the app never throws away the settings that are already on the device.
+ */
+const LEGACY_STORAGE_KEY = 'omniroute.settings.v1';
 
 export type TextScale = 'small' | 'medium' | 'large';
 
@@ -41,7 +47,9 @@ export const TEXT_SCALE_FACTOR: Record<TextScale, number> = {
 
 function readStored(): Partial<SettingsState> {
   try {
-    const raw = ApplicationSettings.getString(STORAGE_KEY, '');
+    const raw =
+      ApplicationSettings.getString(STORAGE_KEY, '') ||
+      ApplicationSettings.getString(LEGACY_STORAGE_KEY, '');
     if (!raw) {
       return {};
     }

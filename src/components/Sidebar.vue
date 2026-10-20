@@ -16,6 +16,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useChatStore, type Conversation, formatRelativeTime } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { readableOn } from '../utils/accent';
+import Icon from './Icon.vue';
 
 /** Width of the panel in device independent pixels. */
 const PANEL_WIDTH = 284;
@@ -60,11 +61,16 @@ onMounted(() => {
   if (!panel) {
     return;
   }
-  panel.translate = { x: -PANEL_WIDTH, y: 0 };
-  panel.animate({ translate: { x: 0, y: 0 }, duration: 220, easing: 'easeOut' });
+  // The panel slides in from the left and settles with a touch of depth,
+  // while the scrim fades up underneath it.
+  panel.translateX = -PANEL_WIDTH;
+  panel.scaleX = 0.97;
+  panel.animate(
+    { translate: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, duration: 280, curve: 'easeOut' },
+  );
   if (scrim) {
     scrim.animate({ opacity: 0, duration: 0 });
-    scrim.animate({ opacity: 1, duration: 180 });
+    scrim.animate({ opacity: 1, duration: 200 });
   }
 });
 
@@ -76,7 +82,12 @@ function close() {
     return;
   }
   panel
-    .animate({ translate: { x: -PANEL_WIDTH, y: 0 }, duration: 180, easing: 'easeIn' })
+    .animate({
+      translate: { x: -PANEL_WIDTH, y: 0 },
+      scale: { x: 0.97, y: 1 },
+      duration: 220,
+      curve: 'easeIn',
+    })
     .then(() => emit('close'))
     .catch(() => emit('close'));
 }
@@ -127,7 +138,7 @@ function metaOf(conversation: Conversation): string {
       <GridLayout row="0" columns="auto, *" class="brand">
         <Image col="0" src="~/assets/img/prism-glyph.png" class="brand-mark" />
         <StackLayout col="1">
-          <Label text="OmniRoute" class="brand-name" />
+          <Label text="Omni Ai" class="brand-name" />
           <Label
             :text="chatStore.isConnected ? 'gateway · live' : 'gateway · offline'"
             class="brand-status"
@@ -142,9 +153,10 @@ function metaOf(conversation: Conversation): string {
         columns="auto, *"
         class="new-chat"
         :backgroundColor="accent()"
+        v-press
         @tap="onNewChat"
       >
-        <Label col="0" text="✦" class="new-chat-mark" :color="onAccent" />
+        <Icon col="0" name="plus" :size="15" :color="onAccent" class="new-chat-mark" />
         <Label col="1" text="New conversation" class="new-chat-text" :color="onAccent" />
       </GridLayout>
 
@@ -173,9 +185,10 @@ function metaOf(conversation: Conversation): string {
               columns="auto, *"
               class="history-row"
               :class="{ 'history-row--active': conversation.id === chatStore.activeConversationId }"
+              v-press
               @tap="onOpenConversation(conversation)"
             >
-              <Label col="0" text="●" class="history-dot" :color="accent()" />
+              <Icon col="0" name="dot" :size="7" :color="accent()" class="history-dot" />
               <StackLayout col="1">
                 <Label :text="conversation.title" textWrap="true" class="history-title" />
                 <Label :text="metaOf(conversation)" class="history-meta" />
@@ -183,13 +196,16 @@ function metaOf(conversation: Conversation): string {
             </GridLayout>
 
             <!-- Delete: first tap arms it, second tap confirms. -->
-            <Label
+            <GridLayout
               v-if="pendingDeleteId !== conversation.id"
               col="1"
-              text="×"
+              columns="auto"
               class="history-delete"
+              v-press
               @tap="onDelete(conversation)"
-            />
+            >
+              <Icon col="0" name="trash" :size="15" color="#B6BCC6" />
+            </GridLayout>
             <StackLayout
               v-else
               col="1"
@@ -211,12 +227,24 @@ function metaOf(conversation: Conversation): string {
 
       <!-- Profile + Settings -->
       <GridLayout row="4" rows="auto, auto" class="footer">
-        <GridLayout row="0" columns="auto, *" class="footer-row" @tap="emit('openProfile')">
+        <GridLayout
+          row="0"
+          columns="auto, *"
+          class="footer-row"
+          v-press
+          @tap="emit('openProfile')"
+        >
           <Label col="0" :text="settings.initials" class="footer-avatar" :color="accent()" />
           <Label col="1" text="Profile" class="footer-text" />
         </GridLayout>
-        <GridLayout row="1" columns="auto, *" class="footer-row" @tap="emit('openSettings')">
-          <Label col="0" text="⚙" class="footer-mark" />
+        <GridLayout
+          row="1"
+          columns="auto, *"
+          class="footer-row"
+          v-press
+          @tap="emit('openSettings')"
+        >
+          <Icon col="0" name="sliders" :size="16" color="#6B7280" class="footer-mark" />
           <Label col="1" text="Settings" class="footer-text" />
         </GridLayout>
       </GridLayout>
@@ -282,9 +310,9 @@ function metaOf(conversation: Conversation): string {
 }
 
 .new-chat-mark {
-  font-size: 14;
-  width: 24;
+  width: 22;
   vertical-align: center;
+  margin-right: 2;
 }
 
 .new-chat-text {
@@ -333,7 +361,6 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-dot {
-  font-size: 6;
   width: 14;
   vertical-align: center;
   opacity: 0.55;
@@ -352,10 +379,8 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-delete {
-  color: #b6bcc6;
-  font-size: 20;
-  width: 30;
-  text-align: center;
+  width: 32;
+  height: 32;
   vertical-align: center;
   padding-right: 4;
 }
@@ -414,8 +439,6 @@ function metaOf(conversation: Conversation): string {
 }
 
 .footer-mark {
-  color: #6b7280;
-  font-size: 15;
   width: 26;
   vertical-align: center;
 }

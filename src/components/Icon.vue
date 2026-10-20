@@ -13,12 +13,16 @@
  *
  * The geometry is a 24x24 grid. `size` scales the whole thing, `stroke` the
  * weight of the line work.
+ *
+ * Every icon is described as a list of parts (see `PARTS`). The template then
+ * renders that list with a single `v-for` - a `v-if` on a `<template>` block
+ * does not work inside a native view in NativeScript-Vue.
  */
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 
 const props = withDefaults(
   defineProps<{
-    /** Name of the icon, see the template for the set. */
+    /** Name of the icon, see `PARTS` for the set. */
     name: string;
     /** Overall size in device independent pixels. */
     size?: number;
@@ -34,201 +38,155 @@ const props = withDefaults(
   },
 );
 
+/** One piece of an icon, in grid units. */
+interface Part {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /** Filled with the colour (otherwise only the border is drawn). */
+  fill?: boolean;
+  /** Which edges carry the stroke. */
+  edges?: 'all' | 'right-bottom' | 'none';
+  /** Border radius in grid units. */
+  radius?: number;
+  /** Border radius on the two top corners only. */
+  radiusTop?: number;
+  /** Rotation in degrees. */
+  rotate?: number;
+}
+
+/** The chevron is one L shape, rotated to point in a direction. */
+const CHEVRON: Part = { left: 7.5, top: 7.5, width: 9, height: 9, edges: 'right-bottom' };
+
+/** All icons, in grid units. */
+const PARTS: Record<string, Part[]> = {
+  menu: [
+    { left: 3, top: 6, width: 18, height: 2, fill: true },
+    { left: 3, top: 11, width: 18, height: 2, fill: true },
+    { left: 3, top: 16, width: 18, height: 2, fill: true },
+  ],
+  'chevron-down': [{ ...CHEVRON, rotate: 45 }],
+  'chevron-up': [{ ...CHEVRON, rotate: 135 }],
+  'chevron-left': [{ ...CHEVRON, rotate: 225 }],
+  'chevron-right': [{ ...CHEVRON, rotate: 315 }],
+  'arrow-up': [
+    { ...CHEVRON, top: 3, rotate: 135 },
+    { left: 11, top: 11, width: 2, height: 10, fill: true },
+  ],
+  stop: [{ left: 6, top: 6, width: 12, height: 12, fill: true, radius: 2.5 }],
+  plus: [
+    { left: 4, top: 11, width: 16, height: 2, fill: true },
+    { left: 11, top: 4, width: 2, height: 16, fill: true },
+  ],
+  close: [
+    { left: 5.5, top: 11, width: 13, height: 2, fill: true, rotate: 45 },
+    { left: 5.5, top: 11, width: 13, height: 2, fill: true, rotate: -45 },
+  ],
+  search: [
+    { left: 3.5, top: 3.5, width: 12, height: 12, edges: 'all', radius: 6 },
+    { left: 16.4, top: 13.6, width: 2, height: 8, fill: true, rotate: 45 },
+  ],
+  sliders: [
+    { left: 4, top: 6, width: 16, height: 2, fill: true },
+    { left: 4, top: 12, width: 16, height: 2, fill: true },
+    { left: 4, top: 18, width: 16, height: 2, fill: true },
+    { left: 6, top: 4, width: 6, height: 6, fill: true, radius: 3 },
+    { left: 13, top: 10, width: 6, height: 6, fill: true, radius: 3 },
+    { left: 8, top: 16, width: 6, height: 6, fill: true, radius: 3 },
+  ],
+  user: [
+    { left: 7.5, top: 2, width: 9, height: 9, fill: true, radius: 4.5 },
+    { left: 4, top: 14, width: 16, height: 9, fill: true, radiusTop: 8 },
+  ],
+  dot: [{ left: 0, top: 0, width: 24, height: 24, fill: true, radius: 12 }],
+  check: [
+    { left: 5, top: 11.5, width: 7, height: 2, fill: true, rotate: 45 },
+    { left: 9.5, top: 11, width: 13, height: 2, fill: true, rotate: -45 },
+  ],
+  dots: [
+    { left: 3, top: 9.5, width: 5, height: 5, fill: true, radius: 2.5 },
+    { left: 9.5, top: 9.5, width: 5, height: 5, fill: true, radius: 2.5 },
+    { left: 16, top: 9.5, width: 5, height: 5, fill: true, radius: 2.5 },
+  ],
+  trash: [
+    { left: 9, top: 2.5, width: 6, height: 2, fill: true },
+    { left: 3, top: 6, width: 18, height: 2, fill: true },
+    { left: 6, top: 9, width: 12, height: 13, edges: 'all', radius: 1.5 },
+  ],
+};
+
 /** Grid unit -> device independent pixels. */
 const unit = computed(() => props.size / 24);
 
-/** One grid unit. */
-const u = (value: number) => Math.round(value * unit.value * 100) / 100;
-
 /** The stroke thickness in pixels. */
-const t = computed(() => u(props.stroke));
+const thickness = computed(() => Math.round(props.stroke * unit.value * 100) / 100);
 
-/** A filled circle of `diameter` grid units, centred on the icon. */
-const dotSize = computed(() => u(8));
+/**
+ * The icon, scaled to the requested size.
+ */
+const parts = computed(() =>
+  (PARTS[props.name] ?? []).map((part) => ({
+    ...part,
+    left: Math.round(part.left * unit.value * 100) / 100,
+    top: Math.round(part.top * unit.value * 100) / 100,
+    width: Math.round(part.width * unit.value * 100) / 100,
+    height: Math.round(part.height * unit.value * 100) / 100,
+    radius: part.radius !== undefined
+      ? Math.round(part.radius * unit.value * 100) / 100
+      : undefined,
+    radiusTop: part.radiusTop !== undefined
+      ? Math.round(part.radiusTop * unit.value * 100) / 100
+      : undefined,
+  })),
+);
+
+/** The stroke width of one edge (0 when the edge carries no stroke). */
+function edgeWidth(part: Part, edge: 'all' | 'top' | 'right' | 'bottom' | 'left'): number {
+  if (part.edges === 'none') {
+    return 0;
+  }
+  if (part.edges === 'right-bottom') {
+    return edge === 'right' || edge === 'bottom' ? thickness.value : 0;
+  }
+  return thickness.value;
+}
+
+/** The rotation class of a part. */
+function rotateClass(part: Part): string {
+  if (!part.rotate) {
+    return '';
+  }
+  return part.rotate < 0 ? 'rot-neg-45' : `rot-${part.rotate}`;
+}
+
+onMounted(() => {
+  console.log(
+    `ICON ${props.name} size=${props.size} color=${props.color} parts=${parts.value.length}`,
+  );
+});
 </script>
 
 <template>
   <AbsoluteLayout :width="size" :height="size" class="icon">
-    <!-- ── Menu ──────────────────────────────────────────────────────────── -->
-    <template v-if="name === 'menu'">
-      <View :left="u(3)" :top="u(6)" :width="u(18)" :height="t" :backgroundColor="color" />
-      <View :left="u(3)" :top="u(11)" :width="u(18)" :height="t" :backgroundColor="color" />
-      <View :left="u(3)" :top="u(16)" :width="u(18)" :height="t" :backgroundColor="color" />
-    </template>
-
-    <!-- ── Chevrons (one L shape, rotated) ───────────────────────────────── -->
-    <template v-else-if="name === 'chevron-down' || name === 'chevron-up' || name === 'chevron-left' || name === 'chevron-right'">
-      <View
-        :left="u(7.5)"
-        :top="u(7.5)"
-        :width="u(9)"
-        :height="u(9)"
-        :borderRightWidth="t"
-        :borderBottomWidth="t"
-        :borderRightColor="color"
-        :borderBottomColor="color"
-        :class="{
-          'rot-45': name === 'chevron-down',
-          'rot-135': name === 'chevron-up',
-          'rot-225': name === 'chevron-left',
-          'rot-315': name === 'chevron-right',
-        }"
-      />
-    </template>
-
-    <!-- ── Arrow up (send) ───────────────────────────────────────────────── -->
-    <template v-else-if="name === 'arrow-up'">
-      <View
-        :left="u(7.5)"
-        :top="u(3)"
-        :width="u(9)"
-        :height="u(9)"
-        :borderRightWidth="t"
-        :borderBottomWidth="t"
-        :borderRightColor="color"
-        :borderBottomColor="color"
-        class="rot-135"
-      />
-      <View :left="u(11)" :top="u(11)" :width="t" :height="u(10)" :backgroundColor="color" />
-    </template>
-
-    <!-- ── Stop (abort) ──────────────────────────────────────────────────── -->
-    <template v-else-if="name === 'stop'">
-      <View
-        :left="u(6)"
-        :top="u(6)"
-        :width="u(12)"
-        :height="u(12)"
-        :borderRadius="u(2.5)"
-        :backgroundColor="color"
-      />
-    </template>
-
-    <!-- ── Plus ──────────────────────────────────────────────────────────── -->
-    <template v-else-if="name === 'plus'">
-      <View :left="u(4)" :top="u(11)" :width="u(16)" :height="t" :backgroundColor="color" />
-      <View :left="u(11)" :top="u(4)" :width="t" :height="u(16)" :backgroundColor="color" />
-    </template>
-
-    <!-- ── Close ─────────────────────────────────────────────────────────── -->
-    <template v-else-if="name === 'close'">
-      <View
-        :left="u(5.5)"
-        :top="u(11)"
-        :width="u(13)"
-        :height="t"
-        :backgroundColor="color"
-        class="rot-45"
-      />
-      <View
-        :left="u(5.5)"
-        :top="u(11)"
-        :width="u(13)"
-        :height="t"
-        :backgroundColor="color"
-        class="rot-neg-45"
-      />
-    </template>
-
-    <!-- ── Search ────────────────────────────────────────────────────────── -->
-    <template v-else-if="name === 'search'">
-      <View
-        :left="u(3.5)"
-        :top="u(3.5)"
-        :width="u(12)"
-        :height="u(12)"
-        :borderWidth="t"
-        :borderColor="color"
-        :borderRadius="u(6)"
-      />
-      <View
-        :left="u(16.4)"
-        :top="u(13.6)"
-        :width="t"
-        :height="u(8)"
-        :backgroundColor="color"
-        class="rot-45"
-      />
-    </template>
-
-    <!-- ── Sliders (settings) ────────────────────────────────────────────── -->
-    <template v-else-if="name === 'sliders'">
-      <View :left="u(4)" :top="u(6)" :width="u(16)" :height="t" :backgroundColor="color" />
-      <View :left="u(4)" :top="u(12)" :width="u(16)" :height="t" :backgroundColor="color" />
-      <View :left="u(4)" :top="u(18)" :width="u(16)" :height="t" :backgroundColor="color" />
-      <View :left="u(6)" :top="u(4)" :width="u(6)" :height="u(6)" :borderRadius="u(3)" :backgroundColor="color" />
-      <View :left="u(13)" :top="u(10)" :width="u(6)" :height="u(6)" :borderRadius="u(3)" :backgroundColor="color" />
-      <View :left="u(8)" :top="u(16)" :width="u(6)" :height="u(6)" :borderRadius="u(3)" :backgroundColor="color" />
-    </template>
-
-    <!-- ── User (profile) ────────────────────────────────────────────────── -->
-    <template v-else-if="name === 'user'">
-      <View :left="u(7.5)" :top="u(2)" :width="u(9)" :height="u(9)" :borderRadius="u(4.5)" :backgroundColor="color" />
-      <View
-        :left="u(4)"
-        :top="u(14)"
-        :width="u(16)"
-        :height="u(9)"
-        :borderTopLeftRadius="u(8)"
-        :borderTopRightRadius="u(8)"
-        :backgroundColor="color"
-      />
-    </template>
-
-    <!-- ── Dot ───────────────────────────────────────────────────────────── -->
-    <template v-else-if="name === 'dot'">
-      <View
-        :left="u(8)"
-        :top="u(8)"
-        :width="dotSize"
-        :height="dotSize"
-        :borderRadius="u(4)"
-        :backgroundColor="color"
-      />
-    </template>
-
-    <!-- ── Check ─────────────────────────────────────────────────────────── -->
-    <template v-else-if="name === 'check'">
-      <View
-        :left="u(5)"
-        :top="u(11.5)"
-        :width="u(7)"
-        :height="t"
-        :backgroundColor="color"
-        class="rot-45"
-      />
-      <View
-        :left="u(9.5)"
-        :top="u(11)"
-        :width="u(13)"
-        :height="t"
-        :backgroundColor="color"
-        class="rot-neg-45"
-      />
-    </template>
-
-    <!-- ── Three dots (typing) ───────────────────────────────────────────── -->
-    <template v-else-if="name === 'dots'">
-      <View :left="u(3)" :top="u(9.5)" :width="u(5)" :height="u(5)" :borderRadius="u(2.5)" :backgroundColor="color" />
-      <View :left="u(9.5)" :top="u(9.5)" :width="u(5)" :height="u(5)" :borderRadius="u(2.5)" :backgroundColor="color" />
-      <View :left="u(16)" :top="u(9.5)" :width="u(5)" :height="u(5)" :borderRadius="u(2.5)" :backgroundColor="color" />
-    </template>
-
-    <!-- ── Trash ─────────────────────────────────────────────────────────── -->
-    <template v-else-if="name === 'trash'">
-      <View :left="u(9)" :top="u(2.5)" :width="u(6)" :height="t" :backgroundColor="color" />
-      <View :left="u(3)" :top="u(6)" :width="u(18)" :height="t" :backgroundColor="color" />
-      <View
-        :left="u(6)"
-        :top="u(9)"
-        :width="u(12)"
-        :height="u(13)"
-        :borderWidth="t"
-        :borderColor="color"
-        :borderTopLeftRadius="u(1.5)"
-        :borderTopRightRadius="u(1.5)"
-      />
-    </template>
+    <View
+      v-for="(part, index) in parts"
+      :key="index"
+      :left="part.left"
+      :top="part.top"
+      :width="part.width"
+      :height="part.height"
+      :backgroundColor="part.fill ? color : 'transparent'"
+      :borderTopWidth="edgeWidth(part, 'top')"
+      :borderRightWidth="edgeWidth(part, 'right')"
+      :borderBottomWidth="edgeWidth(part, 'bottom')"
+      :borderLeftWidth="edgeWidth(part, 'left')"
+      :borderColor="color"
+      :borderRadius="part.radius"
+      :borderTopLeftRadius="part.radiusTop ?? part.radius"
+      :borderTopRightRadius="part.radiusTop ?? part.radius"
+      :class="rotateClass(part)"
+    />
   </AbsoluteLayout>
 </template>
 

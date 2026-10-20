@@ -22,7 +22,7 @@
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Application, Color } from '@nativescript/core';
-import { omniRoute, type ConnectionStatus } from '../services/omniroute';
+import { omniAi, type ConnectionStatus } from '../services/omni-ai';
 
 /** Fires once the splash has finished animating away. */
 const emit = defineEmits(['done']);
@@ -89,19 +89,19 @@ onMounted(async () => {
     onStageLoaded();
   }
 
-  unsubscribe = omniRoute.onStatus((next) => {
+  unsubscribe = omniAi.onStatus((next) => {
     status.value = next;
   });
 
   // Warm the model list while the mark is still on screen, so the chat
   // screen opens with its picker ready to use.
   try {
-    const models = await omniRoute.loadModels();
+    const models = await omniAi.loadModels();
     modelCount.value = models.length;
   } catch (err) {
     // The chat screen surfaces connection problems itself; the splash only
     // needs to know that the gateway is not reachable.
-    console.error('Splash could not reach OmniRoute:', err);
+    console.error('Splash could not reach the Omni Ai gateway:', err);
   }
 });
 
@@ -285,7 +285,7 @@ function applyStatusBar(dark: boolean) {
 
       <!-- The wordmark. -->
       <StackLayout ref="copyRef" row="1" col="0" class="splash-copy">
-        <Label row="0" col="0" text="OmniRoute" class="splash-wordmark" />
+        <Label row="0" col="0" text="Omni Ai" class="splash-wordmark" />
         <Label row="1" col="0" :text="eyebrow" class="splash-eyebrow" />
         <GridLayout row="2" col="0" columns="auto, auto" class="splash-status">
           <Label col="0" row="0" text="●" class="splash-status-dot" :class="statusClass" />

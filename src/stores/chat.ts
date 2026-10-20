@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ApplicationSettings } from '@nativescript/core';
-import type { ChatMessagePayload } from '../services/omniroute';
+import type { ChatMessagePayload } from '../services/omni-ai';
 
 export type MessageSender = 'user' | 'ai';
 
@@ -25,7 +25,13 @@ export interface Conversation {
   messages: Message[];
 }
 
-const STORAGE_KEY = 'omniroute.conversations.v1';
+const STORAGE_KEY = 'omniai.conversations.v1';
+
+/**
+ * The key the app used before it was renamed. It is read once, so renaming
+ * the app never throws away the conversations that are already on the device.
+ */
+const LEGACY_STORAGE_KEY = 'omniroute.conversations.v1';
 
 /** How many conversations are kept on the device. */
 const MAX_CONVERSATIONS = 40;
@@ -116,7 +122,9 @@ function sanitizeConversation(raw: any): Conversation {
 
 function readStored(): { conversations: Conversation[]; activeId: string | null } {
   try {
-    const raw = ApplicationSettings.getString(STORAGE_KEY, '');
+    const raw =
+      ApplicationSettings.getString(STORAGE_KEY, '') ||
+      ApplicationSettings.getString(LEGACY_STORAGE_KEY, '');
     if (!raw) {
       return { conversations: [], activeId: null };
     }
@@ -289,7 +297,7 @@ export const useChatStore = defineStore('chat', {
       this.persist();
     },
     /**
-     * Builds the request payload for OmniRoute from the visible conversation.
+     * Builds the request payload for the gateway from the visible conversation.
      * The trailing assistant message is dropped because it is the answer the
      * model is about to produce.
      */

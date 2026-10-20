@@ -4,6 +4,9 @@
  * Every animation in the app goes through here so that the timing feels like
  * one system: short and sharp for feedback, a little longer for entrances,
  * and springs for anything the finger is directly touching.
+ *
+ * Note: NativeScript 8+ takes a single definition object - the properties
+ * and the timing live side by side (`animate({ opacity: 1, duration: 200 })`).
  */
 import type { View } from '@nativescript/core';
 
@@ -44,7 +47,8 @@ export function animate(
     return Promise.resolve();
   }
   return view
-    .animate(properties, {
+    .animate({
+      ...properties,
       duration: options.duration ?? DURATION.base,
       delay: options.delay ?? 0,
       curve: options.curve ?? CURVE.out,
@@ -65,7 +69,7 @@ export function enter(
   }
   const distance = options.distance ?? 14;
   view.opacity = 0;
-  view.translate = { x: 0, y: distance };
+  view.translateY = distance;
   return animate(
     view,
     { opacity: 1, translate: { x: 0, y: 0 } },
@@ -111,15 +115,8 @@ export function pulse(view: View | null | undefined, to = 1.12): Promise<void> {
     return Promise.resolve();
   }
   return view
-    .animate({ scale: { x: to, y: to } }, { duration: 180, curve: CURVE.out })
-    .then(() => view.animate({ scale: { x: 1, y: 1 } }, { duration: 260, curve: CURVE.spring }))
+    .animate({ scale: { x: to, y: to }, duration: 180, curve: CURVE.out })
+    .then(() => view.animate({ scale: { x: 1, y: 1 }, duration: 260, curve: CURVE.spring }))
     .then(() => undefined)
     .catch(() => undefined);
-}
-
-/**
- * Runs a callback after the given number of milliseconds.
- */
-export function later(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
-  return setTimeout(callback, delay);
 }

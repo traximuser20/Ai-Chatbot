@@ -13,9 +13,11 @@
  * The accent colour is derived from the provider, so the colour of the
  * interface always tells you who you are talking to.
  */
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import MarkdownView from './MarkdownView.vue';
+import Icon from './Icon.vue';
 import { providerOf } from '../utils/accent';
+import { enter } from '../utils/motion';
 
 const props = defineProps<{
   text: string;
@@ -34,6 +36,14 @@ const props = defineProps<{
 const isUser = computed(() => props.sender === 'user');
 
 const accent = computed(() => props.accent ?? '#2F55F5');
+
+/** The bubble, so it can be animated in when it appears. */
+const bubbleRef = ref<any>(null);
+
+onMounted(() => {
+  // Every message arrives with a small lift, so the conversation feels alive.
+  enter(bubbleRef.value?.nativeView, { distance: props.sender === 'user' ? 8 : 12 });
+});
 
 /** Provider prefix, e.g. "auto" for "auto/best-fast". */
 const provider = computed(() => (props.model ? providerOf(props.model) : ''));
@@ -72,7 +82,11 @@ const paragraphs = computed(() =>
       - AI    -> columns "*": the text column is constrained to the page
                  width, so long answers wrap instead of being clipped.
   -->
-  <GridLayout :columns="isUser ? '*, auto' : '*'" class="message-row">
+  <GridLayout
+    ref="bubbleRef"
+    :columns="isUser ? '*, auto' : '*'"
+    class="message-row"
+  >
     <!-- ── User message ─────────────────────────────────────────────────── -->
     <StackLayout v-if="isUser" col="1" class="user-bubble">
       <Label
@@ -93,7 +107,7 @@ const paragraphs = computed(() =>
         columns="auto, auto"
         class="ai-chip"
       >
-        <Label col="0" text="●" class="ai-chip-dot" :color="accent" />
+        <Icon col="0" name="dot" :size="8" :color="accent" class="ai-chip-dot" />
         <Label
           col="1"
           :text="provider ? `${provider} / ${modelName}` : modelName"
@@ -157,9 +171,8 @@ const paragraphs = computed(() =>
 }
 
 .ai-chip-dot {
-  font-size: 9;
+  width: 13;
   vertical-align: center;
-  margin-right: 6;
 }
 
 .ai-chip-text {
