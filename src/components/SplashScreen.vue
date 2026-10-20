@@ -83,8 +83,6 @@ const statusText = computed(() => {
 const statusClass = computed(() => `splash-status-dot--${status.value}`);
 
 onMounted(async () => {
-  applyStatusBar(true);
-
   // If the native view is already up (a fast warm start) the `loaded` event
   // has been and gone, so start the sequence by hand.
   if (rootRef.value?.nativeView?.isLoaded) {
@@ -121,6 +119,10 @@ onUnmounted(() => {
  * and the animations start together.
  */
 function onStageLoaded() {
+  // The activity theme has been swapped by now, so this is the first moment
+  // the status bar can be painted to match the splash.
+  applyStatusBar(true);
+
   clearTimeout(safetyTimer);
   safetyTimer = setTimeout(leave, MAX_LIFE_MS);
   holdTimer = setTimeout(leave, HOLD_MS);
@@ -143,7 +145,15 @@ function leave() {
   hero?.animate({ opacity: 0, scaleX: 1.16, scaleY: 1.16, duration: 280, curve: 'easeIn' });
   copy?.animate({ opacity: 0, translateY: -16, duration: 260, curve: 'easeIn' });
   ink?.animate({ opacity: 0, duration: 300, delay: 40, curve: 'easeIn' });
-  paper?.animate({ opacity: 0, duration: 300, delay: 260, curve: 'easeIn' });
+  // The ground lightens from ink to paper while it dissolves, so the app
+  // arrives on exactly the colour it uses.
+  paper?.animate({
+    backgroundColor: new Color(PAPER),
+    opacity: 0,
+    duration: 300,
+    delay: 240,
+    curve: 'easeIn',
+  });
 
   exitTimer = setTimeout(() => {
     applyStatusBar(false);
@@ -154,18 +164,19 @@ function leave() {
 /** Paints the system status bar to match whatever is on screen. */
 function applyStatusBar(dark: boolean) {
   try {
-    const activity = Application.android?.mainActivity;
-    if (!activity) {
-      return;
+    // The page owns the window, so this is the supported way to recolour the
+    // status bar on Android.
+    const page = rootRef.value?.nativeView?.page;
+    if (page) {
+      page.androidStatusBarBackground = new Color(dark ? INK : PAPER);
     }
-    const window = activity.getWindow();
-    window.setStatusBarColor(new Color(dark ? INK : PAPER).android);
 
-    if (android.os.Build.VERSION.SDK_INT >= 30) {
-      const controller = window.getInsetsController();
+    // Light icons on the dark splash, dark icons on the light app.
+    const activity = Application.android?.foregroundActivity;
+    if (activity && android.os.Build.VERSION.SDK_INT >= 30) {
+      const controller = activity.getWindow().getInsetsController();
       const lightBars = (android.view as any).WindowInsetsController
         .APPEARANCE_LIGHT_STATUS_BARS;
-      // Light icons on the dark splash, dark icons on the light app.
       controller.setSystemBarsAppearance(dark ? 0 : lightBars, lightBars);
     }
   } catch (err) {
@@ -248,7 +259,7 @@ function applyStatusBar(dark: boolean) {
 }
 
 .splash-paper {
-  background-color: #f2f3f6;
+  background-color: #0b0e17;
   horizontal-align: stretch;
   vertical-align: stretch;
 }
@@ -442,7 +453,7 @@ function applyStatusBar(dark: boolean) {
 /* ---------- Copy ---------- */
 .splash-copy {
   horizontal-align: center;
-  padding: 0 28 44 28;
+  padding: 0 28 68 28;
   opacity: 0;
   transform: translate(0, 18);
   animation-name: splashRise;

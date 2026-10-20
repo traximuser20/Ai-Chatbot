@@ -144,10 +144,20 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | `\n` inside a `Label` | Collapsed/oddly rendered | Split the text into paragraphs and render one `Label` per paragraph |
 | `height: <%>` on a `GridLayout` | Percentage heights do not resolve reliably inside a `GridLayout` cell | Use `rows="auto, *"` on the parent and let the `*` row size the child |
 | A `ScrollView` with hundreds of `Label`s | Only the first item is laid out; the rest never appear | Use a `ListView` with an item template - it recycles rows |
+| `v-for` directly inside a `GridLayout` | All children land in column 0 and are drawn on top of each other (e.g. a segmented control rendered "Medium" and "Large" overlapping) | Put the `v-for` inside a `StackLayout orientation="horizontal"` (or a `WrapLayout`) instead of a `GridLayout` |
+| `StackLayout` without `orientation="horizontal"` | Children stack vertically (e.g. the typing indicator became a tall narrow pill instead of a row of dots) | Set `orientation="horizontal"` explicitly |
 
 ---
 
-## 8. Command Cheat Sheet
+## 8. Component Patterns
+
+- **Never put a `v-for` directly in a `GridLayout`.** GridLayout columns are not assigned reliably to `v-for` children in NativeScript-Vue.
+- **Always set `orientation="horizontal"` on a `StackLayout` that holds side-by-side items.** The default is vertical.
+- `MarkdownView.vue` renders replies; `src/utils/markdown.ts` is a hand-written parser. A regex with a single capture group must be read with `[1]` — reading `[2]` passes `undefined` downstream and crashes the app (see the `asOrdered[2]` bug that was fixed in `parseList`).
+
+---
+
+## 9. Command Cheat Sheet
 
 | Command | Purpose |
 | :--- | :--- |
