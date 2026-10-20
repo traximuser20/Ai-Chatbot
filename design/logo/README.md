@@ -62,16 +62,21 @@ disc of radius `CORNER` - without having to spell out four arcs.
 | :--- | :--- |
 | `src/assets/img/` | The runtime images the app loads. |
 | `App_Resources/Android/.../mipmap-*` | The launcher icon (legacy tile and adaptive foreground/background). |
-| `App_Resources/Android/.../drawable-*/logo.png` | The mark for the native launch screen. |
-| `App_Resources/Android/.../drawable-*/splash_icon.png` | The Android 12+ launch screen icon. It is drawn on its own, sized to the inner two thirds of the system splash canvas, so the system mask never clips the diamond. |
+| `App_Resources/Android/.../drawable-*/logo.png` | The mark, kept for the launch screen drawables. |
+| `App_Resources/Android/.../drawable/splash_icon_blank.xml` | An invisible icon for the Android 12+ launch screen, which then shows the ground only. |
 | `App_Resources/iOS/.../AppIcon.appiconset` | The iOS icon set. |
 
 ## The splash screen
 
 `src/components/SplashScreen.vue` plays the mark:
 
-1. The system launch screen shows the ink ground and the mark.
-2. The app takes over with the same ground, so the hand-over is invisible.
+1. Android draws its own launch screen before the app has a frame. It is used
+   as nothing but the ground: the ink colour, **no icon and no exit
+   animation** (`App_Resources/Android/src/main/res/values-v31/styles.xml`).
+   A system splash that also shows the logo reads as a second, static splash
+   in front of the real one.
+2. The app takes over on the same ink, so the hand-over is invisible - one
+   dark screen that comes alive.
 3. The grid, the aurora blobs and the two orbit rings drift in.
 4. The mark scales up out of the glow while its beam pulses.
 5. The wordmark, the eyebrow and the live gateway state rise into place.

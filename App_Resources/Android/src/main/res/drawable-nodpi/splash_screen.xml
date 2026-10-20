@@ -1,8 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The launch screen ground for Android 11 and below.
+
+    Only the ink background: the mark belongs to the app's own splash
+    screen, which animates. Showing a static logo here as well would look
+    like two splash screens.
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android" android:gravity="fill">
     <item>
         <bitmap android:gravity="fill" android:src="@drawable/background" />
-    </item>
-    <item>
-        <bitmap android:gravity="center" android:src="@drawable/logo" />
     </item>
 </layer-list>

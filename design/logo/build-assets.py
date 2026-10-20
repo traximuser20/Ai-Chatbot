@@ -275,29 +275,6 @@ def tile_svg(size: int, padding_ratio: float = 0.195, rounded: bool = True) -> s
 """
 
 
-def splash_icon_svg(size: int) -> str:
-    """The Android 12+ launch screen icon: the mark on its own, sized to the
-    inner two thirds of the system splash canvas so nothing is masked away."""
-    inner = size * 0.80
-    scale = inner / 512.0
-    pad = (size - inner) / 2
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 {size} {size}" width="{size}" height="{size}">
-  <defs>
-    <linearGradient id="spectrum" x1="0" y1="0" x2="1" y2="1">{spectrum_stops()}</linearGradient>
-    <path id="prism" d="{PRISM_PATH}"/>
-    <clipPath id="clipPrism"><use xlink:href="#prism"/></clipPath>
-  </defs>
-  <g transform="translate({pad} {pad}) scale({scale})">
-    <use xlink:href="#prism" fill="url(#spectrum)"/>
-    <g clip-path="url(#clipPrism)">
-      {beam_rect(BEAM_GLOW, BEAM, 0.22)}
-      {beam_rect(BEAM_WIDTH, BEAM, 0.98)}
-    </g>
-  </g>
-</svg>
-"""
-
-
 def adaptive_foreground_svg(size: int) -> str:
     """Adaptive icon foreground: the mark inside the 66% safe zone."""
     inner = size * 0.52
@@ -463,18 +440,6 @@ def main() -> int:
         folder = ANDROID_RES / f"drawable-{density}"
         folder.mkdir(parents=True, exist_ok=True)
         render(MARK_SVG, folder / "logo.png", size)
-
-    # The Android 12+ launch screen icon.
-    for density, size in {
-        "mdpi": 192,
-        "hdpi": 288,
-        "xhdpi": 384,
-        "xxhdpi": 576,
-        "xxxhdpi": 768,
-    }.items():
-        folder = ANDROID_RES / f"drawable-{density}"
-        folder.mkdir(parents=True, exist_ok=True)
-        render(splash_icon_svg(size), folder / "splash_icon.png", size)
 
     # 5. iOS icons ---------------------------------------------------------
     IOS_ICONS.mkdir(parents=True, exist_ok=True)

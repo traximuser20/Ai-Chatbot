@@ -35,10 +35,10 @@ const PAPER = '#F2F3F6';
 
 /**
  * How long the splash stays on screen once the native views are up.
- * The entrance beats below take ~1.4s, so the mark gets a moment to breathe
+ * The entrance beats below take ~1.6s, so the mark gets a moment to breathe
  * before it leaves.
  */
-const HOLD_MS = 1500;
+const HOLD_MS = 1800;
 
 /** How long the whole exit takes. */
 const EXIT_MS = 560;
@@ -145,14 +145,14 @@ function startEntrance() {
   const copy = copyRef.value?.nativeView;
 
   // The field itself.
-  ink?.animate({ opacity: 1, duration: 420, curve: 'easeOut' });
+  ink?.animate({ opacity: 1, duration: 520, curve: 'easeOut' });
 
   // The mark: out of the glow, into place.
   hero?.animate({
     opacity: 1,
     scale: { x: 1, y: 1 },
-    duration: 760,
-    delay: 90,
+    duration: 900,
+    delay: 120,
     curve: 'easeOut',
   });
 
@@ -160,8 +160,8 @@ function startEntrance() {
   copy?.animate({
     opacity: 1,
     translate: { x: 0, y: 0 },
-    duration: 700,
-    delay: 620,
+    duration: 800,
+    delay: 700,
     curve: 'easeOut',
   });
 }
@@ -313,7 +313,7 @@ function applyStatusBar(dark: boolean) {
 }
 
 .splash-ink {
-  background-image: linear-gradient(165deg, #161d38 0%, #0d1223 48%, #090b14 100%);
+  background-image: linear-gradient(160deg, #0e1224 0%, #0a0d18 52%, #080a12 100%);
   horizontal-align: stretch;
   vertical-align: stretch;
   opacity: 0;
