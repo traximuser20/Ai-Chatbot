@@ -54,7 +54,9 @@ export function animate(
       curve: options.curve ?? CURVE.out,
     })
     .then(() => undefined)
-    .catch(() => undefined);
+    .catch((err) => {
+      console.error('Animation failed:', err?.message ?? err);
+    });
 }
 
 /**
@@ -68,13 +70,30 @@ export function enter(
     return Promise.resolve();
   }
   const distance = options.distance ?? 14;
+  const duration = options.duration ?? DURATION.base;
+
   view.opacity = 0;
   view.translateY = distance;
-  return animate(
+
+  const done = animate(
     view,
     { opacity: 1, translate: { x: 0, y: 0 } },
-    { duration: options.duration ?? DURATION.base, delay: options.delay ?? 0, curve: CURVE.out },
+    { duration, delay: options.delay ?? 0, curve: CURVE.out },
   );
+
+  /*
+    Safety net: a view that is not attached to the window yet cannot be
+    animated, and it would stay invisible forever. The animation usually
+    wins the race, in which case this does nothing.
+  */
+  setTimeout(() => {
+    if (view.opacity < 1) {
+      view.opacity = 1;
+      view.translateY = 0;
+    }
+  }, duration + (options.delay ?? 0) + 300);
+
+  return done;
 }
 
 /** The standard exit: the view fades out while it drifts down. */
@@ -119,4 +138,58 @@ export function pulse(view: View | null | undefined, to = 1.12): Promise<void> {
     .then(() => view.animate({ scale: { x: 1, y: 1 }, duration: 260, curve: CURVE.spring }))
     .then(() => undefined)
     .catch(() => undefined);
+}
+
+/** One step of a repeating animation. */
+export interface LoopFrame {
+  /** The properties to animate to. */
+  properties: Record<string, any>;
+  duration?: number;
+  curve?: string;
+}
+
+/**
+ * Runs an animation over and over.
+ *
+ * NativeScript's CSS `@keyframes` do not run inside a component's scoped
+ * style block, so the ambient motion of the app is driven from here instead.
+ * The frames are played one after the other, which gives a smooth ping-pong.
+ *
+ * Returns a function that stops the loop.
+ */
+export function loopAnimation(
+  view: View | null | undefined,
+  frames: LoopFrame[],
+  options: { delay?: number } = {},
+): () => void {
+  let index = 0;
+  let stopped = false;
+
+  const step = () => {
+    if (stopped || !view) {
+      return;
+    }
+    const frame = frames[index % frames.length];
+    view
+      .animate({
+        ...frame.properties,
+        duration: frame.duration ?? DURATION.base,
+        curve: frame.curve ?? CURVE.inOut,
+      })
+      .then(() => {
+        index += 1;
+        step();
+      })
+      .catch(() => undefined);
+  };
+
+  if (options.delay) {
+    setTimeout(step, options.delay);
+  } else {
+    step();
+  }
+
+  return () => {
+    stopped = true;
+  };
 }

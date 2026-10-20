@@ -18,7 +18,7 @@
  * renders that list with a single `v-for` - a `v-if` on a `<template>` block
  * does not work inside a native view in NativeScript-Vue.
  */
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 
 const props = withDefaults(
   defineProps<{
@@ -67,11 +67,11 @@ const PARTS: Record<string, Part[]> = {
     { left: 3, top: 16, width: 18, height: 2, fill: true },
   ],
   'chevron-down': [{ ...CHEVRON, rotate: 45 }],
-  'chevron-up': [{ ...CHEVRON, rotate: 135 }],
-  'chevron-left': [{ ...CHEVRON, rotate: 225 }],
+  'chevron-up': [{ ...CHEVRON, rotate: 225 }],
+  'chevron-left': [{ ...CHEVRON, rotate: 135 }],
   'chevron-right': [{ ...CHEVRON, rotate: 315 }],
   'arrow-up': [
-    { ...CHEVRON, top: 3, rotate: 135 },
+    { ...CHEVRON, top: 3, rotate: 225 },
     { left: 11, top: 11, width: 2, height: 10, fill: true },
   ],
   stop: [{ left: 6, top: 6, width: 12, height: 12, fill: true, radius: 2.5 }],
@@ -159,29 +159,28 @@ function rotateClass(part: Part): string {
   }
   return part.rotate < 0 ? 'rot-neg-45' : `rot-${part.rotate}`;
 }
-
-onMounted(() => {
-  console.log(
-    `ICON ${props.name} size=${props.size} color=${props.color} parts=${parts.value.length}`,
-  );
-});
 </script>
 
 <template>
-  <AbsoluteLayout :width="size" :height="size" class="icon">
-    <View
+  <AbsoluteLayout :width="props.size" :height="props.size" class="icon">
+    <!--
+      `ContentView` is the plain, drawable box of NativeScript.
+      NativeScript-Vue only registers a fixed set of elements, and a bare
+      <View> is not one of them (`Placeholder` has no native view at all).
+    -->
+    <ContentView
       v-for="(part, index) in parts"
       :key="index"
       :left="part.left"
       :top="part.top"
       :width="part.width"
       :height="part.height"
-      :backgroundColor="part.fill ? color : 'transparent'"
+      :backgroundColor="part.fill ? props.color : 'transparent'"
       :borderTopWidth="edgeWidth(part, 'top')"
       :borderRightWidth="edgeWidth(part, 'right')"
       :borderBottomWidth="edgeWidth(part, 'bottom')"
       :borderLeftWidth="edgeWidth(part, 'left')"
-      :borderColor="color"
+      :borderColor="props.color"
       :borderRadius="part.radius"
       :borderTopLeftRadius="part.radiusTop ?? part.radius"
       :borderTopRightRadius="part.radiusTop ?? part.radius"

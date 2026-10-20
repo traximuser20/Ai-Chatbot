@@ -7,11 +7,12 @@
  * display name shown in the interface, the gateway identity and a few facts
  * about the local history.
  */
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, nextTick } from 'vue';
 import { $navigateBack } from 'nativescript-vue';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { providerOf } from '../utils/accent';
+import { enter } from '../utils/motion';
 import Icon from './Icon.vue';
 
 const chatStore = useChatStore();
@@ -21,6 +22,13 @@ const emit = defineEmits<{ saved: [] }>();
 
 const nameDraft = ref(settings.displayName);
 const saved = ref(false);
+
+/** The body of the screen, so it can rise into place. */
+const bodyRef = ref<any>(null);
+
+onMounted(() => {
+  nextTick(() => enter(bodyRef.value?.nativeView, { distance: 16, duration: 420 }));
+});
 
 /** Distinct providers the user has talked to so far. */
 const providerCount = computed(() => {
@@ -69,7 +77,7 @@ function back() {
       </GridLayout>
 
       <ScrollView row="1" class="screen-scroll">
-        <StackLayout class="body">
+        <StackLayout ref="bodyRef" class="body">
           <!-- ── Identity ─────────────────────────────────────────────────── -->
           <GridLayout columns="auto, *" class="card identity">
             <Label col="0" :text="settings.initials" class="avatar" />
@@ -163,21 +171,6 @@ function back() {
 
 .body {
   padding: 16;
-  animation-name: screenRise;
-  animation-duration: 420ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: both;
-}
-
-@keyframes screenRise {
-  from {
-    opacity: 0;
-    transform: translate(0, 14);
-  }
-  to {
-    opacity: 1;
-    transform: translate(0, 0);
-  }
 }
 
 /* ---------- Card ---------- */

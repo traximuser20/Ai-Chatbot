@@ -6,11 +6,12 @@
  * the switches change how the chat behaves, and the data section actually
  * clears the stored conversations.
  */
-import { ref, watch, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { $navigateBack } from 'nativescript-vue';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore, type TextScale } from '../stores/settings';
 import { omniAi, BASE_URL } from '../services/omni-ai';
+import { enter, pulse } from '../utils/motion';
 import Icon from './Icon.vue';
 
 const chatStore = useChatStore();
@@ -29,53 +30,28 @@ const scales: { value: TextScale; label: string }[] = [
 /* Segmented control                                                   */
 /* ------------------------------------------------------------------ */
 
-/** The segmented control and the sliding pill. */
+/** The segmented control, so the picked option can be popped. */
 const segmentRef = ref<any>(null);
-const pillRef = ref<any>(null);
-/** Width of one segment, used to lay the labels out evenly. */
-const itemWidth = ref(0);
+/** The body of the screen, so it can rise into place. */
+const bodyRef = ref<any>(null);
 
 /**
- * Measures the segmented control and moves the white pill onto the active
- * option. The pill is moved with a translation, because a layout property
- * such as `left` cannot be animated.
+ * Pops the option that was just picked, so the change is felt and not only
+ * seen.
  */
-function layoutSegment(animated: boolean) {
-  const segment = segmentRef.value?.nativeView;
-  const pill = pillRef.value?.nativeView;
-  if (!segment || !pill) {
-    return;
-  }
-
-  const padding = 3;
-  const width = Math.max(0, segment.getMeasuredWidth() - padding * 2);
-  const item = width / scales.length;
-  itemWidth.value = item;
-
-  pill.width = Math.max(0, item - 2);
-  pill.left = 1;
-
-  const index = Math.max(
-    0,
-    scales.findIndex((scale) => scale.value === settings.textScale),
-  );
-  const target = index * item;
-
-  if (animated) {
-    pill.animate({ translate: { x: target, y: 0 }, duration: 260, curve: 'easeOut' });
-  } else {
-    pill.translateX = target;
+function popSegment(scale: TextScale) {
+  const index = scales.findIndex((item) => item.value === scale);
+  const view = segmentRef.value?.nativeView?.children?.[index]?.nativeView;
+  if (view) {
+    pulse(view, 1.08);
   }
 }
 
 onMounted(() => {
-  nextTick(() => layoutSegment(false));
+  nextTick(() => {
+    enter(bodyRef.value?.nativeView, { distance: 16, duration: 420 });
+  });
 });
-
-watch(
-  () => settings.textScale,
-  () => layoutSegment(true),
-);
 
 function back() {
   $navigateBack();
@@ -120,39 +96,46 @@ function clearHistory() {
       </GridLayout>
 
       <ScrollView row="1" class="screen-scroll">
-        <StackLayout class="body">
+        <StackLayout ref="bodyRef" class="body">
           <!-- ── Appearance ───────────────────────────────────────────────── -->
           <Label text="Appearance" class="group-label" />
 
-          <GridLayout rows="auto, auto" class="card">
+          <GridLayout ref="cardRef" columns="*" rows="auto, auto" class="card">
             <StackLayout row="0">
               <Label text="Text size" class="row-title" />
               <Label text="Scales the conversation and the interface" class="row-sub" />
             </StackLayout>
             <!--
-              The segmented control is an AbsoluteLayout: a white pill slides
-              between the options while the labels sit on top of it.
-
-              The labels live in a horizontal StackLayout - in NativeScript-Vue
-              the children of a 'v-for' inside a GridLayout are all placed in
-              column 0 and drawn on top of each other (the segmented control
-              rendered "Medium" and "Large" overlapping).
+              The segmented control. The three options are written out one by
+              one: the children of a `v-for` inside a GridLayout are all
+              placed in column 0 and drawn on top of each other.
             -->
-            <AbsoluteLayout ref="segmentRef" row="1" class="segment">
-              <View ref="pillRef" class="segment-pill" />
-              <StackLayout orientation="horizontal" class="segment-items">
-                <Label
-                  v-for="scale in scales"
-                  :key="scale.value"
-                  :text="scale.label"
-                  :width="itemWidth"
-                  class="segment-item"
-                  :class="{ 'segment-item--active': settings.textScale === scale.value }"
-                  v-press
-                  @tap="settings.setTextScale(scale.value)"
-                />
-              </StackLayout>
-            </AbsoluteLayout>
+            <GridLayout ref="segmentRef" row="1" columns="*, *, *" class="segment">
+              <Label
+                col="0"
+                text="Small"
+                class="segment-item"
+                :class="{ 'segment-item--active': settings.textScale === 'small' }"
+                v-press
+                @tap="settings.setTextScale('small'); popSegment('small')"
+              />
+              <Label
+                col="1"
+                text="Medium"
+                class="segment-item"
+                :class="{ 'segment-item--active': settings.textScale === 'medium' }"
+                v-press
+                @tap="settings.setTextScale('medium'); popSegment('medium')"
+              />
+              <Label
+                col="2"
+                text="Large"
+                class="segment-item"
+                :class="{ 'segment-item--active': settings.textScale === 'large' }"
+                v-press
+                @tap="settings.setTextScale('large'); popSegment('large')"
+              />
+            </GridLayout>
           </GridLayout>
 
           <!-- ── Conversation ─────────────────────────────────────────────── -->
@@ -271,21 +254,6 @@ function clearHistory() {
 
 .body {
   padding: 16 16 32 16;
-  animation-name: screenRise;
-  animation-duration: 420ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: both;
-}
-
-@keyframes screenRise {
-  from {
-    opacity: 0;
-    transform: translate(0, 14);
-  }
-  to {
-    opacity: 1;
-    transform: translate(0, 0);
-  }
 }
 
 /* ---------- Groups ---------- */
@@ -350,7 +318,7 @@ function clearHistory() {
 .segment {
   background-color: #eceef2;
   border-radius: 11;
-  height: 40;
+  padding: 3;
   margin-top: 12;
 }
 
@@ -375,10 +343,13 @@ function clearHistory() {
   font-size: 13;
   font-weight: 600;
   text-align: center;
-  padding: 12 0;
+  padding: 9 0;
+  border-radius: 9;
+  margin-right: 2;
 }
 
 .segment-item--active {
+  background-color: #ffffff;
   color: #0f1115;
   font-weight: 700;
 }

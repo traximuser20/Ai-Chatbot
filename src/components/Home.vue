@@ -12,13 +12,14 @@
  * Two overlays sit on top of the grid: the navigation drawer and the model
  * picker. Both span all rows so they cover the whole screen.
  */
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
 import { Screen } from '@nativescript/core';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { omniAi, OmniAiError, type OmniAiModel } from '../services/omni-ai';
 import { accentFor, providerOf } from '../utils/accent';
+import { enter, loopAnimation } from '../utils/motion';
 import ChatMessage from './ChatMessage.vue';
 import Sidebar from './Sidebar.vue';
 import ModelSheet from './ModelSheet.vue';
@@ -69,6 +70,69 @@ const statusText = computed(() => (chatStore.isConnected ? 'live' : 'offline'));
 /** The request that is currently in flight, so it can be stopped. */
 let inFlight: AbortController | undefined;
 
+/* ------------------------------------------------------------------ */
+/* Motion                                                               */
+/* ------------------------------------------------------------------ */
+
+/** Elements of the empty state, so they can be animated in. */
+const heroMark = ref<any>(null);
+const heroTitle = ref<any>(null);
+const heroSub = ref<any>(null);
+const heroChips = ref<any[]>([]);
+const liveDot = ref<any>(null);
+const typingDots = ref<any[]>([]);
+const sendButton = ref<any>(null);
+
+/** The loops that are currently running, so they can be stopped. */
+let stopLoops: (() => void)[] = [];
+
+/** Brings the empty state in, one element after the other. */
+function animateHero() {
+  nextTick(() => {
+    enter(heroMark.value?.nativeView, { distance: 22, duration: 700, curve: 'easeOut' });
+    enter(heroTitle.value?.nativeView, { delay: 90, distance: 16 });
+    enter(heroSub.value?.nativeView, { delay: 160, distance: 12 });
+    heroChips.value.forEach((chip, index) => {
+      enter(chip?.nativeView, { delay: 230 + index * 60, distance: 10, duration: 460 });
+    });
+
+    // The mark breathes while the screen is idle.
+    stopLoops.push(
+      loopAnimation(heroMark.value?.nativeView, [
+        { properties: { scale: { x: 1.06, y: 1.06 } }, duration: 2600 },
+        { properties: { scale: { x: 1, y: 1 } }, duration: 2600 },
+      ]),
+    );
+  });
+}
+
+/** The live indicator pulses while the gateway is reachable. */
+function startLivePulse() {
+  stopLoops.push(
+    loopAnimation(liveDot.value?.nativeView, [
+      { properties: { opacity: 0.5, scale: { x: 0.85, y: 0.85 } }, duration: 1100 },
+      { properties: { opacity: 1, scale: { x: 1.1, y: 1.1 } }, duration: 1100 },
+    ]),
+  );
+}
+
+/** The three dots hop while the answer is on its way. */
+function startTypingDots() {
+  typingDots.value.forEach((dot, index) => {
+    stopLoops.push(
+      loopAnimation(
+        dot?.nativeView,
+        [
+          { properties: { opacity: 0.3, translate: { x: 0, y: 0 } }, duration: 520 },
+          { properties: { opacity: 1, translate: { x: 0, y: -4 } }, duration: 520 },
+          { properties: { opacity: 0.3, translate: { x: 0, y: 0 } }, duration: 520 },
+        ],
+        { delay: index * 140 },
+      ),
+    );
+  });
+}
+
 let unsubscribeStatus: (() => void) | undefined;
 
 onMounted(async () => {
@@ -82,12 +146,49 @@ onMounted(async () => {
   } catch (err) {
     console.error('Could not load models:', err);
   }
+
+  nextTick(() => {
+    startLivePulse();
+    if (!chatStore.messages.length) {
+      animateHero();
+    }
+  });
 });
 
 onUnmounted(() => {
   unsubscribeStatus?.();
+  stopLoops.forEach((stop) => stop());
+  stopLoops = [];
 });
 
+// The empty state appears again whenever the last message is cleared.
+watch(
+  () => chatStore.messages.length,
+  (length) => {
+    if (length === 0) {
+      animateHero();
+    }
+  },
+);
+
+// The dots only hop while a reply is on its way, and the send button
+// breathes to show that something is happening.
+watch(
+  () => chatStore.isTyping,
+  (typing) => {
+    if (typing) {
+      nextTick(() => {
+        startTypingDots();
+        stopLoops.push(
+          loopAnimation(sendButton.value?.nativeView, [
+            { properties: { scale: { x: 1.06, y: 1.06 } }, duration: 800 },
+            { properties: { scale: { x: 1, y: 1 } }, duration: 800 },
+          ]),
+        );
+      });
+    }
+  },
+);
 /**
  * Scrolls the conversation to the newest message.
  *
@@ -267,11 +368,11 @@ function stopGenerating() {
         <!-- Gateway state -->
         <GridLayout col="2" columns="auto, auto" class="status-chip">
           <Icon
+            ref="liveDot"
             col="0"
             name="dot"
             :size="8"
             :color="chatStore.isConnected ? '#0FB6D6' : '#C0392B'"
-            :class="{ 'status-dot--live': chatStore.isConnected }"
           />
           <Label col="1" :text="statusText" class="status-text" />
         </GridLayout>
@@ -285,7 +386,7 @@ function stopGenerating() {
             The brand mark: a rotated square split by a single beam - one
             request in, one answer out.
           -->
-          <GridLayout rows="auto" columns="auto" class="hero-mark-wrap">
+          <GridLayout ref="heroMark" rows="auto" columns="auto" class="hero-mark-wrap">
             <Image
               row="0"
               col="0"
@@ -295,8 +396,9 @@ function stopGenerating() {
             />
             <Image row="0" col="0" src="~/assets/img/prism.png" class="hero-mark" />
           </GridLayout>
-          <Label text="What should we route?" class="hero-title" />
+          <Label ref="heroTitle" text="What should we route?" class="hero-title" />
           <Label
+            ref="heroSub"
             textWrap="true"
             class="hero-sub"
             :text="`${models.length || 578} models are one tap away. Pick a route, then ask.`"
@@ -306,9 +408,9 @@ function stopGenerating() {
             <Label
               v-for="(suggestion, index) in suggestions"
               :key="suggestion"
+              :ref="(el) => (heroChips[index] = el)"
               :text="suggestion"
               class="hero-chip"
-              :class="`hero-chip--${index}`"
               v-press
               @tap="useSuggestion(suggestion)"
             />
@@ -338,9 +440,15 @@ function stopGenerating() {
               instead of a single horizontal row of dots.
             -->
             <StackLayout orientation="horizontal" class="typing-bubble">
-              <Icon name="dot" :size="9" color="#9AA1AD" class="typing-mark typing-mark--1" />
-              <Icon name="dot" :size="9" color="#9AA1AD" class="typing-mark typing-mark--2" />
-              <Icon name="dot" :size="9" color="#9AA1AD" class="typing-mark typing-mark--3" />
+              <Icon
+                v-for="(dot, index) in [0, 1, 2]"
+                :key="index"
+                :ref="(el) => (typingDots[index] = el)"
+                name="dot"
+                :size="9"
+                color="#9AA1AD"
+                class="typing-mark"
+              />
             </StackLayout>
           </StackLayout>
         </StackLayout>
@@ -363,10 +471,11 @@ function stopGenerating() {
             reply is on its way it turns into a stop button.
           -->
           <GridLayout
+            ref="sendButton"
             col="1"
             columns="auto"
             class="send-button"
-            :class="{ 'send-button--idle': !canSend, 'send-button--busy': chatStore.isTyping }"
+            :class="{ 'send-button--idle': !canSend }"
             :backgroundColor="chatStore.isTyping ? '#C0392B' : canSend ? accent : '#E6E8ED'"
             v-press
             @tap="chatStore.isTyping ? stopGenerating() : sendMessage()"
@@ -518,10 +627,6 @@ function stopGenerating() {
 
 .hero-mark-wrap {
   margin-bottom: 14;
-  animation-name: heroRise;
-  animation-duration: 620ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: both;
 }
 
 .hero-glow {
@@ -529,10 +634,6 @@ function stopGenerating() {
   height: 104;
   horizontal-align: center;
   vertical-align: center;
-  animation-name: heroBreathe;
-  animation-duration: 4200ms;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
 }
 
 .hero-mark {
@@ -540,10 +641,6 @@ function stopGenerating() {
   height: 58;
   horizontal-align: center;
   vertical-align: center;
-  animation-name: heroFloat;
-  animation-duration: 5200ms;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
 }
 
 .hero-title {
@@ -551,29 +648,18 @@ function stopGenerating() {
   font-size: 24;
   font-weight: 700;
   letter-spacing: -0.02;
-  animation-name: heroRise;
-  animation-duration: 620ms;
-  animation-delay: 90ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: both;
 }
 
 .hero-sub {
   color: #8d94a0;
   font-size: 14;
   margin-top: 8;
-  animation-name: heroRise;
-  animation-duration: 620ms;
-  animation-delay: 160ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: both;
 }
 
 .hero-chips {
   margin-top: 22;
 }
 
-/* The suggestions arrive one after the other. */
 .hero-chip {
   background-color: #ffffff;
   border-width: 1;
@@ -584,26 +670,6 @@ function stopGenerating() {
   padding: 9 14;
   margin-right: 8;
   margin-bottom: 8;
-  animation-name: heroRise;
-  animation-duration: 520ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: both;
-}
-
-.hero-chip--0 {
-  animation-delay: 230ms;
-}
-
-.hero-chip--1 {
-  animation-delay: 290ms;
-}
-
-.hero-chip--2 {
-  animation-delay: 350ms;
-}
-
-.hero-chip--3 {
-  animation-delay: 410ms;
 }
 
 /* ---------- Pending indicator ---------- */
@@ -620,25 +686,8 @@ function stopGenerating() {
   horizontal-align: left;
 }
 
-/* The dots hop in sequence while the answer is on its way. */
 .typing-mark {
   margin: 0 3;
-  animation-name: dotHop;
-  animation-duration: 1100ms;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
-}
-
-.typing-mark--1 {
-  animation-delay: 0ms;
-}
-
-.typing-mark--2 {
-  animation-delay: 140ms;
-}
-
-.typing-mark--3 {
-  animation-delay: 280ms;
 }
 
 /* ---------- Composer ---------- */
@@ -676,14 +725,6 @@ function stopGenerating() {
   background-color: #e6e8ed;
 }
 
-/* While a reply is on its way the button is a stop button. */
-.send-button--busy {
-  animation-name: busyGlow;
-  animation-duration: 1600ms;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
-}
-
 .send-glyph-wrap {
   vertical-align: center;
 }
@@ -697,74 +738,5 @@ function stopGenerating() {
 .splash-host {
   horizontal-align: stretch;
   vertical-align: stretch;
-}
-
-/* ---------- Keyframes ---------- */
-@keyframes heroRise {
-  from {
-    opacity: 0;
-    transform: translate(0, 16);
-  }
-  to {
-    opacity: 1;
-    transform: translate(0, 0);
-  }
-}
-
-@keyframes heroBreathe {
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scale(0.92);
-  }
-  50% {
-    opacity: 0.72;
-    transform: scale(1.06);
-  }
-}
-
-@keyframes heroFloat {
-  0%,
-  100% {
-    transform: translate(0, -3);
-  }
-  50% {
-    transform: translate(0, 3);
-  }
-}
-
-@keyframes dotHop {
-  0%,
-  60%,
-  100% {
-    opacity: 0.3;
-    transform: translate(0, 0);
-  }
-  30% {
-    opacity: 1;
-    transform: translate(0, -4);
-  }
-}
-
-@keyframes livePulse {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: scale(0.86);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.12);
-  }
-}
-
-@keyframes busyGlow {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.06);
-  }
 }
 </style>
