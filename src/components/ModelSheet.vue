@@ -4,8 +4,8 @@
  *
  * The gateway publishes several hundred models, so the list is rendered with a
  * `ListView` (which recycles its rows) and can be filtered by a search field.
- * Each row carries the accent colour of its provider, which makes the list
- * scannable by colour.
+ * The sheet follows the Material 3 recipe for a modal bottom sheet: a drag
+ * handle, a title, a search field and a list of rows that are 56dp high.
  */
 import { computed, ref, onMounted } from 'vue';
 import type { OmniAiModel } from '../services/omni-ai';
@@ -17,8 +17,6 @@ const props = defineProps<{
   /** Currently selected model id. */
   selected: string;
   loading?: boolean;
-  /** Accent colour of the active provider. */
-  accent?: string;
 }>();
 
 const emit = defineEmits<{
@@ -86,13 +84,13 @@ onMounted(() => {
           v-press
           @tap="emit('close')"
         >
-          <Icon col="0" name="close" :size="17" tone="subtle" />
+          <Icon col="0" name="close" :size="20" tone="on-surface-variant" />
         </GridLayout>
       </GridLayout>
 
-      <!-- Search -->
+      <!-- Search: a filled text field -->
       <GridLayout row="2" columns="auto, *" class="sheet-search">
-        <Icon col="0" name="search" :size="16" tone="muted" class="sheet-search-icon" />
+        <Icon col="0" name="search" :size="18" tone="on-surface-variant" class="sheet-search-icon" />
         <TextField
           col="1"
           v-model="filter"
@@ -125,8 +123,8 @@ onMounted(() => {
               col="0"
               row="0"
               name="dot"
-              :size="7"
-              :color="accent ?? '#2F55F5'"
+              :size="8"
+              tone="primary"
               class="model-dot"
             />
             <Label
@@ -150,7 +148,7 @@ onMounted(() => {
               columns="auto"
               class="model-check"
             >
-              <Icon col="0" name="check" :size="15" :color="accent ?? '#2F55F5'" />
+              <Icon col="0" name="check" :size="18" tone="primary" />
             </GridLayout>
           </GridLayout>
         </template>
@@ -168,75 +166,77 @@ onMounted(() => {
 
 <style scoped>
 .sheet-backdrop {
-  background-color: var(--app-scrim);
+  background-color: var(--md-scrim);
   horizontal-align: stretch;
   vertical-align: stretch;
 }
 
+/* A modal bottom sheet: a surface that stands above the canvas. */
 .sheet {
-  background-color: var(--app-surface);
-  border-top-left-radius: 22;
-  border-top-right-radius: 22;
+  background-color: var(--md-surface-container-low);
+  border-top-left-radius: 28;
+  border-top-right-radius: 28;
   horizontal-align: stretch;
   vertical-align: bottom;
-  height: 72%;
+  height: 74%;
   padding: 0 16 12 16;
+  box-shadow: var(--md-elevation-3);
 }
 
 .sheet-handle {
-  width: 40;
+  width: 32;
   height: 4;
   border-radius: 2;
-  background-color: var(--app-border-2);
-  margin-top: 10;
+  background-color: var(--md-on-surface-variant);
+  opacity: 0.4;
+  margin-top: 12;
   margin-bottom: 8;
   horizontal-align: center;
 }
 
 .sheet-head {
-  padding-bottom: 10;
+  padding-bottom: 12;
 }
 
 .sheet-title {
-  color: var(--app-ink-strong);
-  font-size: 18;
-  font-weight: 700;
+  color: var(--md-on-surface);
+  font-size: 22;
+  font-weight: 600;
 }
 
 .sheet-subtitle {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 10;
-  letter-spacing: 0.08;
+  color: var(--md-on-surface-variant);
+  font-size: 12;
   margin-top: 3;
 }
 
 .sheet-close {
-  width: 32;
-  height: 32;
+  width: 40;
+  height: 40;
   vertical-align: center;
 }
 
 /* ---------- Search ---------- */
 .sheet-search {
-  background-color: var(--app-canvas);
-  border-radius: 12;
-  padding: 0 12;
-  margin-bottom: 10;
+  background-color: var(--md-surface-container-highest);
+  border-radius: 28;
+  height: 48;
+  padding: 0 16;
+  margin-bottom: 12;
 }
 
 .sheet-search-icon {
-  width: 22;
+  width: 24;
   vertical-align: center;
+  margin-right: 8;
 }
 
 .sheet-search-field {
   background-color: transparent;
   border-width: 0;
-  color: var(--app-ink);
-  placeholder-color: var(--app-ink-faint);
-  font-size: 14;
-  padding: 10 0;
+  color: var(--md-on-surface);
+  placeholder-color: var(--md-on-surface-variant);
+  font-size: 15;
   vertical-align: center;
 }
 
@@ -247,47 +247,49 @@ onMounted(() => {
 
 .model-row {
   width: 100%;
-  padding: 10 8;
-  border-radius: 10;
+  padding: 10 12;
+  border-radius: 16;
 }
 
 .model-row--active {
-  background-color: var(--app-surface-2);
+  background-color: var(--md-secondary-container);
 }
 
 .model-dot {
-  margin-right: 6;
+  margin-right: 8;
   vertical-align: center;
-  opacity: 0.7;
 }
 
 .model-provider {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 9;
-  letter-spacing: 0.1;
+  color: var(--md-primary);
+  font-size: 11;
+  font-weight: 600;
+  letter-spacing: 0.08;
   text-transform: uppercase;
 }
 
 .model-id {
-  color: var(--app-ink);
-  font-family: monospace;
-  font-size: 13;
+  color: var(--md-on-surface);
+  font-size: 14;
   margin-top: 2;
 }
 
+.model-row--active .model-id {
+  color: var(--md-on-secondary-container);
+}
+
 .model-check {
-  width: 24;
+  width: 28;
   vertical-align: center;
 }
 
 .sheet-empty {
-  padding: 28 0;
+  padding: 32 0;
 }
 
 .sheet-empty-text {
-  color: var(--app-ink-muted);
-  font-size: 13;
+  color: var(--md-on-surface-variant);
+  font-size: 14;
   text-align: center;
 }
 </style>

@@ -1,104 +1,238 @@
 @import 'tailwindcss';
 
 /*
-  Global theme.
+  The Material 3 design system.
 
-  The palette is a cool "paper" scheme: a light grey canvas, white surfaces
-  for the chrome, and near-black ink for the text. The one live colour in the
-  interface is the *accent*, which is derived from the provider that answers
-  (see src/utils/accent.ts) and therefore changes with the selected model.
+  Material 3 has no fixed palette: it derives one from a single source colour.
+  Every role of the scheme (`primary`, `surface`, `outline`, ...) is a *tone* -
+  a lightness - of a tonal palette, and the palette is built from the hue and
+  the chroma of that source colour.
 
-  The palette is declared twice - once for the light theme, once for the dark
-  one - as CSS custom properties. The root frame carries the class
-  (`theme-light` / `theme-dark`), and NativeScript resolves `var(--app-*)` by
-  walking up the view tree, so a token declared on the root reaches every view
-  below it. Changing the class on the root re-applies the styles of the whole
-  tree, which is what makes the switch instant.
+  This app has a source colour of its own: the provider that answers (see
+  `src/utils/accent.ts`). The palette below is the fallback - the brand's own
+  cobalt - and it is replaced at runtime by the palette of the active route
+  (`src/utils/material.ts` writes it into the CSS variables of the root view).
+  So the interface follows the model, exactly like Material You follows the
+  wallpaper of the device.
 
-  A token is only defined once. Anything that needs the concrete colour of a
-  token outside of CSS (the Android status bar, for instance) reads it back
-  with `themeToken()` in src/utils/theme.ts.
+  The tokens are declared twice, once for the light theme and once for the
+  dark one. The root frame carries the class (`theme-light` / `theme-dark`),
+  and NativeScript resolves `var(--md-*)` by walking up the view tree, so a
+  token declared on the root reaches every view below it - including the
+  pages that `$navigateTo` pushes onto the frame.
+
+  A token is only found by the *descendants* of the view that declares it,
+  never by a sibling. The tokens belong on the root for that reason.
 */
 
 /* ---------- Light ---------- */
 .theme-light {
-  --app-canvas: #f2f3f6;
-  --app-surface: #ffffff;
-  --app-surface-2: #f4f5f8;
-  --app-surface-3: #eceef2;
-  --app-border: #e9ebef;
-  --app-border-2: #e2e5ea;
-  --app-ink: #14171d;
-  --app-ink-strong: #0f1115;
-  --app-ink-muted: #9aa1ad;
-  --app-ink-subtle: #8d94a0;
-  --app-ink-faint: #a2a8b3;
-  --app-ink-dim: #6b7280;
-  --app-bubble: #0e111b;
-  --app-on-bubble: #ffffff;
-  --app-on-ink: #ffffff;
-  --app-on-accent: #ffffff;
-  --app-code-bg: #0e111b;
-  --app-code-ink: #e4e7ec;
-  --app-code-rule: #1d2230;
-  --app-code-tag: #6f7887;
-  --app-quote-bar: #d5d9e0;
-  --app-quote-ink: #5a6270;
-  --app-rule: #e3e6ec;
-  --app-danger: #c0392b;
-  --app-danger-ink: #8c2f24;
-  --app-danger-bg: #fdf0ef;
-  --app-success: #0e8f6e;
-  --app-link: #2f55f5;
-  --app-live: #0fb6d6;
-  --app-offline: #c0392b;
-  --app-scrim: rgba(12, 14, 18, 0.45);
+  /* The accent roles. Replaced at runtime by the palette of the route. */
+  --md-primary: #1c37a8;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #d0deff;
+  --md-on-primary-container: #00001b;
+  --md-secondary: #394769;
+  --md-on-secondary: #ffffff;
+  --md-secondary-container: #d5def2;
+  --md-on-secondary-container: #01030c;
+  --md-tertiary: #760479;
+  --md-on-tertiary: #ffffff;
+  --md-tertiary-container: #fdcbfc;
+  --md-on-tertiary-container: #0a000b;
+
+  /* The error roles are the same in every theme - red stays red. */
+  --md-error: #8b0012;
+  --md-on-error: #ffffff;
+  --md-error-container: #ffd1cd;
+  --md-on-error-container: #0e0000;
+
+  /* The neutral roles: the greys of the app. */
+  --md-surface: #f8f8fa;
+  --md-on-surface: #030304;
+  --md-surface-variant: #dddee0;
+  --md-on-surface-variant: #2c2e31;
+  --md-outline: #616368;
+  --md-outline-variant: #bcbec1;
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #f1f2f3;
+  --md-surface-container: #eaebed;
+  --md-surface-container-high: #e3e4e7;
+  --md-surface-container-highest: #dddee0;
+  --md-inverse-surface: #151619;
+  --md-inverse-on-surface: #eeeeef;
+  --md-inverse-primary: #a0bcff;
+
+  /* The shape system - the corners of everything. */
+  --md-shape-none: 0;
+  --md-shape-xs: 4;
+  --md-shape-s: 8;
+  --md-shape-m: 12;
+  --md-shape-l: 16;
+  --md-shape-xl: 28;
+  --md-shape-full: 999;
+
+  /* The type scale. */
+  --md-type-headline-large: 32;
+  --md-type-headline-medium: 28;
+  --md-type-headline-small: 24;
+  --md-type-title-large: 22;
+  --md-type-title-medium: 16;
+  --md-type-title-small: 14;
+  --md-type-body-large: 16;
+  --md-type-body-medium: 14;
+  --md-type-body-small: 12;
+  --md-type-label-large: 14;
+  --md-type-label-medium: 12;
+  --md-type-label-small: 11;
+
+  /* The elevation: the shadow of a surface that stands above the canvas. */
+  --md-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.16), 0 1px 3px 1px rgba(0, 0, 0, 0.08);
+  --md-elevation-2: 0 1px 2px rgba(0, 0, 0, 0.18), 0 2px 6px 2px rgba(0, 0, 0, 0.10);
+  --md-elevation-3: 0 1px 3px rgba(0, 0, 0, 0.20), 0 4px 8px 3px rgba(0, 0, 0, 0.12);
+
+  /* The scrim that dims what lies behind an overlay. */
+  --md-scrim: rgba(0, 0, 0, 0.32);
+
+  /* The state of the gateway. */
+  --md-live: #0a6a51;
+
+  /* A block of code: the darkest surface of the interface. */
+  --md-code-bg: #12141c;
+  --md-code-ink: #e4e7ec;
+  --md-code-rule: #232838;
+  --md-code-tag: #8b93a3;
 }
 
 /* ---------- Dark ---------- */
 .theme-dark {
-  --app-canvas: #0b0e17;
-  --app-surface: #171b2b;
-  --app-surface-2: #1e2434;
-  --app-surface-3: #232a3d;
-  --app-border: #262c3c;
-  --app-border-2: #333a4d;
-  --app-ink: #e8eaf0;
-  --app-ink-strong: #ffffff;
-  --app-ink-muted: #97a0b4;
-  --app-ink-subtle: #7c8598;
-  --app-ink-faint: #6b7488;
-  --app-ink-dim: #8a92a6;
-  --app-bubble: #1b2130;
-  --app-on-bubble: #e8eaf0;
-  --app-on-ink: #0b0e17;
-  --app-on-accent: #ffffff;
-  --app-code-bg: #10131d;
-  --app-code-ink: #d6dae4;
-  --app-code-rule: #232838;
-  --app-code-tag: #7e8798;
-  --app-quote-bar: #39415a;
-  --app-quote-ink: #a8b0c2;
-  --app-rule: #262c3c;
-  --app-danger: #ff6b6b;
-  --app-danger-ink: #f2a6a0;
-  --app-danger-bg: #2a1216;
-  --app-success: #3fd3a0;
-  --app-link: #6e8bff;
-  --app-live: #2fcbe8;
-  --app-offline: #ff6b6b;
-  --app-scrim: rgba(2, 4, 10, 0.62);
+  /* The accent roles. Replaced at runtime by the palette of the route. */
+  --md-primary: #a0bcff;
+  --md-on-primary: #03034e;
+  --md-primary-container: #0c1b7c;
+  --md-on-primary-container: #d0deff;
+  --md-secondary: #b1beda;
+  --md-on-secondary: #0d1529;
+  --md-secondary-container: #212d49;
+  --md-on-secondary-container: #d5def2;
+  --md-tertiary: #e9a0e9;
+  --md-on-tertiary: #2a002b;
+  --md-tertiary-container: #4e0051;
+  --md-on-tertiary-container: #fdcbfc;
+
+  --md-error: #ffa098;
+  --md-on-error: #320002;
+  --md-error-container: #5d0009;
+  --md-on-error-container: #ffd1cd;
+
+  --md-surface: #020204;
+  --md-on-surface: #dcdee3;
+  --md-surface-variant: #2b2e34;
+  --md-on-surface-variant: #bbbec4;
+  --md-outline: #7c8089;
+  --md-outline-variant: #2b2e34;
+  --md-surface-container-lowest: #010101;
+  --md-surface-container-low: #06070a;
+  --md-surface-container: #0c0d11;
+  --md-surface-container-high: #121418;
+  --md-surface-container-highest: #1d1f25;
+  --md-inverse-surface: #dcdee3;
+  --md-inverse-on-surface: #14161b;
+  --md-inverse-primary: #1c37a8;
+
+  --md-shape-none: 0;
+  --md-shape-xs: 4;
+  --md-shape-s: 8;
+  --md-shape-m: 12;
+  --md-shape-l: 16;
+  --md-shape-xl: 28;
+  --md-shape-full: 999;
+
+  --md-type-headline-large: 32;
+  --md-type-headline-medium: 28;
+  --md-type-headline-small: 24;
+  --md-type-title-large: 22;
+  --md-type-title-medium: 16;
+  --md-type-title-small: 14;
+  --md-type-body-large: 16;
+  --md-type-body-medium: 14;
+  --md-type-body-small: 12;
+  --md-type-label-large: 14;
+  --md-type-label-medium: 12;
+  --md-type-label-small: 11;
+
+  --md-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --md-elevation-2: 0 2px 6px rgba(0, 0, 0, 0.50);
+  --md-elevation-3: 0 6px 12px rgba(0, 0, 0, 0.55);
+
+  --md-scrim: rgba(0, 0, 0, 0.55);
+
+  --md-live: #6fd8b4;
+
+  /* A block of code: the deepest surface of the interface. */
+  --md-code-bg: #000000;
+  --md-code-ink: #dcdee3;
+  --md-code-rule: #1d1f25;
+  --md-code-tag: #7c8089;
 }
 
 Page {
-  background-color: var(--app-canvas);
-  color: var(--app-ink);
+  background-color: var(--md-surface);
+  color: var(--md-on-surface);
   font-size: 15;
 }
 
 /* The frame is the root view, so it carries the theme tokens. */
 Frame {
-  background-color: var(--app-canvas);
+  background-color: var(--md-surface);
+}
+
+/*
+  The shared pieces of the design system.
+
+  They live here rather than in a component, because more than one screen
+  uses them: the cards of the settings, the drawer and the profile screen,
+  the chips of the empty state and of the model picker.
+*/
+
+/* A card: a surface that stands above the canvas, with a soft shadow. */
+.md-card {
+  background-color: var(--md-surface-container-low);
+  border-radius: 12;
+  padding: 16;
+}
+
+/* An outlined card - the same shape, but with a hairline instead of a shadow. */
+.md-card-outlined {
+  background-color: var(--md-surface-container-lowest);
+  border-radius: 12;
+  border-width: 1;
+  border-color: var(--md-outline-variant);
+  padding: 16;
+}
+
+/* An assist chip: the pill that offers something to tap. */
+.md-chip {
+  background-color: transparent;
+  border-radius: 8;
+  border-width: 1;
+  border-color: var(--md-outline-variant);
+  height: 32;
+  padding: 0 12;
+  vertical-align: center;
+}
+
+/* The title of a row in a list. */
+.md-title {
+  color: var(--md-on-surface);
+  font-size: 16;
+  font-weight: 500;
+}
+
+/* The supporting line under a title. */
+.md-support {
+  color: var(--md-on-surface-variant);
+  font-size: 12;
 }
 
 /*

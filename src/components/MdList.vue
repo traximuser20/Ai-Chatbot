@@ -11,25 +11,28 @@
  * blocks cannot express.
  */
 import { computed } from 'vue';
+import { usePaletteStore } from '../stores/palette';
 import type { ListBlock } from '../utils/markdown';
 
 const props = withDefaults(
   defineProps<{
     /** The list to render. */
     list: ListBlock;
-    /** Accent colour of the markers. */
-    accent?: string;
     /** Body text multiplier from the user's text-size setting. */
     scale?: number;
   }>(),
   {
-    accent: '#2F55F5',
     scale: 1,
   },
 );
 
+const palette = usePaletteStore();
+
 /** The size of the body text. */
-const bodySize = computed(() => Math.round(15 * props.scale));
+const bodySize = computed(() => Math.round(16 * props.scale));
+
+/** The colour of the markers: the primary role of the scheme. */
+const accent = computed(() => palette.scheme.primary);
 
 /** The marker of an item: a number for an ordered list, a bullet otherwise. */
 function marker(index: number): string {
@@ -74,7 +77,7 @@ function marker(index: number): string {
           :key="childIndex"
           class="md-list-nested"
         >
-          <MdList :list="child" :accent="accent" :scale="scale" />
+          <MdList :list="child" :scale="scale" />
         </StackLayout>
       </StackLayout>
     </GridLayout>
@@ -91,11 +94,10 @@ function marker(index: number): string {
 }
 
 .md-list-marker {
-  font-family: monospace;
   font-weight: 700;
-  width: 22;
+  width: 24;
   text-align: left;
-  padding-right: 2;
+  padding-right: 4;
   /*
     Align the marker with the FIRST line of the item, not with the centre of
     the (possibly wrapped) text block.
@@ -104,11 +106,11 @@ function marker(index: number): string {
 }
 
 .md-list-text {
-  color: var(--app-ink);
+  color: var(--md-on-surface);
 }
 
 /* A list that is indented under an item. */
 .md-list-nested {
-  margin-left: 10;
+  margin-left: 12;
 }
 </style>

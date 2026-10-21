@@ -15,22 +15,16 @@
 import { ref, computed, onMounted } from 'vue';
 import { useChatStore, type Conversation, formatRelativeTime } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
-import { readableOn } from '../utils/accent';
 import Icon from './Icon.vue';
 
 /** Width of the panel in device independent pixels. */
-const PANEL_WIDTH = 284;
+const PANEL_WIDTH = 300;
 
 const emit = defineEmits<{
   close: [];
   newChat: [];
   openProfile: [];
   openSettings: [];
-}>();
-
-const props = defineProps<{
-  /** Accent colour of the active provider. */
-  accent?: string;
 }>();
 
 const chatStore = useChatStore();
@@ -41,11 +35,6 @@ const scrimRef = ref<any>(null);
 
 /** Id of the conversation whose delete button is waiting for a confirmation. */
 const pendingDeleteId = ref<string | null>(null);
-
-const accent = () => props.accent ?? '#2F55F5';
-
-/** Readable foreground for a surface filled with the accent colour. */
-const onAccent = computed(() => readableOn(props.accent ?? '#2F55F5'));
 
 /**
  * Template refs point at the Vue element wrapper, the NativeScript view
@@ -147,17 +136,16 @@ function metaOf(conversation: Conversation): string {
         </StackLayout>
       </GridLayout>
 
-      <!-- New conversation -->
+      <!-- New conversation: a filled button. -->
       <GridLayout
         row="1"
         columns="auto, *"
         class="new-chat"
-        :backgroundColor="accent()"
         v-press
         @tap="onNewChat"
       >
-        <Icon col="0" name="plus" :size="15" :color="onAccent" class="new-chat-mark" />
-        <Label col="1" text="New conversation" class="new-chat-text" :color="onAccent" />
+        <Icon col="0" name="plus" :size="18" tone="on-primary" class="new-chat-mark" />
+        <Label col="1" text="New conversation" class="new-chat-text" />
       </GridLayout>
 
       <!-- Section label -->
@@ -193,7 +181,7 @@ function metaOf(conversation: Conversation): string {
               v-press
               @tap="onOpenConversation(conversation)"
             >
-              <Icon col="0" name="dot" :size="7" :color="accent()" class="history-dot" />
+              <Icon col="0" name="dot" :size="8" tone="primary" class="history-dot" />
               <StackLayout col="1">
                 <Label :text="conversation.title" textWrap="true" class="history-title" />
                 <Label :text="metaOf(conversation)" class="history-meta" />
@@ -209,7 +197,7 @@ function metaOf(conversation: Conversation): string {
               v-press
               @tap="onDelete(conversation)"
             >
-              <Icon col="0" name="trash" :size="15" tone="faint" />
+              <Icon col="0" name="trash" :size="18" tone="outline" />
             </GridLayout>
             <StackLayout
               v-else
@@ -239,7 +227,7 @@ function metaOf(conversation: Conversation): string {
           v-press
           @tap="emit('openProfile')"
         >
-          <Label col="0" :text="settings.initials" class="footer-avatar" :color="accent()" />
+          <Label col="0" :text="settings.initials" class="footer-avatar" />
           <Label col="1" text="Profile" class="footer-text" />
         </GridLayout>
         <GridLayout
@@ -249,7 +237,7 @@ function metaOf(conversation: Conversation): string {
           v-press
           @tap="emit('openSettings')"
         >
-          <Icon col="0" name="sliders" :size="16" tone="dim" class="footer-mark" />
+          <Icon col="0" name="sliders" :size="20" tone="on-surface-variant" class="footer-mark" />
           <Label col="1" text="Settings" class="footer-text" />
         </GridLayout>
       </GridLayout>
@@ -268,59 +256,60 @@ function metaOf(conversation: Conversation): string {
 
 /* ---------- Panel ---------- */
 .panel {
-  width: 284;
-  background-color: var(--app-surface);
+  width: 300;
+  background-color: var(--md-surface-container-low);
   horizontal-align: left;
   vertical-align: stretch;
-  padding: 18 0 0 0;
+  padding: 20 0 0 0;
 }
 
 /* ---------- Brand ---------- */
 .brand {
-  padding: 0 20 16 20;
+  padding: 0 20 18 20;
 }
 
 .brand-mark {
-  width: 26;
-  height: 26;
+  width: 28;
+  height: 28;
   margin-right: 12;
   vertical-align: center;
 }
 
 .brand-name {
-  color: var(--app-ink-strong);
-  font-size: 17;
-  font-weight: 700;
-  letter-spacing: -0.015;
+  color: var(--md-on-surface);
+  font-size: 18;
+  font-weight: 600;
 }
 
 .brand-status {
-  color: var(--app-live);
-  font-family: monospace;
-  font-size: 10;
-  letter-spacing: 0.08;
+  color: var(--md-live);
+  font-size: 11;
+  font-weight: 500;
+  letter-spacing: 0.04;
   margin-top: 2;
 }
 
 .brand-status--offline {
-  color: var(--app-offline);
+  color: var(--md-error);
 }
 
 /* ---------- New conversation ---------- */
 .new-chat {
-  background-color: var(--app-ink-strong);
-  border-radius: 12;
+  background-color: var(--md-primary);
+  border-radius: 24;
   margin: 0 16 20 16;
-  padding: 13 14;
+  padding: 0 20;
+  height: 48;
 }
 
 .new-chat-mark {
-  width: 22;
+  width: 24;
   vertical-align: center;
-  margin-right: 2;
+  margin-right: 10;
 }
 
 .new-chat-text {
+  color: var(--md-on-primary);
   font-size: 15;
   font-weight: 600;
   vertical-align: center;
@@ -328,21 +317,20 @@ function metaOf(conversation: Conversation): string {
 
 /* ---------- Section label ---------- */
 .section {
-  padding: 0 20 6 20;
+  padding: 0 20 8 20;
 }
 
 .section-label {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 10;
-  letter-spacing: 0.14;
+  color: var(--md-primary);
+  font-size: 12;
+  font-weight: 600;
+  letter-spacing: 0.08;
   text-transform: uppercase;
 }
 
 .section-count {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 10;
+  color: var(--md-on-surface-variant);
+  font-size: 12;
   vertical-align: center;
 }
 
@@ -358,12 +346,12 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-row {
-  padding: 9 8;
-  border-radius: 10;
+  padding: 10 12;
+  border-radius: 28;
 }
 
 .history-row--active {
-  background-color: var(--app-surface-2);
+  background-color: var(--md-secondary-container);
 }
 
 /* The dot marks the provider of the conversation. It sits on the first line
@@ -371,26 +359,28 @@ function metaOf(conversation: Conversation): string {
    two line block. */
 .history-dot {
   vertical-align: top;
-  margin-top: 4;
-  margin-right: 8;
-  opacity: 0.55;
+  margin-top: 5;
+  margin-right: 10;
 }
 
 .history-title {
-  color: var(--app-ink);
+  color: var(--md-on-surface);
   font-size: 14;
 }
 
+.history-row--active .history-title {
+  color: var(--md-on-secondary-container);
+}
+
 .history-meta {
-  color: var(--app-ink-faint);
-  font-family: monospace;
-  font-size: 10;
+  color: var(--md-on-surface-variant);
+  font-size: 11;
   margin-top: 3;
 }
 
 .history-delete {
-  width: 32;
-  height: 32;
+  width: 36;
+  height: 36;
   vertical-align: center;
   padding-right: 4;
 }
@@ -400,23 +390,23 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-confirm-label {
-  color: var(--app-ink-subtle);
-  font-size: 11;
+  color: var(--md-on-surface-variant);
+  font-size: 12;
   vertical-align: center;
   margin-right: 6;
 }
 
 .history-confirm-yes {
-  color: var(--app-danger);
-  font-size: 12;
+  color: var(--md-error);
+  font-size: 13;
   font-weight: 700;
   vertical-align: center;
-  margin-right: 8;
+  margin-right: 10;
 }
 
 .history-confirm-no {
-  color: var(--app-ink-dim);
-  font-size: 12;
+  color: var(--md-on-surface-variant);
+  font-size: 13;
   vertical-align: center;
 }
 
@@ -425,13 +415,13 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-empty-title {
-  color: var(--app-ink-dim);
-  font-size: 13;
-  font-weight: 600;
+  color: var(--md-on-surface-variant);
+  font-size: 14;
+  font-weight: 500;
 }
 
 .history-empty-text {
-  color: var(--app-ink-faint);
+  color: var(--md-outline);
   font-size: 12;
   margin-top: 3;
 }
@@ -439,41 +429,40 @@ function metaOf(conversation: Conversation): string {
 /* ---------- Footer ---------- */
 .footer {
   border-top-width: 1;
-  border-top-color: var(--app-border);
+  border-top-color: var(--md-outline-variant);
   padding: 8 14 16 14;
 }
 
 .footer-row {
-  padding: 10 8;
+  padding: 12 8;
 }
 
 .footer-mark {
-  width: 26;
+  width: 28;
   vertical-align: center;
 }
 
 .footer-avatar {
-  font-family: monospace;
-  font-size: 10;
+  font-size: 11;
   font-weight: 700;
-  width: 26;
-  height: 26;
-  border-radius: 13;
-  border-width: 1;
-  border-color: var(--app-border-2);
+  width: 28;
+  height: 28;
+  border-radius: 14;
+  background-color: var(--md-primary-container);
+  color: var(--md-on-primary-container);
   text-align: center;
   vertical-align: center;
 }
 
 .footer-text {
-  color: var(--app-ink);
-  font-size: 14;
+  color: var(--md-on-surface);
+  font-size: 15;
   vertical-align: center;
 }
 
 /* ---------- Scrim ---------- */
 .scrim {
-  background-color: var(--app-scrim);
+  background-color: var(--md-scrim);
   horizontal-align: stretch;
   vertical-align: stretch;
 }

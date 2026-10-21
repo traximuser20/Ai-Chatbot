@@ -10,6 +10,11 @@ import { Application, Color } from '@nativescript/core';
  *
  * `dark` tells whether the surface behind a bar is dark: the icons of the
  * bar then have to be light, or they would disappear into the background.
+ *
+ * The bars themselves are transparent (see the theme of the app), so what is
+ * seen under them is the background of the app. The launch sequence paints
+ * that background with its ink, so the splash reaches to the edges of the
+ * screen.
  */
 
 /** The window of the activity that is on screen. */
@@ -67,76 +72,39 @@ export function paintNavigationBar(background: string, dark: boolean): void {
 }
 
 /**
- * Makes both bars transparent.
- *
- * The launch sequence is a dark moment that reaches to the edges of the
- * screen: the ink of the splash has to be seen under the notification bar
- * and under the navigation bar, so both are made transparent while the
- * splash is up. The window paints the given colour behind them, because
- * that is what a transparent bar shows.
- *
- * The icons of the bars stay light, because the splash is dark in every
- * theme.
- */
-export function makeSystemBarsTransparent(behind: string): void {
-  try {
-    const window = currentWindow();
-    if (!window) {
-      return;
-    }
-
-    const colour = new Color(behind).android;
-    window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(colour));
-    window.setStatusBarColor(android.graphics.Color.TRANSPARENT);
-    window.setNavigationBarColor(android.graphics.Color.TRANSPARENT);
-
-    if (android.os.Build.VERSION.SDK_INT >= 30) {
-      const controller = window.getInsetsController();
-      const lightBars = (android.view as any).WindowInsetsController;
-      controller?.setSystemBarsAppearance(
-        0,
-        lightBars.APPEARANCE_LIGHT_STATUS_BARS | lightBars.APPEARANCE_LIGHT_NAVIGATION_BARS,
-      );
-    }
-  } catch (err) {
-    // Not fatal - the bars simply keep the platform default.
-    console.error('Could not make the system bars transparent:', err);
-  }
-}
-
-/**
- * Paints the background of the page.
+ * Paints the background of the root view.
  *
  * The content of the app keeps its distance from the system bars, but the
- * background of the page reaches under them - and that is what a
+ * background of the root view reaches under them - and that is what a
  * transparent bar shows.
  */
-export function paintPageBackground(background: string): void {
+export function paintRootBackground(background: string): void {
   try {
     const frame = Application.getRootView() as any;
-    const page = frame?.currentPage;
-    if (page) {
-      page.backgroundColor = new Color(background);
+    if (frame) {
+      frame.backgroundColor = new Color(background);
     }
   } catch (err) {
-    // Not fatal - the page simply keeps its colour.
-    console.error('Could not paint the background of the page:', err);
+    // Not fatal - the root view simply keeps its colour.
+    console.error('Could not paint the background of the root view:', err);
   }
 }
 
 /**
- * Gives the window its background back and paints the bars with the colour
- * of the surface they sit on.
+ * Paints both bars with the ink of the launch sequence.
+ *
+ * The splash is a dark moment in every theme, so the icons of the bars stay
+ * light while it is up.
+ */
+export function paintSplashBars(ink: string): void {
+  paintStatusBar(ink, true);
+  paintNavigationBar(ink, true);
+}
+
+/**
+ * Gives the bars back the colour of the surface they sit on.
  */
 export function restoreSystemBars(statusBar: string, navigationBar: string, dark: boolean): void {
-  try {
-    currentWindow()?.setBackgroundDrawable(null);
-  } catch (err) {
-    // Not fatal - the window simply keeps the background of the splash.
-    console.error('Could not restore the background of the window:', err);
-  }
-
   paintStatusBar(statusBar, dark);
   paintNavigationBar(navigationBar, dark);
 }
-

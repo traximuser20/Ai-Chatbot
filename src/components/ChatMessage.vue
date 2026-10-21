@@ -3,15 +3,16 @@
  * A single chat bubble.
  *
  * Layout rules:
- *  - The user speaks in an ink-filled bubble, right aligned, with a slightly
+ *  - The user speaks in a container bubble, right aligned, with a slightly
  *    tighter bottom-right corner - the "tail" detail most modern chat apps
  *    use to keep the two sides visually distinct.
  *  - The assistant speaks in plain text on the page canvas, left aligned, so
  *    long answers stay comfortable to read. Above the text sits a small
- *    mono "route chip" showing which provider answered.
+ *    "route chip" showing which provider answered.
  *
- * The accent colour is derived from the provider, so the colour of the
- * interface always tells you who you are talking to.
+ * The bubble of the user is painted with the container colour of the primary
+ * role, so the colour of the interface always tells you who you are talking
+ * to - the whole scheme follows the route (see `src/utils/material.ts`).
  */
 import { computed, onMounted, ref } from 'vue';
 import MarkdownView from './MarkdownView.vue';
@@ -26,16 +27,12 @@ const props = defineProps<{
   isError?: boolean;
   /** Model that produced the reply. */
   model?: string;
-  /** Accent colour of the active provider. */
-  accent?: string;
   /** Body text multiplier from the user's text-size setting. */
   scale?: number;
   showTimestamp?: boolean;
 }>();
 
 const isUser = computed(() => props.sender === 'user');
-
-const accent = computed(() => props.accent ?? '#2F55F5');
 
 /** The bubble, so it can be animated in when it appears. */
 const bubbleRef = ref<any>(null);
@@ -95,7 +92,7 @@ const paragraphs = computed(() =>
         textWrap="true"
         class="user-text"
         :text="paragraph"
-        :fontSize="Math.round(15 * scale)"
+        :fontSize="Math.round(16 * scale)"
       />
     </StackLayout>
 
@@ -107,7 +104,7 @@ const paragraphs = computed(() =>
         columns="auto, auto"
         class="ai-chip"
       >
-        <Icon col="0" name="dot" :size="8" :color="accent" class="ai-chip-dot" />
+        <Icon col="0" name="dot" :size="7" tone="primary" class="ai-chip-dot" />
         <Label
           col="1"
           :text="provider ? `${provider} / ${modelName}` : modelName"
@@ -117,14 +114,13 @@ const paragraphs = computed(() =>
 
       <!-- Error notice. -->
       <GridLayout v-if="isError" columns="auto, *" class="ai-error">
-        <Label col="0" text="!" class="ai-error-mark" />
+        <Icon col="0" name="warning" :size="16" tone="error" class="ai-error-icon" />
         <Label col="1" textWrap="true" class="ai-error-text" :text="text ?? ''" />
       </GridLayout>
 
       <MarkdownView
         v-else
         :text="text ?? ''"
-        :accent="accent"
         :scale="scale"
       />
 
@@ -145,19 +141,18 @@ const paragraphs = computed(() =>
 
 /* ---------- User bubble ---------- */
 .user-bubble {
-  background-color: var(--app-bubble);
-  border-top-left-radius: 20;
-  border-top-right-radius: 20;
-  border-bottom-left-radius: 20;
-  border-bottom-right-radius: 7;
-  padding: 11 16;
+  background-color: var(--md-primary-container);
+  border-top-left-radius: 16;
+  border-top-right-radius: 16;
+  border-bottom-left-radius: 16;
+  border-bottom-right-radius: 4;
+  padding: 12 16;
   max-width: 290;
   horizontal-align: right;
 }
 
 .user-text {
-  color: var(--app-on-bubble);
-  font-weight: 400;
+  color: var(--md-on-primary-container);
   margin-bottom: 2;
 }
 
@@ -167,7 +162,7 @@ const paragraphs = computed(() =>
 }
 
 .ai-chip {
-  margin-bottom: 4;
+  margin-bottom: 6;
 }
 
 .ai-chip-dot {
@@ -176,41 +171,34 @@ const paragraphs = computed(() =>
 }
 
 .ai-chip-text {
-  color: var(--app-ink-subtle);
-  font-family: monospace;
-  font-size: 10;
-  letter-spacing: 0.1;
-  text-transform: uppercase;
+  color: var(--md-on-surface-variant);
+  font-size: 11;
+  font-weight: 500;
+  letter-spacing: 0.04;
   vertical-align: center;
 }
 
 .ai-timestamp {
-  color: var(--app-ink-faint);
-  font-family: monospace;
-  font-size: 10;
-  margin-top: 4;
+  color: var(--md-outline);
+  font-size: 11;
+  margin-top: 6;
 }
 
 /* ---------- Error ---------- */
 .ai-error {
-  background-color: var(--app-danger-bg);
-  border-left-width: 3;
-  border-left-color: var(--app-danger);
-  border-radius: 8;
-  padding: 10 12;
+  background-color: var(--md-error-container);
+  border-radius: 12;
+  padding: 12 14;
   margin-bottom: 4;
 }
 
-.ai-error-mark {
-  color: var(--app-danger);
-  font-weight: 700;
-  font-size: 13;
-  width: 18;
-  vertical-align: top;
+.ai-error-icon {
+  margin-right: 10;
+  vertical-align: center;
 }
 
 .ai-error-text {
-  color: var(--app-danger-ink);
+  color: var(--md-on-error-container);
   font-size: 14;
 }
 </style>

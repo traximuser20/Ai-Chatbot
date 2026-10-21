@@ -32,8 +32,8 @@ import { useThemeStore } from '../stores/theme';
 import { loopAnimation } from '../utils/motion';
 import { Parallax } from '../utils/parallax';
 import {
-  makeSystemBarsTransparent,
-  paintPageBackground,
+  paintRootBackground,
+  paintSplashBars,
   restoreSystemBars,
 } from '../utils/status-bar';
 import { themeToken } from '../utils/theme';
@@ -383,18 +383,18 @@ function leave() {
  * is there the bars sit on the surface of the current theme.
  */
 function applyStatusBar(onInk: boolean) {
-  const surface = themeToken('--app-surface', '#FFFFFF');
+  const surface = themeToken('--md-surface', '#F8F8FA');
   const dark = onInk || theme.isDark;
 
   if (onInk) {
-    // The ink of the splash reaches to the edges of the screen, so both
-    // bars are made transparent and the ink is painted behind them.
-    paintPageBackground(INK);
-    makeSystemBarsTransparent(INK);
+    // The ink of the splash reaches to the edges of the screen: the bars
+    // are transparent, and the background behind them is the ink.
+    paintRootBackground(INK);
+    paintSplashBars(INK);
     return;
   }
 
-  paintPageBackground(themeToken('--app-canvas', '#F2F3F6'));
+  paintRootBackground(surface);
   restoreSystemBars(surface, surface, dark);
 }
 </script>
@@ -469,7 +469,7 @@ function applyStatusBar(onInk: boolean) {
 }
 
 .splash-paper {
-  background-color: var(--app-canvas);
+  background-color: var(--md-surface);
   horizontal-align: stretch;
   vertical-align: stretch;
 }

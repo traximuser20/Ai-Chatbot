@@ -68,18 +68,18 @@ function back() {
 <template>
   <Page actionBarHidden="true" class="screen">
     <GridLayout rows="auto, *">
-      <!-- ── Header ─────────────────────────────────────────────────────── -->
-      <GridLayout row="0" columns="auto, *" class="screen-header">
+      <!-- ── Top app bar ────────────────────────────────────────────────── -->
+      <GridLayout row="0" columns="auto, *" class="app-bar">
         <GridLayout col="0" columns="auto" class="back-button" v-press @tap="back">
-          <Icon col="0" name="chevron-left" :size="19" tone="ink" />
+          <Icon col="0" name="chevron-left" :size="22" tone="on-surface-variant" />
         </GridLayout>
-        <Label col="1" text="Profile" class="screen-title" />
+        <Label col="1" text="Profile" class="app-bar-title" />
       </GridLayout>
 
       <ScrollView row="1" class="screen-scroll">
         <StackLayout ref="bodyRef" class="body">
           <!-- ── Identity ─────────────────────────────────────────────────── -->
-          <GridLayout columns="auto, *" class="card identity">
+          <GridLayout columns="auto, *" class="md-card identity">
             <Label col="0" :text="settings.initials" class="avatar" />
             <StackLayout col="1">
               <Label :text="settings.displayName" class="identity-name" />
@@ -89,15 +89,15 @@ function back() {
 
           <!-- ── Stats ───────────────────────────────────────────────────── -->
           <GridLayout columns="*, *, *" class="stats">
-            <StackLayout col="0" class="stat">
+            <StackLayout col="0" class="md-card stat">
               <Label :text="`${chatStore.history.length}`" class="stat-value" />
               <Label text="Chats" class="stat-label" />
             </StackLayout>
-            <StackLayout col="1" class="stat">
+            <StackLayout col="1" class="md-card stat">
               <Label :text="`${chatStore.totalMessages}`" class="stat-value" />
               <Label text="Messages" class="stat-label" />
             </StackLayout>
-            <StackLayout col="2" class="stat">
+            <StackLayout col="2" class="md-card stat">
               <Label :text="`${providerCount}`" class="stat-value" />
               <Label text="Providers" class="stat-label" />
             </StackLayout>
@@ -123,11 +123,12 @@ function back() {
               @tap="saveName"
             />
           </GridLayout>
+
           <!-- ── Active route ───────────────────────────────────────────── -->
           <Label text="Active route" class="field-label" />
-          <GridLayout rows="auto, auto" columns="auto, *" class="card route">
+          <GridLayout rows="auto, auto" columns="auto, *" class="md-card route">
             <Label col="0" row="0" colSpan="2" :text="currentRoute.provider" class="route-provider" />
-            <Icon col="0" row="1" name="dot" :size="8" tone="live" class="route-dot" />
+            <Icon col="0" row="1" name="dot" :size="10" tone="primary" class="route-dot" />
             <Label col="1" row="1" :text="currentRoute.name" class="route-name" />
           </GridLayout>
         </StackLayout>
@@ -138,74 +139,67 @@ function back() {
 
 <style scoped>
 .screen {
-  background-color: var(--app-canvas);
+  background-color: var(--md-surface);
 }
 
-/* ---------- Header ---------- */
-.screen-header {
-  background-color: var(--app-surface);
+/* ---------- Top app bar ---------- */
+.app-bar {
+  background-color: var(--md-surface);
   border-bottom-width: 1;
-  border-bottom-color: var(--app-border);
-  padding: 14 16;
+  border-bottom-color: var(--md-outline-variant);
+  padding: 8 12;
 }
 
 .back-button {
-  width: 30;
-  height: 30;
+  width: 44;
+  height: 44;
   vertical-align: center;
 }
 
-.screen-title {
-  color: var(--app-ink-strong);
-  font-size: 17;
-  font-weight: 700;
+.app-bar-title {
+  color: var(--md-on-surface);
+  font-size: 22;
+  font-weight: 600;
   vertical-align: center;
 }
 
 .screen-scroll {
-  background-color: var(--app-canvas);
+  background-color: var(--md-surface);
 }
 
 .body {
   padding: 16;
 }
 
-/* ---------- Card ---------- */
-.card {
-  background-color: var(--app-surface);
-  border-radius: 14;
-  border-width: 1;
-  border-color: var(--app-border);
-  padding: 16;
+/* ---------- Identity ---------- */
+.identity {
+  align-content: center;
   margin-bottom: 12;
 }
 
-/* ---------- Identity ---------- */
 .avatar {
-  width: 54;
-  height: 54;
-  border-radius: 27;
-  background-color: var(--app-ink-strong);
-  color: var(--app-on-ink);
-  font-family: monospace;
-  font-size: 18;
+  width: 56;
+  height: 56;
+  border-radius: 28;
+  background-color: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  font-size: 20;
   font-weight: 700;
   text-align: center;
   vertical-align: center;
-  margin-right: 14;
+  margin-right: 16;
 }
 
 .identity-name {
-  color: var(--app-ink-strong);
-  font-size: 18;
-  font-weight: 700;
+  color: var(--md-on-surface);
+  font-size: 20;
+  font-weight: 600;
   vertical-align: center;
 }
 
 .identity-sub {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 11;
+  color: var(--md-on-surface-variant);
+  font-size: 12;
   margin-top: 3;
 }
 
@@ -215,37 +209,32 @@ function back() {
 }
 
 .stat {
-  background-color: var(--app-surface);
-  border-radius: 14;
-  border-width: 1;
-  border-color: var(--app-border);
-  padding: 14 8;
   text-align: center;
   margin-right: 8;
+  padding: 14 6;
 }
 
 .stat-value {
-  color: var(--app-ink-strong);
-  font-family: monospace;
-  font-size: 20;
+  color: var(--md-on-surface);
+  font-size: 22;
   font-weight: 700;
 }
 
 .stat-label {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 9;
-  letter-spacing: 0.12;
+  color: var(--md-on-surface-variant);
+  font-size: 11;
+  font-weight: 500;
+  letter-spacing: 0.06;
   text-transform: uppercase;
   margin-top: 4;
 }
 
 /* ---------- Fields ---------- */
 .field-label {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 10;
-  letter-spacing: 0.13;
+  color: var(--md-on-surface-variant);
+  font-size: 12;
+  font-weight: 500;
+  letter-spacing: 0.06;
   text-transform: uppercase;
   margin-bottom: 8;
   margin-top: 4;
@@ -256,50 +245,53 @@ function back() {
 }
 
 .field {
-  background-color: var(--app-surface);
+  background-color: transparent;
   border-width: 1;
-  border-color: var(--app-border-2);
+  border-color: var(--md-outline);
   border-radius: 12;
-  color: var(--app-ink);
-  placeholder-color: var(--app-ink-faint);
+  color: var(--md-on-surface);
+  placeholder-color: var(--md-on-surface-variant);
   font-size: 15;
-  padding: 12 14;
+  padding: 14;
   /* The field fills the row, the action sits next to it. */
   width: 100%;
 }
 
 .field-action {
-  color: var(--app-link);
-  font-size: 13;
-  font-weight: 700;
+  color: var(--md-primary);
+  font-size: 14;
+  font-weight: 600;
   vertical-align: center;
   margin-left: 12;
   text-align: right;
 }
 
 .field-action--saved {
-  color: var(--app-success);
+  color: var(--md-live);
 }
 
 /* ---------- Route ---------- */
+.route {
+  align-content: center;
+}
+
 .route-dot {
-  margin-right: 6;
+  margin-right: 8;
   vertical-align: center;
 }
 
 .route-provider {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 10;
-  letter-spacing: 0.1;
+  color: var(--md-primary);
+  font-size: 11;
+  font-weight: 600;
+  letter-spacing: 0.08;
   text-transform: uppercase;
-  margin-bottom: 4;
+  margin-bottom: 6;
 }
 
 .route-name {
-  color: var(--app-ink-strong);
-  font-family: monospace;
-  font-size: 15;
-  margin-top: 2;
+  color: var(--md-on-surface);
+  font-size: 16;
+  font-weight: 500;
 }
 </style>

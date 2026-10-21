@@ -3,11 +3,15 @@
  * The chat screen.
  *
  * Layout (top to bottom):
- *  - A compact app bar: the drawer handle, the active route as a tappable
- *    chip, and the live state of the gateway.
+ *  - A Material 3 top app bar: the navigation handle, the active route as a
+ *    chip that opens the model sheet, and the live state of the gateway.
  *  - A scrollable conversation. Assistant replies are rendered as Markdown,
- *    user messages sit in an ink-filled bubble on the right.
- *  - A composer with a rounded field and an accent send button.
+ *    user messages sit in a container bubble on the right.
+ *  - A composer with a filled text field and a filled icon button.
+ *
+ * Every colour of the screen is a role of the Material 3 scheme
+ * (`var(--md-*)`), so the whole interface follows the theme *and* the route
+ * that answers. The palette itself is written by `src/utils/dynamic-color.ts`.
  *
  * Two overlays sit on top of the grid: the navigation drawer and the model
  * picker. Both span all rows so they cover the whole screen.
@@ -19,10 +23,11 @@ import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { useThemeStore } from '../stores/theme';
 import { omniAi, OmniAiError, type OmniAiModel } from '../services/omni-ai';
-import { accentFor, providerOf } from '../utils/accent';
+import { providerOf } from '../utils/accent';
 import { enter, loopAnimation } from '../utils/motion';
-import { paintNavigationBar, paintStatusBar } from '../utils/status-bar';
+import { paintRootBackground, restoreSystemBars } from '../utils/status-bar';
 import { themeToken } from '../utils/theme';
+import { usePaletteStore } from '../stores/palette';
 import ChatMessage from './ChatMessage.vue';
 import Sidebar from './Sidebar.vue';
 import ModelSheet from './ModelSheet.vue';
@@ -34,6 +39,7 @@ import Icon from './Icon.vue';
 const chatStore = useChatStore();
 const settings = useSettingsStore();
 const theme = useThemeStore();
+const palette = usePaletteStore();
 
 const userInput = ref('');
 const scrollRef = ref(null);
@@ -54,9 +60,6 @@ const suggestions = [
   'Draft a commit message',
   'Compare two SQL queries',
 ];
-
-/** Accent colour of the currently selected provider. */
-const accent = computed(() => accentFor(chatStore.model));
 
 /** Provider prefix of the current model. */
 const provider = computed(() => providerOf(chatStore.model));
@@ -133,7 +136,7 @@ function startLivePulse() {
   ]);
 }
 
-/** The three dots hop while the answer is on its way. */
+/** The three dots hop while the answer is on the way. */
 function startTypingDots() {
   stopTyping.forEach((stop) => stop());
   stopTyping = [];
@@ -236,19 +239,22 @@ watch(
 );
 
 /*
-  The status bar sits above the app bar, so it has to follow the theme: the
-  icons of the bar are dark on a light surface and light on a dark one.
+  The system bars are transparent, so what is seen under them is the
+  background of the root view. It has to follow the palette of the theme -
+  and the palette of the route, whose neutral greys carry the hue of the
+  accent. So the bars and the ground behind them are repainted whenever one
+  of the two changes.
 
-  The bar is painted on the next tick, because the root view - which carries
+  The paint happens on the next tick, because the root view - which carries
   the palette - is repainted with the rest of the interface.
 */
 watch(
-  () => theme.name,
+  () => [theme.name, palette.scheme] as const,
   () => {
     nextTick(() => {
-      const surface = themeToken('--app-surface', '#FFFFFF');
-      paintStatusBar(surface, theme.isDark);
-      paintNavigationBar(surface, theme.isDark);
+      const surface = themeToken('--md-surface', '#F8F8FA');
+      paintRootBackground(surface);
+      restoreSystemBars(surface, surface, theme.isDark);
     });
   },
 );
@@ -446,9 +452,9 @@ function stopGenerating() {
 <template>
   <Page actionBarHidden="true">
     <GridLayout rows="auto, *, auto" class="page-root">
-      <!-- ============ App bar ============ -->
-      <GridLayout row="0" columns="auto, *, auto" class="header">
-        <!-- Drawer handle -->
+      <!-- ============ Top app bar ============ -->
+      <GridLayout row="0" columns="auto, *, auto" class="app-bar">
+        <!-- Navigation handle -->
         <GridLayout
           col="0"
           columns="auto"
@@ -456,7 +462,7 @@ function stopGenerating() {
           v-press
           @tap="drawerOpen = true"
         >
-          <Icon col="0" name="menu" :size="20" tone="ink" />
+          <Icon col="0" name="menu" :size="22" tone="on-surface-variant" />
         </GridLayout>
 
         <!-- Active route: tapping it opens the model picker. -->
@@ -467,10 +473,10 @@ function stopGenerating() {
           v-press
           @tap="openModelPicker"
         >
-          <Icon col="0" name="dot" :size="8" :color="accent" class="route-chip-dot" />
+          <Icon col="0" name="dot" :size="8" tone="primary" class="route-chip-dot" />
           <Label col="1" :text="provider" class="route-chip-provider" />
           <Label col="2" :text="modelLabel" class="route-chip-model" />
-          <Icon col="3" name="chevron-down" :size="13" tone="muted" />
+          <Icon col="3" name="chevron-down" :size="13" tone="on-secondary-container" />
         </GridLayout>
 
         <!-- Gateway state -->
@@ -518,7 +524,7 @@ function stopGenerating() {
               :key="suggestion"
               :ref="(el) => (heroChips[index] = el)"
               :text="suggestion"
-              class="hero-chip"
+              class="md-chip hero-chip"
               v-press
               @tap="useSuggestion(suggestion)"
             />
@@ -535,7 +541,6 @@ function stopGenerating() {
             :timestamp="message.timestamp"
             :is-error="message.isError"
             :model="message.model"
-            :accent="accent"
             :scale="settings.fontScale"
             :show-timestamp="settings.showTimestamps"
           />
@@ -554,7 +559,7 @@ function stopGenerating() {
                 :ref="(el) => (typingDots[index] = el)"
                 name="dot"
                 :size="9"
-                tone="muted"
+                tone="on-surface-variant"
                 class="typing-mark"
               />
             </StackLayout>
@@ -568,13 +573,16 @@ function stopGenerating() {
           A failure is reported here instead of in the conversation: it is
           not part of what was said, and it can be acted on right here.
         -->
-        <GridLayout v-if="lastError" columns="auto, *, auto" class="error-bar">
-          <Icon col="0" name="warning" :size="13" tone="danger" class="error-bar-dot" />
-          <Label col="1" :text="lastError" textWrap="true" class="error-bar-text" />
-          <GridLayout col="2" columns="auto" class="error-bar-action-wrap" v-press @tap="retryLastMessage">
-            <Icon col="0" name="retry" :size="12" tone="danger" class="error-bar-action-icon" />
-            <Label col="1" text="Retry" class="error-bar-action" />
-          </GridLayout>
+        <GridLayout v-if="lastError" columns="auto, *, auto" class="error-banner">
+          <Icon col="0" name="warning" :size="16" tone="error" class="error-banner-icon" />
+          <Label col="1" :text="lastError" textWrap="true" class="error-banner-text" />
+          <Label
+            col="2"
+            text="RETRY"
+            class="error-banner-action"
+            v-press
+            @tap="retryLastMessage"
+          />
         </GridLayout>
 
         <GridLayout columns="*, auto" class="composer-inner">
@@ -583,7 +591,7 @@ function stopGenerating() {
             v-model="userInput"
             hint="Ask anything…"
             class="composer-input"
-            :fontSize="Math.round(15 * settings.fontScale)"
+            :fontSize="Math.round(16 * settings.fontScale)"
             :returnKeyType="settings.sendOnEnter ? 'send' : 'done'"
             @submit="onSubmit"
           />
@@ -604,24 +612,17 @@ function stopGenerating() {
             @tap="chatStore.isTyping ? stopGenerating() : sendMessage()"
           >
             <!--
-              The accent of the provider is a runtime value, so the fill of
-              the button is a view of its own. The two other states - idle
-              and waiting for the answer - are rules, and follow the theme.
+              The three states are rules, so they follow the palette of the
+              route: the filled button is the primary colour of the scheme.
             -->
-            <GridLayout
-              v-if="canSend"
-              col="0"
-              class="send-button-fill"
-              :backgroundColor="accent"
-            />
             <GridLayout col="0" columns="auto" class="send-glyph-wrap">
               <Icon
                 v-if="!chatStore.isTyping"
                 name="arrow-up"
-                :size="17"
-                :tone="canSend ? 'on-accent' : 'faint'"
+                :size="20"
+                :tone="canSend ? 'on-primary' : 'outline'"
               />
-              <Icon v-else name="stop" :size="15" tone="on-accent" />
+              <Icon v-else name="stop" :size="16" tone="on-error" />
             </GridLayout>
           </GridLayout>
         </GridLayout>
@@ -636,7 +637,6 @@ function stopGenerating() {
         class="overlay"
       >
         <Sidebar
-          :accent="accent"
           @close="drawerOpen = false"
           @new-chat="onNewChat"
           @open-profile="openProfile"
@@ -656,7 +656,6 @@ function stopGenerating() {
           :models="models"
           :selected="chatStore.model"
           :loading="loadingModels"
-          :accent="accent"
           @close="closeModelPicker"
           @select="selectModel"
         />
@@ -672,32 +671,36 @@ function stopGenerating() {
 
 <style scoped>
 .page-root {
-  background-color: var(--app-canvas);
+  background-color: var(--md-surface);
 }
 
-/* ---------- App bar ---------- */
-.header {
-  background-color: var(--app-surface);
+/* ---------- Top app bar ---------- */
+.app-bar {
+  background-color: var(--md-surface);
   border-bottom-width: 1;
-  border-bottom-color: var(--app-border);
-  padding: 10 14;
+  border-bottom-color: var(--md-outline-variant);
+  padding: 8 12;
   horizontal-align: stretch;
 }
 
+/* An icon button: 48dp of touch area around a 24dp glyph. */
 .icon-button {
-  width: 34;
-  height: 34;
+  width: 44;
+  height: 44;
   horizontal-align: left;
   vertical-align: center;
-  padding-left: 2;
 }
 
+/* The chip that shows the active route. */
 .route-chip {
-  background-color: var(--app-canvas);
-  border-radius: 14;
-  padding: 6 10;
+  background-color: var(--md-secondary-container);
+  border-radius: 8;
+  height: 32;
+  padding: 0 8;
+  margin-left: 4;
   margin-right: 10;
   horizontal-align: left;
+  vertical-align: center;
 }
 
 .route-chip-dot {
@@ -708,48 +711,38 @@ function stopGenerating() {
 }
 
 .route-chip-provider {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 10;
-  letter-spacing: 0.1;
-  text-transform: uppercase;
+  color: var(--md-on-secondary-container);
+  font-size: 12;
+  font-weight: 500;
   vertical-align: center;
-  margin-right: 7;
+  margin-right: 6;
 }
 
 .route-chip-model {
-  color: var(--app-ink);
-  font-family: monospace;
-  font-size: 11;
+  color: var(--md-on-secondary-container);
+  font-size: 13;
   font-weight: 700;
   vertical-align: center;
-  margin-right: 5;
+  margin-right: 4;
 }
 
 .status-chip {
   horizontal-align: right;
+  vertical-align: center;
 }
 
 .status-text {
-  color: var(--app-ink-muted);
-  font-family: monospace;
-  font-size: 10;
-  letter-spacing: 0.1;
+  color: var(--md-on-surface-variant);
+  font-size: 11;
+  font-weight: 500;
+  letter-spacing: 0.06;
   text-transform: uppercase;
   vertical-align: center;
 }
 
-/* The live indicator breathes while the gateway is reachable. */
-.status-dot--live {
-  animation-name: livePulse;
-  animation-duration: 2200ms;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
-}
-
 /* ---------- Conversation ---------- */
 .message-scroll {
-  background-color: var(--app-canvas);
+  background-color: var(--md-surface);
 }
 
 .message-list {
@@ -758,11 +751,11 @@ function stopGenerating() {
 
 /* ---------- Empty state ---------- */
 .hero {
-  padding: 36 26 24 26;
+  padding: 40 24 24 24;
 }
 
 .hero-mark-wrap {
-  margin-bottom: 14;
+  margin-bottom: 18;
 }
 
 .hero-glow {
@@ -780,30 +773,25 @@ function stopGenerating() {
 }
 
 .hero-title {
-  color: var(--app-ink-strong);
-  font-size: 24;
-  font-weight: 700;
-  letter-spacing: -0.02;
+  color: var(--md-on-surface);
+  font-size: 26;
+  font-weight: 500;
+  letter-spacing: -0.01;
 }
 
 .hero-sub {
-  color: var(--app-ink-subtle);
+  color: var(--md-on-surface-variant);
   font-size: 14;
   margin-top: 8;
 }
 
 .hero-chips {
-  margin-top: 22;
+  margin-top: 24;
 }
 
 .hero-chip {
-  background-color: var(--app-surface);
-  border-width: 1;
-  border-color: var(--app-border-2);
-  border-radius: 18;
-  color: var(--app-ink);
-  font-size: 13;
-  padding: 9 14;
+  color: var(--md-on-surface);
+  font-size: 14;
   margin-right: 8;
   margin-bottom: 8;
 }
@@ -814,11 +802,9 @@ function stopGenerating() {
 }
 
 .typing-bubble {
-  background-color: var(--app-surface);
-  border-width: 1;
-  border-color: var(--app-border);
-  border-radius: 18;
-  padding: 13 16;
+  background-color: var(--md-surface-container-high);
+  border-radius: 16;
+  padding: 14 16;
   horizontal-align: left;
 }
 
@@ -828,91 +814,70 @@ function stopGenerating() {
 
 /* ---------- Composer ---------- */
 .composer-area {
-  background-color: var(--app-surface);
+  background-color: var(--md-surface-container-low);
   border-top-width: 1;
-  border-top-color: var(--app-border);
-  padding: 10 14 12 14;
+  border-top-color: var(--md-outline-variant);
+  padding: 10 12 12 12;
   horizontal-align: stretch;
 }
 
 /* The banner that reports a failed request. */
-.error-bar {
-  background-color: var(--app-danger-bg);
-  border-left-width: 3;
-  border-left-color: var(--app-danger);
-  border-radius: 8;
-  padding: 10 12;
+.error-banner {
+  background-color: var(--md-error-container);
+  border-radius: 12;
+  padding: 12 14;
   margin-bottom: 10;
 }
 
-.error-bar-dot {
-  margin-right: 4;
-  vertical-align: top;
-  margin-top: 3;
-}
-
-.error-bar-text {
-  color: var(--app-danger-ink);
-  font-size: 13;
-  vertical-align: center;
-}
-
-.error-bar-action-wrap {
-  margin-left: 12;
-  vertical-align: center;
-}
-
-.error-bar-action-icon {
-  margin-right: 5;
-  vertical-align: center;
-}
-
-.error-bar-action {
-  color: var(--app-danger);
-  font-size: 13;
-  font-weight: 700;
-  vertical-align: center;
-}
-
-.composer-inner {
-  columns: *, auto;
-}
-
-.composer-input {
-  background-color: var(--app-canvas);
-  color: var(--app-ink);
-  /* Android takes the colour of the hint from the theme of the platform. */
-  placeholder-color: var(--app-ink-faint);
-  border-radius: 22;
-  border-width: 0;
-  padding: 12 18;
+.error-banner-icon {
   margin-right: 10;
   vertical-align: center;
 }
 
+.error-banner-text {
+  color: var(--md-on-error-container);
+  font-size: 13;
+  vertical-align: center;
+}
+
+.error-banner-action {
+  color: var(--md-error);
+  font-size: 12;
+  font-weight: 700;
+  letter-spacing: 0.06;
+  vertical-align: center;
+  margin-left: 12;
+}
+
+/* A filled text field: the container of the composer. */
+.composer-input {
+  background-color: var(--md-surface-container-highest);
+  color: var(--md-on-surface);
+  /* Android takes the colour of the hint from the theme of the platform. */
+  placeholder-color: var(--md-on-surface-variant);
+  border-radius: 26;
+  border-width: 0;
+  padding: 13 18;
+  margin-right: 10;
+  vertical-align: center;
+}
+
+/* A filled icon button: the send button, and the stop button while it waits. */
 .send-button {
-  width: 42;
-  height: 42;
-  border-radius: 21;
+  width: 48;
+  height: 48;
+  border-radius: 24;
+  background-color: var(--md-primary);
   horizontal-align: right;
   vertical-align: center;
 }
 
 .send-button--idle {
-  background-color: var(--app-surface-3);
+  background-color: var(--md-surface-container-high);
 }
 
 .send-button--busy {
-  background-color: var(--app-danger);
-}
-
-/* The fill of the button, in the accent of the provider. */
-.send-button-fill {
-  width: 42;
-  height: 42;
-  border-radius: 21;
-  horizontal-align: center;
-  vertical-align: center;
+  background-color: var(--md-error);
 }
 
 .send-glyph-wrap {

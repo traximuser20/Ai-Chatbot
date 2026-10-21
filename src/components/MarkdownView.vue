@@ -12,27 +12,34 @@
  */
 import { computed } from 'vue';
 import MdList from './MdList.vue';
+import { usePaletteStore } from '../stores/palette';
 import { parseMarkdown, type Block, type InlineToken } from '../utils/markdown';
 
 const props = defineProps<{
   text: string;
-  /** Accent colour used for bullets, quotes and inline code. */
-  accent: string;
   /** Body text multiplier coming from the user's text-size setting. */
   scale?: number;
 }>();
+
+const palette = usePaletteStore();
 
 const scale = computed(() => props.scale ?? 1);
 
 const blocks = computed<Block[]>(() => parseMarkdown(props.text ?? ''));
 
+/**
+ * The colour of the marks: the primary role of the scheme, so the marks of
+ * a reply belong to the route that wrote it.
+ */
+const accent = computed(() => palette.scheme.primary);
+
 /** Font size of a block that inherits the body size. */
 function bodySize(): number {
-  return Math.round(15 * scale.value);
+  return Math.round(16 * scale.value);
 }
 
 function headingSize(level: number): number {
-  const base = level <= 1 ? 21 : level === 2 ? 18 : level === 3 ? 16 : 15;
+  const base = level <= 1 ? 22 : level === 2 ? 19 : level === 3 ? 17 : 16;
   return Math.round(base * scale.value);
 }
 
@@ -101,7 +108,6 @@ function tokenWeight(token: InlineToken): string {
       <MdList
         v-else-if="block.kind === 'list'"
         :list="block.list"
-        :accent="accent"
         :scale="scale"
       />
 
@@ -111,7 +117,7 @@ function tokenWeight(token: InlineToken): string {
         columns="auto, *"
         class="md-quote"
       >
-        <Label col="0" class="md-quote-bar" :backgroundColor="accent" />
+        <Label col="0" class="md-quote-bar" />
         <Label col="1" textWrap="true" class="md-quote-text" :fontSize="bodySize()">
           <FormattedString>
             <Span
@@ -165,24 +171,20 @@ function tokenWeight(token: InlineToken): string {
 
 /* ---------- Paragraph ---------- */
 .md-paragraph {
-  color: var(--app-ink);
+  color: var(--md-on-surface);
   margin-bottom: 10;
 }
 
 /* ---------- Heading ---------- */
 .md-heading {
-  color: var(--app-ink-strong);
-  font-weight: 700;
-  margin-top: 6;
+  color: var(--md-on-surface);
+  font-weight: 600;
+  margin-top: 8;
   margin-bottom: 6;
 }
 
 .md-heading--1 {
-  letter-spacing: -0.02;
-}
-
-.md-heading--2 {
-  letter-spacing: -0.015;
+  letter-spacing: -0.01;
 }
 
 /* ---------- Quote ---------- */
@@ -193,56 +195,55 @@ function tokenWeight(token: InlineToken): string {
 .md-quote-bar {
   width: 3;
   border-radius: 2;
-  background-color: var(--app-quote-bar);
+  background-color: var(--md-primary);
   margin-right: 10;
 }
 
 .md-quote-text {
-  color: var(--app-quote-ink);
+  color: var(--md-on-surface-variant);
   font-style: italic;
 }
 
 /* ---------- Code block ---------- */
 .md-code {
-  background-color: var(--app-code-bg);
+  background-color: var(--md-code-bg);
   border-radius: 12;
   padding: 0;
   margin-bottom: 10;
 }
 
 .md-code-head {
-  padding: 8 12 6 12;
+  padding: 10 14 8 14;
 }
 
 .md-code-tag {
-  color: var(--app-code-tag);
-  font-family: monospace;
+  color: var(--md-code-tag);
   font-size: 10;
-  letter-spacing: 0.14;
+  font-weight: 600;
+  letter-spacing: 0.12;
   text-transform: uppercase;
 }
 
 .md-code-lang {
-  font-family: monospace;
   font-size: 10;
-  letter-spacing: 0.1;
+  letter-spacing: 0.08;
 }
 
 .md-code-rule {
   height: 1;
-  background-color: var(--app-code-rule);
+  background-color: var(--md-code-rule);
 }
 
 .md-code-text {
-  color: var(--app-code-ink);
+  color: var(--md-code-ink);
   font-family: monospace;
-  padding: 10 12 12 12;
+  padding: 10 14 14 14;
 }
 
 /* ---------- Rule ---------- */
 .md-rule {
   height: 1;
-  background-color: var(--app-rule);
-  margin: 4 0 12 0;
+  background-color: var(--md-outline-variant);
+  margin: 6 0 12 0;
 }
 </style>

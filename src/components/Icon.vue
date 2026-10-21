@@ -2,29 +2,38 @@
 /**
  * The icon set.
  *
- * The glyphs come from Font Awesome, cut down to the eighteen icons the
- * interface uses and renamed to `OmniIcons` (see
- * `design/icons/build_font.py` - the font is 4 kB instead of 400 kB).
+ * The glyphs come from Font Awesome, cut down to the icons the interface uses
+ * and renamed to `OmniIcons` (see `design/icons/build_font.py` - the font is
+ * 4 kB instead of 400 kB).
  *
  * A font is used rather than hand drawn views because it gives a proper,
  * consistent icon set, and because a glyph in a `Label` can be recoloured
- * like any other text - which is what lets the icons follow the accent of
- * the selected provider.
+ * like any other text - which is what lets the icons follow the palette of
+ * the active route.
+ *
+ * A tone is a *role* of the Material 3 scheme, so an icon always belongs to
+ * the surface it stands on: `on-surface` on a card, `on-primary` on a filled
+ * button, `error` on a warning.
  */
 import { computed } from 'vue';
 
-/** The theme tokens an icon can be painted with. */
+/** The roles of the scheme an icon can be painted with. */
 type IconTone =
-  | 'ink'
-  | 'strong'
-  | 'muted'
-  | 'subtle'
-  | 'faint'
-  | 'dim'
+  | 'primary'
+  | 'on-primary'
+  | 'primary-container'
+  | 'on-primary-container'
+  | 'secondary'
+  | 'on-secondary-container'
+  | 'tertiary'
+  | 'on-surface'
+  | 'on-surface-variant'
+  | 'outline'
+  | 'error'
+  | 'on-error-container'
+  | 'inverse'
   | 'live'
-  | 'offline'
-  | 'danger'
-  | 'on-accent';
+  | 'offline';
 
 /** The codepoint of every icon in the font. */
 const GLYPHS: Record<string, string> = {
@@ -55,24 +64,24 @@ const props = withDefaults(
     /** Size of the glyph in device independent pixels. */
     size?: number;
     /**
-     * A concrete colour. Wins over the tone, and is what the provider accent
-     * needs - the accent changes with the selected model, so it cannot live
-     * in the palette.
+     * A concrete colour. Wins over the tone, and is what a runtime colour
+     * needs - a value that cannot live in the palette of the theme.
      */
     color?: string;
     /**
-     * A theme token. The glyph is then painted with the colour the palette
-     * gives it, so it follows the light or the dark theme.
+     * A role of the Material 3 scheme. The glyph is then painted with the
+     * colour the palette gives it, so it follows the light or the dark theme
+     * and the route that is on screen.
      */
     tone?: IconTone;
   }>(),
   {
-    size: 20,
-    tone: 'ink',
+    size: 24,
+    tone: 'on-surface',
   },
 );
 
-/** The class that paints the glyph with a theme token. */
+/** The class that paints the glyph with a role of the scheme. */
 const toneClass = computed(() => `icon--${props.tone}`);
 
 /** The character of the icon, or a question mark if the name is unknown. */
@@ -92,48 +101,68 @@ const glyph = computed(() => GLYPHS[props.name] ?? GLYPHS['info']);
 }
 
 /*
-  The tones. A tone is a token of the palette in `src/app.css`, so the glyph
-  follows the light or the dark theme. The rules carry the class of the icon
-  itself as well, so they win over the default of `.icon` whatever the order
-  of the style sheet is.
+  The tones. A tone is a role of the scheme in `src/app.css`, so the glyph
+  follows the light or the dark theme - and the palette of the active route.
+  The rules carry the class of the icon itself as well, so they win over the
+  default of `.icon` whatever the order of the style sheet is.
 */
-.icon.icon--ink {
-  color: var(--app-ink);
+.icon.icon--primary {
+  color: var(--md-primary);
 }
 
-.icon.icon--strong {
-  color: var(--app-ink-strong);
+.icon.icon--on-primary {
+  color: var(--md-on-primary);
 }
 
-.icon.icon--muted {
-  color: var(--app-ink-muted);
+.icon.icon--primary-container {
+  color: var(--md-primary-container);
 }
 
-.icon.icon--subtle {
-  color: var(--app-ink-subtle);
+.icon.icon--on-primary-container {
+  color: var(--md-on-primary-container);
 }
 
-.icon.icon--faint {
-  color: var(--app-ink-faint);
+.icon.icon--secondary {
+  color: var(--md-secondary);
 }
 
-.icon.icon--dim {
-  color: var(--app-ink-dim);
+.icon.icon--on-secondary-container {
+  color: var(--md-on-secondary-container);
+}
+
+.icon.icon--tertiary {
+  color: var(--md-tertiary);
+}
+
+.icon.icon--on-surface {
+  color: var(--md-on-surface);
+}
+
+.icon.icon--on-surface-variant {
+  color: var(--md-on-surface-variant);
+}
+
+.icon.icon--outline {
+  color: var(--md-outline);
+}
+
+.icon.icon--error {
+  color: var(--md-error);
+}
+
+.icon.icon--on-error-container {
+  color: var(--md-on-error-container);
+}
+
+.icon.icon--inverse {
+  color: var(--md-inverse-on-surface);
 }
 
 .icon.icon--live {
-  color: var(--app-live);
+  color: var(--md-live);
 }
 
 .icon.icon--offline {
-  color: var(--app-offline);
-}
-
-.icon.icon--danger {
-  color: var(--app-danger);
-}
-
-.icon.icon--on-accent {
-  color: var(--app-on-accent);
+  color: var(--md-error);
 }
 </style>

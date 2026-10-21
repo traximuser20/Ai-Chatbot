@@ -154,22 +154,6 @@ export function tint(hex: string, amount: number): string {
 }
 
 /**
- * Mixes a hex colour towards black - used for the pressed/hover state of
- * accent-filled surfaces.
- */
-export function shade(hex: string, amount: number): string {
-  const clean = hex.replace('#', '');
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  const mix = (channel: number) =>
-    Math.round(channel * (1 - amount))
-      .toString(16)
-      .padStart(2, '0');
-  return `#${mix(r)}${mix(g)}${mix(b)}`.toUpperCase();
-}
-
-/**
  * Picks a readable foreground (dark or light) for a filled accent surface.
  */
 export function readableOn(hex: string): string {

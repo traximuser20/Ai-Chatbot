@@ -10,7 +10,7 @@ import { Application } from '@nativescript/core';
  *
  * The palette itself lives in `src/app.css` as CSS custom properties
  * (`.theme-light` / `.theme-dark`). The root frame carries the class, and
- * NativeScript resolves `var(--app-*)` by walking up the view tree - so a token
+ * NativeScript resolves `var(--md-*)` by walking up the view tree - so a token
  * declared on the root reaches every view below it. Changing the class on the
  * root re-applies the styles of the whole tree, which is what makes the switch
  * instant.
