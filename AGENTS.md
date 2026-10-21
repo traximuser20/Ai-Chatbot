@@ -1,6 +1,8 @@
 # Omni Ai - NativeScript-Vue 3 - Agent Rules & Guidelines
 
-Welcome to the **Omni Ai** codebase. This project is a cross-platform mobile AI chat application built with **NativeScript 9**, **NativeScript-Vue 3**, **Pinia**, **Tailwind CSS 4**, and **Socket.io Client**, running in an Android containerized emulator via **budtmo/docker-android**.
+Welcome to the **Omni Ai** codebase. This project is a cross-platform mobile AI chat application built with **NativeScript 9**, **NativeScript-Vue 3** and **Pinia**, running in an Android containerized emulator via **budtmo/docker-android**.
+
+It is a *client for a gateway*: the app talks to an OpenAI compatible gateway that exposes several hundred models, and the whole interface is built around one idea - **you are always talking to a route**. The provider of the selected model is the accent colour of the app.
 
 Whenever operating within this repository, all AI agents and assistants must strictly adhere to the following architecture rules, coding standards, and operational guidelines.
 
@@ -9,13 +11,36 @@ Whenever operating within this repository, all AI agents and assistants must str
 ## 1. Codebase Architecture & Tech Stack
 
 - **Framework**: [NativeScript 9](https://nativescript.org) with [NativeScript-Vue 3](https://github.com/nativescript-vue/nativescript-vue) (`3.1.2`).
-- **Runtime & App Entry**: `src/app.ts` initializes the app using `createApp(Home)` and registers `Pinia`.
-- **UI Components**: Vue 3 Single File Components (`.vue`) using `<script lang="ts" setup>` located in `src/components/`.
-  - `Home.vue` - the chat screen (header, message list, model picker, composer).
-  - `ChatMessage.vue` - a single message bubble (user pill / AI plain text).
-- **State Management**: [Pinia](https://pinia.vuejs.org/) (`^4.1.0`) stores located in `src/stores/`.
-- **Backend**: OmniRoute, over its **OpenAI-compatible HTTP API** (see §3).
-- **Styling**: Tailwind CSS v4 (`@nativescript/tailwind`, `@import 'tailwindcss';` in `src/app.css`) combined with NativeScript scoped styles.
+- **Runtime & App Entry**: `src/app.ts` creates the app from `src/App.vue` and registers **Pinia** and the global `v-press` directive.
+- **Shell**: `src/App.vue` holds the root `<Frame>`; the frame is the **root view** of the application, which is why it carries the theme class (see §7.1).
+- **UI Components**: Vue 3 Single File Components in `src/components/`, all with `<script lang="ts" setup>`:
+
+  | Component | What it is |
+  | :--- | :--- |
+  | `Home.vue` | The chat screen: app bar, conversation, composer, and the two overlays (drawer, model sheet). |
+  | `ChatMessage.vue` | One message: an ink bubble for the user, Markdown for the assistant. |
+  | `MarkdownView.vue` | Renders the blocks of a parsed reply. |
+  | `MdList.vue` | A list of a reply. Recursive: a list indented under an item is a child of that item. |
+  | `Icon.vue` | The whole icon set, drawn with the `OmniIcons` font. |
+  | `Sidebar.vue` | The drawer: new conversation, the history, profile and settings. |
+  | `ModelSheet.vue` | The bottom sheet that picks the route. |
+  | `Profile.vue` | The profile of the operator. |
+  | `Settings.vue` | Theme, text size, timestamps, gateway. |
+  | `SplashScreen.vue` | The launch sequence. |
+
+- **State Management**: [Pinia](https://pinia.vuejs.org/) (`^4.1.0`) stores in `src/stores/`:
+  - `chat.ts` - the conversations, the model, the connection state. Persisted with `ApplicationSettings`.
+  - `settings.ts` - the preferences of the user. Persisted with `ApplicationSettings`.
+  - `theme.ts` - the theme that is on screen (follows the device, or is pinned).
+- **Backend**: the gateway, over its **OpenAI-compatible HTTP API** (see §3). The client is `src/services/omni-ai.ts`.
+- **Design system**:
+  - `src/app.css` - the palette (light and dark) as CSS custom properties.
+  - `src/utils/theme.ts` - the theme modes and the reading of a token.
+  - `src/utils/accent.ts` - the provider colours and the brand tokens.
+  - `src/utils/motion.ts` - the timing of every animation.
+  - `src/directives/press.ts` - the tactile feedback of a tappable surface.
+  - `src/fonts/OmniIcons.ttf` - the icon font, built by `design/icons/build_font.py`.
+  - `design/logo/` - the mark and the launch assets, built by `design/logo/build-assets.py`.
 - **Build & Bundler**: `@nativescript/webpack` (`~5.0.38`) with custom Node.js polyfill fallbacks.
 - **JDK Requirement**: **Java 17 (Eclipse Temurin 17)**. Android Gradle Plugin and Gradle 8.x do not support Java 25 (which triggers `Unsupported class file major version 69`).
 - **Emulation / Container**: Docker-based Android environment powered by `budtmo/docker-android:emulator_14.0`.
@@ -25,47 +50,55 @@ Whenever operating within this repository, all AI agents and assistants must str
 ## 2. NativeScript-Vue 3 UI Rules & Conventions
 
 ### 2.1 Use NativeScript UI Elements (Never Web HTML)
-NativeScript renders to native mobile widgets, **not a browser DOM**. 
-- **DO NOT USE**: `<div>`, `<span>`, `<p>`, `<h1>`, `<input>`, `<button>`, `<form>`, `<ul>`, `<li>`.
+NativeScript renders to native mobile widgets, **not a browser DOM**.
+- **DO NOT USE**: `<div>`, `<span>`, `<p>`, `<h1>`, `<input>`, `<button>`, `<form>`, `<ul>`, `<li>`, `<View>`.
 - **USE NATIVESCRIPT COMPONENTS**:
-  - Layouts: `<GridLayout>`, `<StackLayout>`, `<FlexboxLayout>`, `<WrapLayout>`, `<AbsoluteLayout>`, `<ContentView>`.
-  - Navigation / Containers: `<Frame>`, `<Page>`, `<ActionBar>`, `<NavigationButton>`.
-  - Controls: `<Label>`, `<Button>`, `<TextField>`, `<TextView>`, `<ListView>`, `<Image>`, `<ActivityIndicator>`, `<Switch>`, `<Slider>`.
+  - Layouts: `<GridLayout>`, `<StackLayout>`, `<FlexboxLayout>`, `<WrapLayout>`, `<AbsoluteLayout>`.
+  - Navigation / Containers: `<Frame>`, `<Page>`, `<ActionBar>`, `<NavigationButton>`, `<ContentView>`.
+  - Controls: `<Label>`, `<Button>`, `<TextField>`, `<TextView>`, `<ListView>`, `<Image>`, `<ActivityIndicator>`, `<Switch>`, `<Slider>`, `<Placeholder>` (no native view - do not use it to draw).
 
 ### 2.2 Layout & Grid Specifications
 - When using `<GridLayout>`, specify `rows` and `columns` with comma-separated values (e.g., `rows="auto, *"`, `columns="*, auto"`).
 - Child items inside `<GridLayout>` must explicitly specify `row="X"` and `col="Y"` (0-indexed).
-- Always set `textWrap="true"` on `<Label>` elements intended for multi-line content (e.g., chat messages), otherwise text will truncate.
+- Always set `textWrap="true"` on `<Label>` elements intended for multi-line content, otherwise text will truncate.
 
 ### 2.3 Event Handling
 - Use `@tap="handler"` instead of `@click` for user interactions (buttons, labels, cards).
 - Use `@submit="handler"` or `@textChange="handler"` for text inputs.
-- For back navigation, use `$navigateBack` from `nativescript-vue`.
+- For back navigation, use `$navigateBack` from `nativescript-vue`; to push a screen, `$navigateTo(Component, { transition: { name: 'slide', duration: 260 } })`.
+
+### 2.4 Styling Rules
+- The palette is a set of **tokens**, not a second set of rules. `src/app.css` declares the light and the dark values, and every component uses `var(--app-*)`. **A hardcoded hex in a component is a bug** - it does not follow the theme.
+- A **property** (`:backgroundColor`, `:color`) always wins over a rule. A surface that has to follow the theme is painted with a rule; a runtime colour (the accent) gets a view of its own. The send button is the example: its accent fill is a separate view.
+- `Icon.vue` takes a `tone` (a token of the palette) or a `color` (the runtime accent). The tone is a rule, the colour is a property.
 
 ---
 
 ## 3. Network & Backend Connectivity Rules
 
-### 3.1 OmniRoute API (the backend)
-- The app talks to **OmniRoute** through its **OpenAI-compatible HTTP API** (`src/services/omni-ai.ts`):
-  - `GET  /v1/models` - list of available models (578+ on a typical install).
+### 3.1 The gateway (the backend)
+- The app talks to the gateway through its **OpenAI-compatible HTTP API** (`src/services/omni-ai.ts`):
+  - `GET  /v1/models` - list of available models (570+ on a typical install).
   - `POST /v1/chat/completions` - chat completion, standard OpenAI request/response shape.
-- **OmniRoute does NOT speak Socket.IO.** An earlier version of this app used `socket.io-client`; that backend no longer exists. The `socket.io-client` dependency has been removed.
-- OmniRoute also exposes a **Responses API over WebSocket** at `/v1/responses` and a management dashboard on the same port. **Do not use the WebSocket endpoint from the app**: NativeScript 9 has no global `WebSocket` implementation (`globalThis.WebSocket` is `undefined`).
-- **Auth**: requests carry `Authorization: Bearer <OMNIROUTE_API_KEY>`. The key is read from the `OMNIROUTE_API_KEY` environment variable on the machine running OmniRoute and is hard-coded in `src/services/omni-ai.ts` (it is a local developer gateway key).
+- **The gateway does NOT speak Socket.IO.** An earlier version of this app used `socket.io-client`; that backend no longer exists and the dependency has been removed.
+- The gateway also exposes a **Responses API over WebSocket** and a management dashboard on the same port. **Do not use the WebSocket endpoint from the app**: NativeScript 9 has no global `WebSocket` implementation (`globalThis.WebSocket` is `undefined`).
+- **Auth**: requests carry `Authorization: Bearer <OMNIROUTE_API_KEY>`. The key is read from the `OMNIROUTE_API_KEY` environment variable on the machine running the gateway and is hard-coded in `src/services/omni-ai.ts` (it is a local developer gateway key).
 
 ### 3.2 Android Emulator Host Loopback (`10.0.2.2`)
 - **CRITICAL**: From within an Android emulator, `localhost` and `127.0.0.1` refer to the emulator's own internal loopback interface, **not** the developer's computer.
-- OmniRoute listens on `127.0.0.1:20128` of the host, so the app must use:
+- The gateway listens on `127.0.0.1:20128` of the host, so the app must use:
   ```typescript
   const HOST = Application.android ? '10.0.2.2' : '127.0.0.1';
   const BASE_URL = `http://${HOST}:20128`;
   ```
 - Note: `10.0.2.2` is the **emulator's** alias for the host. It is *not* reachable from the container itself, and not from the host.
-- Android network security configuration in `App_Resources/Android/src/main/AndroidManifest.xml` must have `android:usesCleartextTraffic="true"` to permit local HTTP/WS traffic during development.
+- Android network security configuration in `App_Resources/Android/src/main/AndroidManifest.xml` must have `android:usesCleartextTraffic="true"` to permit local HTTP traffic during development.
 
 ### 3.3 Streaming
-- OmniRoute supports SSE streaming (`"stream": true`), but NativeScript's `XMLHttpRequest` (which backs `fetch`) **buffers the whole response** - there is no incremental `onprogress` delivery. The app therefore requests `stream: false` and renders the complete answer at once, with the typing indicator shown while waiting.
+- The gateway supports SSE streaming (`"stream": true`), but NativeScript's `XMLHttpRequest` (which backs `fetch`) **buffers the whole response** - there is no incremental `onprogress` delivery. The app therefore requests `stream: false` and renders the complete answer at once, with the typing indicator shown while waiting.
+
+### 3.4 Cancelling a request
+- `fetch` in NativeScript honours an `AbortSignal`. The composer keeps the `AbortController` of the request in flight, and the send button turns into a stop button while the answer is on its way. A cancelled request is **not** an error.
 
 ---
 
@@ -120,13 +153,37 @@ NativeScript runs V8 on Android without Node.js standard libraries. Any third-pa
 - Editing and saving any file in `src/` (`.vue`, `.ts`, `.css`) automatically triggers HMR and live updates the app on the running emulator. No restart is needed.
 - **Do not run `ns run android` manually while the entrypoint's instance is running.** Two concurrent runs race on the Gradle temp plugin and fail with `spawn .../tempPlugin/core/gradlew ENOENT` or `Error executing Static Binding Generator: File already exists`.
 
-### 6.2 Native & Configuration Rebuilds
-- Modifications to `package.json`, `App_Resources/Android/`, or `nativescript.config.ts` require a native rebuild.
+### 6.2 The LiveSync transfer is not reliable in this container
+The transfer of `ns run android` reports success but the file on the device keeps the old content, and the hot update chunks it leaves behind are re-applied on top of the fresh bundle - which silently reverts the newest code. Two things follow from it:
+
+- **Verify what the device actually runs** before chasing a bug:
+  ```bash
+  docker exec nativescript-vue-android sh -c \
+    'md5sum files/app/bundle.js' # against the build output
+  ```
+- **To push a build by hand**, copy the bundle into the app data directory and delete the stale chunks:
+  ```bash
+  adb push platforms/android/app/src/main/assets/app/bundle.js /data/local/tmp/
+  adb shell "run-as org.nativescript.omniai sh -c \
+    'cat /data/local/tmp/bundle.js > files/app/bundle.js; rm -f files/app/*.hot-update.*'"
+  adb shell am force-stop org.nativescript.omniai
+  ```
+
+### 6.3 Native & Configuration Rebuilds
+- Modifications to `package.json`, `App_Resources/Android/`, `nativescript.config.ts` or `src/fonts/` require a native rebuild.
 - Trigger rebuilds via:
   ```bash
   docker exec -it nativescript-vue-android ns run android
   ```
   or restart the container with `docker compose up`.
+
+### 6.4 Check a change before it reaches the device
+- `npx tsc --noEmit -p tsconfig.json` checks the TypeScript.
+- `tsc` does **not** check a template. A broken template only shows up in the bundler, and a component that fails to compile renders nothing at all - silently. Compile the single file components before shipping a change:
+  ```bash
+  node -e "const {parse,compileTemplate,compileScript}=require('@vue/compiler-sfc');/* … */"
+  ```
+  (see §9 for a ready made script).
 
 ---
 
@@ -157,6 +214,8 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | `Application.systemAppearance()` while the app starts | The native context does not exist yet and the framework throws `Cannot read properties of undefined (reading 'getResources')` | Ask for the appearance once the app is on screen |
 | A colour bound as a property (`:backgroundColor="…"`), next to a rule that sets the same property | The property wins over the rule, so the rule is never seen - a themed colour stays in the colour of the light theme | Paint a themed surface with a rule, and give a runtime colour (the accent) a view of its own |
 | An endless animation that is never stopped | The animation chain keeps the view alive; a few of them fill the 192 MB V8 heap and the app dies with an OutOfMemoryError | `loopAnimation()` returns a stop function - call it when the view goes away |
+| An animation of a view that is not on screen | The animation is resolved at once, so the chain starts the next frame immediately, again and again - the thread spins at full speed and the app stops answering | `loopAnimation()` stops when the view is not loaded, or when an animation resolves faster than it could have run |
+| `<template v-for>` inside a native view | The element of the second round lands inside the element of the first one - a nested list was drawn in the row of the item above it | Put the `v-for` on a real element (`<StackLayout v-for>`) instead of on a `<template>` |
 
 ---
 
@@ -182,15 +241,16 @@ The palette lives in **`src/app.css`** as CSS custom properties, declared twice:
 ## 8. Component Patterns
 
 - **Never put a `v-for` directly in a `GridLayout`.** GridLayout columns are not assigned reliably to `v-for` children in NativeScript-Vue.
+- **Never put a `v-for` on a `<template>` inside a native view.** The element of the second round lands inside the element of the first one. Put the `v-for` on a real element.
 - **Always set `orientation="horizontal"` on a `StackLayout` that holds side-by-side items.** The default is vertical.
-- `MarkdownView.vue` renders replies; `src/utils/markdown.ts` is a hand-written parser. A regex with a single capture group must be read with `[1]` — reading `[2]` passes `undefined` downstream and crashes the app (see the `asOrdered[2]` bug that was fixed in `parseList`).
 - The accent colour is derived from the provider prefix of the selected model (`src/utils/accent.ts`). Changing the model in the picker repaints the whole interface, so every accent-coloured surface must be bound to it rather than hard-coded.
 - The theme is a **palette of tokens**, not a second set of rules: `src/app.css` declares the light and the dark values, and every component uses `var(--app-*)`. A hardcoded hex in a component is a bug - it does not follow the theme.
 - `src/components/Icon.vue` draws the whole icon set with the `OmniIcons` font, a subset of Font Awesome (18 glyphs, 4 kB). It is built by `design/icons/build_font.py`; the font lives in `src/fonts`, which NativeScript copies into the app's `files/app/fonts` - the place the runtime looks for a font by its family name. A glyph in a `Label` is recoloured like any other text, so the icons follow the accent of the selected provider.
 - `src/utils/motion.ts` owns the timing of every animation (`enter`, `exit`, `pressIn`, `pressOut`, `pulse`, `loopAnimation`). `src/directives/press.ts` is registered globally as `v-press` and gives every tappable surface a tactile response; its `touch` handler always returns `false` so the `tap` still fires.
-- A `loopAnimation()` always has to be stopped again - see `stopAllLoops()` in `Home.vue` for the pattern.
+- A `loopAnimation()` always has to be stopped again - see `stopAllLoops()` in `Home.vue` for the pattern. The loops of a screen are stopped when the screen is left **and** when the app is suspended.
 - A failed request is **not** a message of the conversation: it is reported in the banner above the composer, with a retry. Failures that older versions stored in the history are dropped when the conversations are read back.
-- The LiveSync transfer of `ns run android` does not always reach the device in this container, and the hot update chunks it leaves behind are re-applied on top of the fresh bundle - which silently reverts the newest code. Copy `bundle.js` into `files/app` of the app data directory by hand and delete the `*.hot-update.*` files to get a clean state.
+- `MarkdownView.vue` renders replies; `src/utils/markdown.ts` is a hand-written parser. A regex with a single capture group must be read with `[1]` - reading `[2]` passes `undefined` downstream and crashes the app (see the `asOrdered[2]` bug that was fixed in `parseList`).
+- A list that is indented under an item is a **child of that item** (`MdList.vue`), and a blank line between two items does not end the list - otherwise the numbering restarts at one for every item.
 
 ---
 
@@ -204,3 +264,20 @@ The palette lives in **`src/app.css`** as CSS custom properties, declared twice:
 | `adb connect localhost:5555` | Connect host machine ADB to the containerized emulator |
 | `ns run android --device localhost:5555` | Run development server from host directly targeting the emulator |
 | `ns clean` | Wipe `platforms/android` and `hooks/` to resolve build corruption |
+| `npx tsc --noEmit -p tsconfig.json` | Type check the sources |
+| `python3 design/logo/build-assets.py` | Rebuild the mark, the icons and the launch assets |
+| `python3 design/icons/build_font.py` | Rebuild the icon font from Font Awesome |
+| `adb exec-out screencap -p > shot.png` | A screenshot of the emulator |
+
+---
+
+## 10. The Shape of the App
+
+A short description of what the app does, for an agent that has to change it.
+
+1. **Launch** - `SplashScreen.vue` plays the mark: a dark ink field, two slow aurora blobs, two orbit rings with satellites, the prism mark with its beam, and the wordmark with the live state of the gateway. The planes move at their own rate, so the composition reads as depth. The exit is a two stage crossfade: the ink dissolves into the colour of the app, and only then does that dissolve into the chat screen.
+2. **Chat** - the app bar carries the drawer handle, the active route (a chip that opens the model sheet) and the state of the gateway. The conversation is a list of messages: the user in an ink bubble on the right, the assistant in Markdown on the left, each reply introduced by the route it came from.
+3. **Drawer** - new conversation, the history of the conversations, and at the end profile and settings.
+4. **Model sheet** - the several hundred routes the gateway publishes, searchable, each with the colour of its provider.
+5. **Profile** - the name of the operator, a few facts about the local history and the route in use.
+6. **Settings** - the theme, the text size, the timestamps, the gateway, and the stored history.

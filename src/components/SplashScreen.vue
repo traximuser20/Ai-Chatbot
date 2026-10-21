@@ -13,6 +13,12 @@
  *   near     the mark, its glow and the beam pulsing through it
  *   closest  the wordmark and the live state of the gateway
  *
+ * The planes lean with the phone: they are moved by the tilt of the device
+ * (see src/utils/tilt.ts), and the far plane leans against the movement
+ * while the near plane follows it, so the depth of the scene is read as
+ * depth. Every plane also drifts on its own, which keeps the scene alive
+ * when the phone lies still on a table.
+ *
  * The entrance walks the planes in from the back, one long beat at a time,
  * and the exit is a two stage crossfade: the ink dissolves into the paper
  * colour the app uses, and only then does the paper dissolve into the chat
@@ -22,6 +28,8 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { omniAi, type ConnectionStatus } from '../services/omni-ai';
 import { useThemeStore } from '../stores/theme';
+import { loopAnimation } from '../utils/motion';
+import { Parallax } from '../utils/parallax';
 import { paintStatusBar } from '../utils/status-bar';
 import { themeToken } from '../utils/theme';
 
@@ -61,13 +69,20 @@ const MAX_LIFE_MS = 9000;
 
 const rootRef = ref(null);
 const inkRef = ref(null);
+const paperRef = ref(null);
+const farRef = ref(null);
+const midRef = ref(null);
+const nearRef = ref(null);
+const copyPlaneRef = ref(null);
 const auroraARef = ref(null);
 const auroraBRef = ref(null);
 const orbitOuterRef = ref(null);
 const orbitInnerRef = ref(null);
 const heroRef = ref(null);
+const markBoxRef = ref(null);
+const glowRef = ref(null);
+const beamRef = ref(null);
 const copyRef = ref(null);
-const paperRef = ref(null);
 
 const status = ref<ConnectionStatus>('connecting');
 const modelCount = ref(0);
@@ -75,6 +90,11 @@ let holdTimer: ReturnType<typeof setTimeout> | undefined;
 let exitTimer: ReturnType<typeof setTimeout> | undefined;
 let safetyTimer: ReturnType<typeof setTimeout> | undefined;
 let unsubscribe: (() => void) | undefined;
+
+/** The scene of planes that lean with the phone. */
+let parallax: Parallax | undefined;
+/** The loops of the scene that never end on their own. */
+let stopLoops: Array<() => void> = [];
 
 /** "ONE GATEWAY · EVERY MODEL" plus the live model count. */
 const eyebrow = computed(() =>
@@ -96,6 +116,8 @@ const statusText = computed(() => {
 const statusClass = computed(() => `splash-status-dot--${status.value}`);
 
 onMounted(async () => {
+  buildScene();
+
   // If the native view is already up (a fast warm start) the `loaded` event
   // has been and gone, so start the sequence by hand.
   if (rootRef.value?.nativeView?.isLoaded) {
@@ -123,8 +145,87 @@ onUnmounted(() => {
   clearTimeout(exitTimer);
   clearTimeout(safetyTimer);
   unsubscribe?.();
+  stopScene();
   applyStatusBar(false);
 });
+
+/**
+ * The planes of the composition.
+ *
+ * Every plane has a depth: how far it travels when the phone is leaned over
+ * to the limit. The far plane leans against the movement and the near plane
+ * follows it, which is what turns a flat composition into a window on
+ * something with a front and a back.
+ */
+function buildScene() {
+  parallax = new Parallax([
+    // The far light: the deepest plane. It drifts the slowest of anything
+    // on the screen, and it leans against the tilt of the phone.
+    {
+      view: farRef.value?.nativeView,
+      depth: 16,
+      direction: -1,
+      drift: { x: 46, y: 34, period: 96000, phase: 0.4 },
+    },
+    // The orbits, in the middle of the scene.
+    {
+      view: midRef.value?.nativeView,
+      depth: 30,
+      direction: -1,
+      drift: { x: 0, y: 8, period: 44000, phase: 1.1 },
+    },
+    // The mark: the closest plane of the picture, so it follows the hand
+    // the most.
+    {
+      view: nearRef.value?.nativeView,
+      depth: 46,
+      direction: 1,
+    },
+    // The wordmark sits with the mark.
+    {
+      view: copyPlaneRef.value?.nativeView,
+      depth: 20,
+      direction: 1,
+    },
+    // The mark floats inside its plane.
+    {
+      view: markBoxRef.value?.nativeView,
+      depth: 0,
+      drift: { x: 0, y: 8, period: 13000, phase: -Math.PI / 2 },
+    },
+    // The two orbits turn at their own speed.
+    { view: orbitOuterRef.value?.nativeView, depth: 0, spin: 360 / 44 },
+    { view: orbitInnerRef.value?.nativeView, depth: 0, spin: 360 / 30 },
+  ]);
+}
+
+/** Starts the scene and the loops of the scene. */
+function startScene() {
+  parallax?.start();
+
+  // The glow around the mark breathes.
+  stopLoops.push(
+    loopAnimation(glowRef.value?.nativeView, [
+      { properties: { opacity: 0.42, scale: { x: 0.9, y: 0.9 } }, duration: 4500 },
+      { properties: { opacity: 0.82, scale: { x: 1.06, y: 1.06 } }, duration: 4500 },
+    ]),
+  );
+
+  // The beam pulses through the mark.
+  stopLoops.push(
+    loopAnimation(beamRef.value?.nativeView, [
+      { properties: { opacity: 0.55 }, duration: 3000 },
+      { properties: { opacity: 1 }, duration: 3000 },
+    ]),
+  );
+}
+
+/** Stops the scene. */
+function stopScene() {
+  parallax?.stop();
+  stopLoops.forEach((stop) => stop());
+  stopLoops = [];
+}
 
 /**
  * The native views are up: this is the real "frame zero" of the sequence.
@@ -136,6 +237,7 @@ function onStageLoaded() {
   // the status bar can be painted to match the splash.
   applyStatusBar(true);
   startEntrance();
+  startScene();
 
   clearTimeout(safetyTimer);
   safetyTimer = setTimeout(leave, MAX_LIFE_MS);
@@ -152,9 +254,8 @@ function onStageLoaded() {
  * CSS keyframes: the CSS `animation-delay` is not reliable on Android (a
  * delayed keyframe animation can be restarted before its delay elapses and
  * therefore never start), and the API lets the whole sequence be timed from
- * one place. The endless ambience stays in CSS, where an infinite loop
- * belongs - and it only ever animates the transform, so it never fights the
- * entrance for the opacity of a plane.
+ * one place. The endless ambience is driven from code as well, for the same
+ * reason - a keyframe animation in a scoped style block does not run.
  */
 function startEntrance() {
   const view = (ref: { value: unknown }) =>
@@ -192,12 +293,15 @@ function startEntrance() {
 
 /**
  * The exit: the mark and the copy dissolve first, then the ink field turns
- * into paper, then the paper itself dissolves into the chat screen.
+ * into paper, and only then does the paper dissolve into the chat screen.
  */
 function leave() {
   if (exitTimer) {
     return;
   }
+
+  // The scene holds still while it goes.
+  stopScene();
 
   const view = (ref: { value: unknown }) =>
     (ref.value as { nativeView?: any } | null)?.nativeView;
@@ -252,51 +356,59 @@ function applyStatusBar(onInk: boolean) {
     <!-- The ink field: the far light, the orbits and the mark. -->
     <GridLayout ref="inkRef" row="0" col="0" rows="*, auto" class="splash-ink">
       <GridLayout row="0" col="0" class="splash-stage">
-        <!-- The far light. -->
-        <Image
-          ref="auroraARef"
-          row="0"
-          col="0"
-          src="~/assets/img/aurora-a.png"
-          class="splash-aurora splash-aurora--a"
-        />
-        <Image
-          ref="auroraBRef"
-          row="0"
-          col="0"
-          src="~/assets/img/aurora-b.png"
-          class="splash-aurora splash-aurora--b"
-        />
+        <!-- The far light: the deepest plane of the picture. -->
+        <GridLayout ref="farRef" row="0" col="0" class="splash-plane">
+          <Image
+            ref="auroraARef"
+            row="0"
+            col="0"
+            src="~/assets/img/aurora-a.png"
+            class="splash-aurora splash-aurora--a"
+          />
+          <Image
+            ref="auroraBRef"
+            row="0"
+            col="0"
+            src="~/assets/img/aurora-b.png"
+            class="splash-aurora splash-aurora--b"
+          />
+        </GridLayout>
 
         <!-- Two routes orbiting the gateway. -->
-        <GridLayout ref="orbitOuterRef" row="0" col="0" class="splash-orbit splash-orbit--outer">
-          <Label row="0" col="0" text="" class="splash-ring" />
-          <Label row="0" col="0" text="" class="splash-satellite splash-satellite--a" />
-        </GridLayout>
-        <GridLayout ref="orbitInnerRef" row="0" col="0" class="splash-orbit splash-orbit--inner">
-          <Label row="0" col="0" text="" class="splash-ring splash-ring--inner" />
-          <Label row="0" col="0" text="" class="splash-satellite splash-satellite--b" />
+        <GridLayout ref="midRef" row="0" col="0" class="splash-plane">
+          <GridLayout ref="orbitOuterRef" row="0" col="0" class="splash-orbit splash-orbit--outer">
+            <Label row="0" col="0" text="" class="splash-ring" />
+            <Label row="0" col="0" text="" class="splash-satellite splash-satellite--a" />
+          </GridLayout>
+          <GridLayout ref="orbitInnerRef" row="0" col="0" class="splash-orbit splash-orbit--inner">
+            <Label row="0" col="0" text="" class="splash-ring splash-ring--inner" />
+            <Label row="0" col="0" text="" class="splash-satellite splash-satellite--b" />
+          </GridLayout>
         </GridLayout>
 
-        <!-- The mark. -->
-        <GridLayout ref="heroRef" row="0" col="0" class="splash-hero">
-          <Image row="0" col="0" src="~/assets/img/prism-glow.png" class="splash-glow" />
-          <GridLayout row="0" col="0" class="splash-mark-box">
-            <Image row="0" col="0" src="~/assets/img/prism.png" class="splash-mark" />
-            <Image row="0" col="0" src="~/assets/img/prism-beam.png" class="splash-beam" />
+        <!-- The mark: the closest plane of the picture. -->
+        <GridLayout ref="nearRef" row="0" col="0" class="splash-plane">
+          <GridLayout ref="heroRef" row="0" col="0" class="splash-hero">
+            <Image ref="glowRef" row="0" col="0" src="~/assets/img/prism-glow.png" class="splash-glow" />
+            <GridLayout ref="markBoxRef" row="0" col="0" class="splash-mark-box">
+              <Image row="0" col="0" src="~/assets/img/prism.png" class="splash-mark" />
+              <Image ref="beamRef" row="0" col="0" src="~/assets/img/prism-beam.png" class="splash-beam" />
+            </GridLayout>
           </GridLayout>
         </GridLayout>
       </GridLayout>
 
       <!-- The wordmark. -->
-      <StackLayout ref="copyRef" row="1" col="0" class="splash-copy">
-        <Label row="0" col="0" text="Omni Ai" class="splash-wordmark" />
-        <Label row="1" col="0" :text="eyebrow" class="splash-eyebrow" />
-        <GridLayout row="2" col="0" columns="auto, auto" class="splash-status">
-          <Label col="0" row="0" text="●" class="splash-status-dot" :class="statusClass" />
-          <Label col="1" row="0" :text="statusText" class="splash-status-text" />
-        </GridLayout>
-      </StackLayout>
+      <GridLayout ref="copyPlaneRef" row="1" col="0" class="splash-plane">
+        <StackLayout ref="copyRef" row="0" col="0" class="splash-copy">
+          <Label row="0" col="0" text="Omni Ai" class="splash-wordmark" />
+          <Label row="1" col="0" :text="eyebrow" class="splash-eyebrow" />
+          <GridLayout row="2" col="0" columns="auto, auto" class="splash-status">
+            <Label col="0" row="0" text="●" class="splash-status-dot" :class="statusClass" />
+            <Label col="1" row="0" :text="statusText" class="splash-status-text" />
+          </GridLayout>
+        </StackLayout>
+      </GridLayout>
     </GridLayout>
   </GridLayout>
 </template>
@@ -329,6 +441,16 @@ function applyStatusBar(onInk: boolean) {
   vertical-align: stretch;
 }
 
+/*
+  A plane of the composition. The plane is what leans with the phone, so it
+  carries no transform of its own - the movement is written onto it frame by
+  frame (see src/utils/parallax.ts).
+*/
+.splash-plane {
+  horizontal-align: stretch;
+  vertical-align: stretch;
+}
+
 /* ---------- The far light ---------- */
 .splash-aurora {
   width: 720;
@@ -336,17 +458,11 @@ function applyStatusBar(onInk: boolean) {
   opacity: 0;
 }
 
-/* The far light drifts the slowest of anything on the screen. */
 .splash-aurora--a {
   horizontal-align: left;
   vertical-align: top;
   margin-left: -230;
   margin-top: -170;
-  animation-name: splashDriftA;
-  animation-duration: 96000ms;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  animation-fill-mode: both;
 }
 
 .splash-aurora--b {
@@ -354,11 +470,6 @@ function applyStatusBar(onInk: boolean) {
   vertical-align: bottom;
   margin-right: -250;
   margin-bottom: -210;
-  animation-name: splashDriftB;
-  animation-duration: 118000ms;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  animation-fill-mode: both;
 }
 
 /* ---------- Orbits ---------- */
@@ -372,21 +483,11 @@ function applyStatusBar(onInk: boolean) {
 .splash-orbit--outer {
   width: 262;
   height: 262;
-  animation-name: splashOrbitOuter;
-  animation-duration: 44000ms;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  animation-fill-mode: both;
 }
 
 .splash-orbit--inner {
   width: 196;
   height: 196;
-  animation-name: splashOrbitInner;
-  animation-duration: 30000ms;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  animation-fill-mode: both;
 }
 
 .splash-ring {
@@ -446,11 +547,6 @@ function applyStatusBar(onInk: boolean) {
   vertical-align: middle;
   opacity: 0.42;
   transform: scale(0.9);
-  animation-name: splashBreathe;
-  animation-duration: 9000ms;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  animation-fill-mode: both;
 }
 
 .splash-mark-box {
@@ -458,11 +554,6 @@ function applyStatusBar(onInk: boolean) {
   height: 150;
   horizontal-align: center;
   vertical-align: middle;
-  animation-name: splashFloat;
-  animation-duration: 13000ms;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  animation-fill-mode: both;
 }
 
 .splash-mark {
@@ -478,11 +569,6 @@ function applyStatusBar(onInk: boolean) {
   horizontal-align: center;
   vertical-align: middle;
   opacity: 0.55;
-  animation-name: splashBeamPulse;
-  animation-duration: 6000ms;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  animation-fill-mode: both;
 }
 
 /* ---------- Copy ---------- */
@@ -539,73 +625,5 @@ function applyStatusBar(onInk: boolean) {
   font-size: 11;
   letter-spacing: 0.08;
   vertical-align: center;
-}
-
-/* ------------------------------------------------------------------ */
-/* The ambience - one endless loop per plane, each at its own rate     */
-/* ------------------------------------------------------------------ */
-@keyframes splashDriftA {
-  from {
-    transform: translate(-30px, -20px) scale(0.85);
-  }
-  to {
-    transform: translate(70px, 60px) scale(1.2);
-  }
-}
-
-@keyframes splashDriftB {
-  from {
-    transform: translate(40px, 30px) scale(1.1);
-  }
-  to {
-    transform: translate(-60px, -50px) scale(0.9);
-  }
-}
-
-@keyframes splashOrbitOuter {
-  from {
-    transform: rotate(14deg);
-  }
-  to {
-    transform: rotate(374deg);
-  }
-}
-
-@keyframes splashOrbitInner {
-  from {
-    transform: rotate(-28deg);
-  }
-  to {
-    transform: rotate(332deg);
-  }
-}
-
-@keyframes splashBreathe {
-  from {
-    opacity: 0.42;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 0.82;
-    transform: scale(1.06);
-  }
-}
-
-@keyframes splashFloat {
-  from {
-    transform: translate(0, -8);
-  }
-  to {
-    transform: translate(0, 8);
-  }
-}
-
-@keyframes splashBeamPulse {
-  from {
-    opacity: 0.55;
-  }
-  to {
-    opacity: 1;
-  }
 }
 </style>

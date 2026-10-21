@@ -103,7 +103,17 @@ function openSensor(): void {
   }
 
   try {
-    manager = (Application.android as any).getSystemService(
+    /*
+      `Application.android` is the application of the framework, not the one
+      of Android - the native application is behind it, and it is the one that
+      holds the system services.
+    */
+    const app = Application.android.nativeApp;
+    if (!app) {
+      return;
+    }
+
+    manager = app.getSystemService(
       android.content.Context.SENSOR_SERVICE,
     ) as android.hardware.SensorManager;
 
