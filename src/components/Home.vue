@@ -21,7 +21,7 @@ import { useThemeStore } from '../stores/theme';
 import { omniAi, OmniAiError, type OmniAiModel } from '../services/omni-ai';
 import { accentFor, providerOf } from '../utils/accent';
 import { enter, loopAnimation } from '../utils/motion';
-import { paintStatusBar } from '../utils/status-bar';
+import { paintNavigationBar, paintStatusBar } from '../utils/status-bar';
 import { themeToken } from '../utils/theme';
 import ChatMessage from './ChatMessage.vue';
 import Sidebar from './Sidebar.vue';
@@ -246,7 +246,9 @@ watch(
   () => theme.name,
   () => {
     nextTick(() => {
-      paintStatusBar(themeToken('--app-surface', '#FFFFFF'), theme.isDark);
+      const surface = themeToken('--app-surface', '#FFFFFF');
+      paintStatusBar(surface, theme.isDark);
+      paintNavigationBar(surface, theme.isDark);
     });
   },
 );

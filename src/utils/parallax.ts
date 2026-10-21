@@ -149,7 +149,6 @@ export class Parallax {
 
       view.translateX = state.x;
       view.translateY = state.y;
-
       if (spin) {
         state.angle = (state.angle + spin * elapsed) % 360;
         view.rotate = state.angle;

@@ -11,7 +11,7 @@ import { $navigateBack } from 'nativescript-vue';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore, type TextScale } from '../stores/settings';
 import { useThemeStore } from '../stores/theme';
-import { omniAi, BASE_URL } from '../services/omni-ai';
+import { omniAi, gatewayUrl, setGatewayAddress, defaultGatewayHost, GATEWAY_PORT } from '../services/omni-ai';
 import { enter, pulse } from '../utils/motion';
 import Icon from './Icon.vue';
 
@@ -21,6 +21,20 @@ const theme = useThemeStore();
 
 const reconnecting = ref(false);
 const reconnectMessage = ref('');
+
+/* ------------------------------------------------------------------ */
+/* The address of the gateway                                          */
+/* ------------------------------------------------------------------ */
+
+/** The address the app uses right now. */
+const gatewayAddress = ref(gatewayUrl());
+/** What the user is typing. */
+const addressDraft = ref('');
+/** True for a moment after the address was stored. */
+const addressSaved = ref(false);
+
+/** The address the platform picks when nothing was chosen by hand. */
+const defaultAddress = `http://${defaultGatewayHost()}:${GATEWAY_PORT}`;
 
 const scales: { value: TextScale; label: string }[] = [
   { value: 'small', label: 'Small' },
@@ -60,6 +74,7 @@ function popThemeSegment(index: number) {
 }
 
 onMounted(() => {
+  addressDraft.value = gatewayUrl();
   nextTick(() => {
     enter(bodyRef.value?.nativeView, { distance: 16, duration: 420 });
   });
@@ -81,6 +96,7 @@ function onSendOnEnter(event: any) {
 async function reconnect() {
   reconnecting.value = true;
   reconnectMessage.value = '';
+  gatewayAddress.value = gatewayUrl();
   try {
     const models = await omniAi.loadModels(true);
     reconnectMessage.value = `Connected · ${models.length} routes`;
@@ -89,6 +105,22 @@ async function reconnect() {
   } finally {
     reconnecting.value = false;
   }
+}
+
+/**
+ * Stores the address of the gateway and probes it again.
+ *
+ * An empty field restores the address of the platform - the emulator alias
+ * for the host, or the loopback of the phone with the forwarded port.
+ */
+async function saveAddress() {
+  setGatewayAddress(addressDraft.value);
+  gatewayAddress.value = gatewayUrl();
+  addressSaved.value = true;
+  setTimeout(() => {
+    addressSaved.value = false;
+  }, 1600);
+  await reconnect();
 }
 
 function clearHistory() {
@@ -228,7 +260,7 @@ function clearHistory() {
               class="status-dot"
             />
             <Label col="1" row="0" text="Omni Ai" class="row-title" />
-            <Label col="1" row="1" :text="BASE_URL" class="row-mono" />
+            <Label col="1" row="1" :text="gatewayAddress" class="row-mono" />
             <Label
               col="1"
               row="2"
@@ -236,6 +268,32 @@ function clearHistory() {
               class="row-sub"
             />
           </GridLayout>
+
+          <!--
+            The address can be pointed at another host - the LAN address of
+            the machine that runs the gateway, for instance. An empty field
+            restores the address of the platform.
+          -->
+          <Label text="Address" class="field-label" />
+          <GridLayout columns="*, auto" class="field-row">
+            <TextField
+              col="0"
+              v-model="addressDraft"
+              class="field"
+              hint="http://host:20128"
+              returnKeyType="done"
+              @submit="saveAddress"
+            />
+            <Label
+              col="1"
+              :text="addressSaved ? 'Saved' : 'Save'"
+              class="field-action"
+              :class="{ 'field-action--saved': addressSaved }"
+              v-press
+              @tap="saveAddress"
+            />
+          </GridLayout>
+          <Label :text="`Default: ${defaultAddress}`" class="row-sub" />
 
           <GridLayout columns="*, auto" class="card row" v-press @tap="reconnect">
             <Label col="0" text="Reconnect" class="row-title" />
@@ -362,6 +420,47 @@ function clearHistory() {
 .status-dot {
   margin-right: 6;
   vertical-align: center;
+}
+
+/* ---------- The address field ---------- */
+.field-label {
+  color: var(--app-ink-muted);
+  font-family: monospace;
+  font-size: 10;
+  letter-spacing: 0.13;
+  text-transform: uppercase;
+  margin-bottom: 8;
+  margin-top: 4;
+}
+
+.field-row {
+  margin-bottom: 8;
+}
+
+.field {
+  background-color: var(--app-surface);
+  border-width: 1;
+  border-color: var(--app-border-2);
+  border-radius: 12;
+  color: var(--app-ink);
+  placeholder-color: var(--app-ink-faint);
+  font-size: 15;
+  padding: 12 14;
+  /* The field fills the row, the action sits next to it. */
+  width: 100%;
+}
+
+.field-action {
+  color: var(--app-link);
+  font-size: 13;
+  font-weight: 700;
+  vertical-align: center;
+  margin-left: 12;
+  text-align: right;
+}
+
+.field-action--saved {
+  color: var(--app-success);
 }
 
 /* ---------- Segmented control ---------- */

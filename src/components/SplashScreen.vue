@@ -26,11 +26,16 @@
  * moment where text sits on top of text.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { Screen } from '@nativescript/core';
 import { omniAi, type ConnectionStatus } from '../services/omni-ai';
 import { useThemeStore } from '../stores/theme';
 import { loopAnimation } from '../utils/motion';
 import { Parallax } from '../utils/parallax';
-import { paintStatusBar } from '../utils/status-bar';
+import {
+  makeSystemBarsTransparent,
+  paintPageBackground,
+  restoreSystemBars,
+} from '../utils/status-bar';
 import { themeToken } from '../utils/theme';
 
 /** Fires once the splash has finished animating away. */
@@ -50,13 +55,12 @@ const theme = useThemeStore();
  * current theme, so the app fades in on exactly the colour it uses.
  */
 const INK = '#0B0E17';
-
 /**
  * How long the splash stays on screen once the native views are up.
  * The entrance takes ~4.3s, so the mark gets a long moment to breathe
  * before it leaves.
  */
-const HOLD_MS = 3900;
+const HOLD_MS = 15000;
 
 /** How long the whole exit takes. */
 const EXIT_MS = 1500;
@@ -65,7 +69,7 @@ const EXIT_MS = 1500;
  * Safety net: if the native `loaded` event never arrives the splash must
  * still get out of the way.
  */
-const MAX_LIFE_MS = 9000;
+const MAX_LIFE_MS = 60000;
 
 const rootRef = ref(null);
 const inkRef = ref(null);
@@ -239,9 +243,46 @@ function onStageLoaded() {
   startEntrance();
   startScene();
 
+  // The light is placed once the plane has been measured, which happens
+  // with the first layout of the screen.
+  setTimeout(placeLights, 100);
+
   clearTimeout(safetyTimer);
   safetyTimer = setTimeout(leave, MAX_LIFE_MS);
   holdTimer = setTimeout(leave, HOLD_MS);
+}
+
+/**
+ * Places the two lights of the background.
+ *
+ * The centre of each light sits just outside the corner of the picture, so
+ * only the soft edge of it is ever seen. The first light is counted from
+ * the top left corner, the second from the bottom right one, so both keep
+ * their place on every screen.
+ */
+function placeLights() {
+  const plane = farRef.value?.nativeView;
+  const first = auroraARef.value?.nativeView;
+  const second = auroraBRef.value?.nativeView;
+  if (!plane || !first || !second) {
+    return;
+  }
+
+  // The measured size is in device pixels, the layout works in dip.
+  const scale = Screen.mainScreen.scale;
+  const width = plane.getMeasuredWidth() / scale;
+  const height = plane.getMeasuredHeight() / scale;
+  if (!width || !height) {
+    return;
+  }
+
+  // A plain number is a length in dip, and it is scaled to the screen. The
+  // plane reaches past the sides of the screen, so its own edge - and with
+  // it the cut of the light - lies where nobody can see it.
+  first.left = '-110';
+  first.top = '-61';
+  second.left = `${width - 230}`;
+  second.top = `${height - 259}`;
 }
 
 /**
@@ -335,16 +376,26 @@ function leave() {
 }
 
 /**
- * Paints the system status bar to match whatever is on screen.
+ * Paints the system bars to match whatever is on screen.
  *
- * While the splash is up the bar sits on ink, so its icons are light. Once
- * the app is there the bar sits on the app bar of the chat screen, which
- * carries the surface of the current theme.
+ * While the splash is up the ink of it reaches to the edges of the screen,
+ * so both bars are made transparent and their icons stay light. Once the app
+ * is there the bars sit on the surface of the current theme.
  */
 function applyStatusBar(onInk: boolean) {
   const surface = themeToken('--app-surface', '#FFFFFF');
   const dark = onInk || theme.isDark;
-  paintStatusBar(onInk ? INK : surface, dark);
+
+  if (onInk) {
+    // The ink of the splash reaches to the edges of the screen, so both
+    // bars are made transparent and the ink is painted behind them.
+    paintPageBackground(INK);
+    makeSystemBarsTransparent(INK);
+    return;
+  }
+
+  paintPageBackground(themeToken('--app-canvas', '#F2F3F6'));
+  restoreSystemBars(surface, surface, dark);
 }
 </script>
 
@@ -357,22 +408,16 @@ function applyStatusBar(onInk: boolean) {
     <GridLayout ref="inkRef" row="0" col="0" rows="*, auto" class="splash-ink">
       <GridLayout row="0" col="0" class="splash-stage">
         <!-- The far light: the deepest plane of the picture. -->
-        <GridLayout ref="farRef" row="0" col="0" class="splash-plane">
-          <Image
-            ref="auroraARef"
-            row="0"
-            col="0"
-            src="~/assets/img/aurora-a.png"
-            class="splash-aurora splash-aurora--a"
-          />
-          <Image
-            ref="auroraBRef"
-            row="0"
-            col="0"
-            src="~/assets/img/aurora-b.png"
-            class="splash-aurora splash-aurora--b"
-          />
-        </GridLayout>
+        <AbsoluteLayout
+          ref="farRef"
+          row="0"
+          col="0"
+          class="splash-plane splash-plane--far"
+          @layoutChanged="placeLights"
+        >
+          <Image ref="auroraARef" src="~/assets/img/aurora-a.png" class="splash-aurora" />
+          <Image ref="auroraBRef" src="~/assets/img/aurora-b.png" class="splash-aurora" />
+        </AbsoluteLayout>
 
         <!-- Two routes orbiting the gateway. -->
         <GridLayout ref="midRef" row="0" col="0" class="splash-plane">
@@ -452,24 +497,21 @@ function applyStatusBar(onInk: boolean) {
 }
 
 /* ---------- The far light ---------- */
+/*
+  The light lives in an absolute layout: a grid would cut it to the size of
+  its cell, and a cut edge shows up as a hard line in the picture as soon
+  as the plane leans with the phone. The plane reaches past both sides of
+  the screen, so that cut happens where nobody can see it.
+*/
+.splash-plane--far {
+  margin-left: -120;
+  margin-right: -120;
+}
+
 .splash-aurora {
-  width: 720;
-  height: 720;
+  width: 360;
+  height: 360;
   opacity: 0;
-}
-
-.splash-aurora--a {
-  horizontal-align: left;
-  vertical-align: top;
-  margin-left: -230;
-  margin-top: -170;
-}
-
-.splash-aurora--b {
-  horizontal-align: right;
-  vertical-align: bottom;
-  margin-right: -250;
-  margin-bottom: -210;
 }
 
 /* ---------- Orbits ---------- */

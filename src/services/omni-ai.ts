@@ -1,4 +1,5 @@
-import { Application } from '@nativescript/core';
+import { Application, ApplicationSettings } from '@nativescript/core';
+import { isEmulator } from '../utils/device';
 
 /**
  * Omni Ai client.
@@ -18,11 +19,87 @@ import { Application } from '@nativescript/core';
  * Android emulator maps to the host's loopback interface, so a backend
  * listening on the host on port 20128 is reachable at http://10.0.2.2:20128.
  *
- * On a physical device, replace this with the host's LAN IP address.
+ * On a physical device the loopback interface belongs to the phone, so the
+ * port of the gateway is forwarded to the machine that runs it:
+ *
+ *     adb reverse tcp:20128 tcp:20128
+ *
+ * With that tunnel in place the plain `127.0.0.1` address reaches the
+ * gateway again. The user can also point the app at another address - the
+ * LAN address of the machine that runs the gateway - from the settings
+ * screen.
  */
-const HOST = Application.android ? '10.0.2.2' : '127.0.0.1';
-const PORT = 20128;
-export const BASE_URL = `http://${HOST}:${PORT}`;
+
+/** The port the gateway listens on. */
+export const GATEWAY_PORT = 20128;
+
+/** Where a hand-picked address of the gateway is stored. */
+const GATEWAY_KEY = 'omniai.gateway.address';
+
+/**
+ * The address the user picked by hand, if there is one.
+ *
+ * It is read once at start-up and kept in memory, so the app does not touch
+ * the storage on every request.
+ */
+let override = readOverride();
+
+function readOverride(): string {
+  try {
+    return (ApplicationSettings.getString(GATEWAY_KEY, '') || '').trim();
+  } catch (err) {
+    console.error('Could not read the gateway address:', err);
+    return '';
+  }
+}
+
+/**
+ * The host of the gateway when the user has not picked one.
+ *
+ * The emulator sees the host behind `10.0.2.2`; a phone reaches the host
+ * through its own loopback, with the port forwarded by `adb reverse`.
+ */
+export function defaultGatewayHost(): string {
+  if (!Application.android) {
+    return '127.0.0.1';
+  }
+  return isEmulator() ? '10.0.2.2' : '127.0.0.1';
+}
+
+/** The address of the gateway as it is used right now. */
+export function gatewayUrl(): string {
+  if (override) {
+    // A hand-picked address may be written with or without the scheme.
+    return override.startsWith('http')
+      ? override.replace(/\/+$/, '')
+      : `http://${override.replace(/\/+$/, '')}`;
+  }
+  return `http://${defaultGatewayHost()}:${GATEWAY_PORT}`;
+}
+
+/**
+ * Points the app at another gateway.
+ *
+ * An empty value restores the default address of the platform.
+ */
+export function setGatewayAddress(value: string): void {
+  const trimmed = (value || '').trim();
+  override = trimmed;
+  try {
+    if (trimmed) {
+      ApplicationSettings.setString(GATEWAY_KEY, trimmed);
+    } else {
+      ApplicationSettings.remove(GATEWAY_KEY);
+    }
+  } catch (err) {
+    console.error('Could not save the gateway address:', err);
+  }
+}
+
+/** The address the user picked by hand, if there is one. */
+export function gatewayOverride(): string {
+  return override;
+}
 
 /**
  * API key for the local OmniRoute instance.
@@ -169,9 +246,11 @@ class OmniAiService {
       ...((init.headers as Record<string, string>) ?? {}),
     };
 
+    const base = gatewayUrl();
+
     let response: Response;
     try {
-      response = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+      response = await fetch(`${base}${path}`, { ...init, headers });
     } catch (err) {
       // An aborted request is not a failure - the user pressed stop.
       if ((init as RequestInit)?.signal?.aborted) {
@@ -180,7 +259,7 @@ class OmniAiService {
       // `fetch` rejects for network-level failures (host unreachable, DNS,
       // connection refused). Turn that into a readable error.
       throw new OmniAiError(
-        `Could not reach the Omni Ai gateway at ${BASE_URL}. Is it running? (${
+        `Could not reach the Omni Ai gateway at ${base}. Is it running? (${
           (err as Error)?.message ?? err
         })`,
       );

@@ -100,6 +100,14 @@ NativeScript renders to native mobile widgets, **not a browser DOM**.
 ### 3.4 Cancelling a request
 - `fetch` in NativeScript honours an `AbortSignal`. The composer keeps the `AbortController` of the request in flight, and the send button turns into a stop button while the answer is on its way. A cancelled request is **not** an error.
 
+### 3.5 A physical phone
+- The gateway listens on `127.0.0.1:20128` of the machine that runs it, so a phone cannot reach it on its own. The port is **forwarded to the host** instead:
+  ```bash
+  adb -s <phone> reverse tcp:20128 tcp:20128
+  ```
+- With that tunnel in place the phone reaches the gateway on `127.0.0.1:20128` - the same address the app uses on a phone. `src/utils/device.ts` tells an emulator from a phone: the emulator sees the host behind `10.0.2.2`, a phone sees it through the forwarded port.
+- The address can also be set **by hand** in the settings screen, for a gateway that runs on another machine - the LAN address of that machine, for instance. The choice is stored with the rest of the settings.
+
 ---
 
 ## 4. Webpack & Node.js Polyfill Rules
@@ -185,6 +193,35 @@ The transfer of `ns run android` reports success but the file on the device keep
   ```
   (see §9 for a ready made script).
 
+### 6.5 On a physical phone (wireless debugging)
+The phone is reached over WiFi, so no cable is needed. The pairing and the debugging use **two different ports** - the code of the "Pair device with Wi-Fi pairing code" dialog pairs, and the port of the "Wireless debugging" screen connects.
+
+```bash
+adb pair <ip>:<pairing-port> <code>     # once
+adb mdns services                        # -> <name>  _adb-tls-connect._tcp  <ip>:<port>
+adb connect <ip>:<debugging-port>
+```
+
+The app is then built for the phone instead of the emulator:
+
+```bash
+ns run android --device <ip>:<port>
+```
+
+Three things are worth knowing:
+
+1. **MIUI refuses an install from the shell** until "Install via USB" (开发者选项 → *Install via USB*) is on. Without it every install fails with `INSTALL_FAILED_USER_RESTRICTED`, and the phone keeps the bundle of the last APK. The same setting takes `INJECT_EVENTS` away from the shell, so `adb shell input tap` and `input text` do not work; `monkey` does, with a script file.
+2. **A change in the JavaScript does not rebuild the APK.** The CLI pushes the bundle to the device with LiveSync instead. When the install failed, that push never happened - check what the device really runs before chasing a bug:
+   ```bash
+   adb -s <phone> shell "run-as org.nativescript.omniai md5sum files/app/bundle.js"
+   ```
+   The hot-update chunks that a failed run leaves behind are re-applied on top of a fresh bundle and silently revert the newest code - they are removed with the manual push of §6.2.
+3. **The build must not run twice at the same time.** The entrypoint of the container already builds for the emulator, and a second `ns run` in the same project races with it on the Gradle temp plugin. Stop the container first, then build for the phone:
+   ```bash
+   docker compose stop
+   ```
+   The emulator container and the phone build also share the `platforms/` volume, so only one of them may watch the sources at a time.
+
 ---
 
 ## 7. NativeScript CSS Caveats
@@ -268,6 +305,11 @@ The palette lives in **`src/app.css`** as CSS custom properties, declared twice:
 | `python3 design/logo/build-assets.py` | Rebuild the mark, the icons and the launch assets |
 | `python3 design/icons/build_font.py` | Rebuild the icon font from Font Awesome |
 | `adb exec-out screencap -p > shot.png` | A screenshot of the emulator |
+| `adb pair <ip>:<port> <code>` | Pair the host with a phone over wireless debugging |
+| `adb mdns services` | Find the debugging port of a paired phone |
+| `adb connect <ip>:<port>` | Connect to the phone over wireless debugging |
+| `adb -s <phone> reverse tcp:20128 tcp:20128` | Forward the gateway port of the host to the phone |
+| `ns run android --device <ip>:<port>` | Build and run the app on the phone |
 
 ---
 
