@@ -29,10 +29,23 @@ export interface InlineToken {
 export type Block =
   | { kind: 'paragraph'; tokens: InlineToken[] }
   | { kind: 'heading'; level: number; tokens: InlineToken[] }
-  | { kind: 'list'; ordered: boolean; items: InlineToken[][] }
+  | { kind: 'list'; list: ListBlock }
   | { kind: 'code'; code: string; lang: string }
   | { kind: 'quote'; tokens: InlineToken[] }
   | { kind: 'rule' };
+
+/** One entry of a list. */
+export interface ListItem {
+  tokens: InlineToken[];
+  /** Lists that are indented under this item. */
+  children: ListBlock[];
+}
+
+/** A list, with the items that belong to it. */
+export interface ListBlock {
+  ordered: boolean;
+  items: ListItem[];
+}
 
 const FENCE_RE = /^\s*(`{3,}|~{3,})\s*([\w+#.-]*)\s*$/;
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
@@ -145,20 +158,19 @@ function indentOf(line: string): number {
 /**
  * Parses one list (and any lists nested inside it).
  *
- * Returns the blocks to emit plus the index of the first line that does not
- * belong to the list. A nested list is emitted as a sibling block right
- * after its parent, so "1. a" / "   - b" / "2. c" stays a single numbered
- * list of two items instead of being torn into three separate blocks.
+ * Returns the list plus the index of the first line that does not belong to
+ * it. A list that is indented under an item becomes a *child* of that item,
+ * so "1. a" / "   - b" / "2. c" stays a single numbered list of two items
+ * with a bullet under the first one.
  */
 function parseList(
   lines: string[],
   start: number,
-): { blocks: Block[]; next: number } {
+): { list: ListBlock; next: number } {
   const first = lines[start];
   const ordered = !!first.match(OL_RE);
   const baseIndent = indentOf(first);
-  const items: InlineToken[][] = [];
-  const nested: Block[] = [];
+  const items: ListItem[] = [];
   let index = start;
 
   while (index < lines.length) {
@@ -168,6 +180,26 @@ function parseList(
     const match = ordered ? asOrdered : asUnordered;
     const indent = indentOf(current);
 
+    if (!current.trim()) {
+      /*
+        A blank line does not end a list. Models put one between the items
+        ("1. a", "", "2. b"), and the list has to survive it - otherwise the
+        numbering restarts at one for every item.
+      */
+      let ahead = index;
+      while (ahead < lines.length && !lines[ahead].trim()) {
+        ahead += 1;
+      }
+      const next = lines[ahead] ?? '';
+      const continues =
+        (next.match(UL_RE) || next.match(OL_RE)) && indentOf(next) <= baseIndent;
+      if (!continues) {
+        break;
+      }
+      index = ahead;
+      continue;
+    }
+
     if (match && indent <= baseIndent) {
       // A sibling item. Both UL_RE and OL_RE have a single capture group,
       // so the item text is always [1].
@@ -175,16 +207,18 @@ function parseList(
       // (Reading [2] for ordered items passed `undefined` into parseInline
       // and crashed the app with "Cannot read properties of undefined
       // (reading 'length')" on any reply containing a numbered list.)
-      items.push(parseInline(match[1] ?? ''));
+      items.push({ tokens: parseInline(match[1] ?? ''), children: [] });
       index += 1;
       continue;
     }
 
-    // A more-indented list item is a nested list: parse it separately and
-    // keep the parent list going.
+    // A more-indented list item is a nested list: it belongs to the item
+    // above it.
     if ((asOrdered || asUnordered) && indent > baseIndent) {
       const sub = parseList(lines, index);
-      nested.push(...sub.blocks);
+      if (items.length) {
+        items[items.length - 1].children.push(sub.list);
+      }
       index = sub.next;
       continue;
     }
@@ -192,10 +226,7 @@ function parseList(
     break;
   }
 
-  return {
-    blocks: [{ kind: 'list', ordered, items }, ...nested],
-    next: index,
-  };
+  return { list: { ordered, items }, next: index };
 }
 
 /**
@@ -283,7 +314,7 @@ export function parseMarkdown(source: string): Block[] {
     const ordered = line.match(OL_RE);
     if (unordered || ordered) {
       const parsed = parseList(lines, index);
-      blocks.push(...parsed.blocks);
+      blocks.push({ kind: 'list', list: parsed.list });
       index = parsed.next;
       continue;
     }

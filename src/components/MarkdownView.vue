@@ -11,6 +11,7 @@
  * line of text.
  */
 import { computed } from 'vue';
+import MdList from './MdList.vue';
 import { parseMarkdown, type Block, type InlineToken } from '../utils/markdown';
 
 const props = defineProps<{
@@ -47,8 +48,14 @@ function tokenWeight(token: InlineToken): string {
 
 <template>
   <StackLayout class="md">
-    <template v-for="(block, blockIndex) in blocks" :key="blockIndex">
-      <!-- ── Heading ─────────────────────────────────────────────────────── -->
+    <!--
+      The blocks are rendered through a wrapper element, not through a
+      `<template v-for>`. A template inside a native view puts the element of
+      the second round into the element of the first one, which drew a nested
+      list into the row of the item above it.
+    -->
+    <StackLayout v-for="(block, blockIndex) in blocks" :key="blockIndex" class="md-block">
+      <!-- Heading -->
       <Label
         v-if="block.kind === 'heading'"
         textWrap="true"
@@ -69,7 +76,7 @@ function tokenWeight(token: InlineToken): string {
         </FormattedString>
       </Label>
 
-      <!-- ── Paragraph ───────────────────────────────────────────────────── -->
+      <!-- Paragraph -->
       <Label
         v-else-if="block.kind === 'paragraph'"
         textWrap="true"
@@ -90,38 +97,15 @@ function tokenWeight(token: InlineToken): string {
         </FormattedString>
       </Label>
 
-      <!-- ── List ────────────────────────────────────────────────────────── -->
-      <StackLayout v-else-if="block.kind === 'list'" class="md-list">
-        <GridLayout
-          v-for="(item, itemIndex) in block.items"
-          :key="itemIndex"
-          columns="auto, *"
-          class="md-list-row"
-        >
-          <Label
-            col="0"
-            :text="block.ordered ? `${itemIndex + 1}.` : '•'"
-            class="md-list-marker"
-            :color="accent"
-            :fontSize="bodySize()"
-          />
-          <Label col="1" textWrap="true" class="md-list-text" :fontSize="bodySize()">
-            <FormattedString>
-              <Span
-                v-for="(token, tokenIndex) in item"
-                :key="tokenIndex"
-                :text="token.text"
-                :fontWeight="tokenWeight(token)"
-                :fontStyle="token.italic ? 'italic' : 'normal'"
-                :fontFamily="token.code ? 'monospace' : undefined"
-                :color="token.code ? accent : undefined"
-              />
-            </FormattedString>
-          </Label>
-        </GridLayout>
-      </StackLayout>
+      <!-- List (a component of its own: a list can be nested in an item) -->
+      <MdList
+        v-else-if="block.kind === 'list'"
+        :list="block.list"
+        :accent="accent"
+        :scale="scale"
+      />
 
-      <!-- ── Quote ───────────────────────────────────────────────────────── -->
+      <!-- Quote -->
       <GridLayout
         v-else-if="block.kind === 'quote'"
         columns="auto, *"
@@ -143,7 +127,7 @@ function tokenWeight(token: InlineToken): string {
         </Label>
       </GridLayout>
 
-      <!-- ── Code block ──────────────────────────────────────────────────── -->
+      <!-- Code block -->
       <GridLayout
         v-else-if="block.kind === 'code'"
         rows="auto, auto, *"
@@ -168,9 +152,9 @@ function tokenWeight(token: InlineToken): string {
         />
       </GridLayout>
 
-      <!-- ── Horizontal rule ─────────────────────────────────────────────── -->
+      <!-- Horizontal rule -->
       <Label v-else-if="block.kind === 'rule'" class="md-rule" />
-    </template>
+    </StackLayout>
   </StackLayout>
 </template>
 
@@ -199,30 +183,6 @@ function tokenWeight(token: InlineToken): string {
 
 .md-heading--2 {
   letter-spacing: -0.015;
-}
-
-/* ---------- List ---------- */
-.md-list {
-  margin-bottom: 10;
-}
-
-.md-list-row {
-  margin-bottom: 4;
-}
-
-.md-list-marker {
-  font-family: monospace;
-  font-weight: 700;
-  width: 22;
-  text-align: left;
-  padding-right: 2;
-  /* Align the marker with the FIRST line of the item, not with the centre
-     of the (possibly wrapped) text block. */
-  vertical-align: top;
-}
-
-.md-list-text {
-  color: var(--app-ink);
 }
 
 /* ---------- Quote ---------- */
