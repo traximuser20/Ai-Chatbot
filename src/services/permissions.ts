@@ -157,7 +157,7 @@ if (!notAndroid()) {
       results.every(
         (result) => result === android.content.pm.PackageManager.PERMISSION_GRANTED,
       );
-    resolve(granted);
+    resolve?.(granted);
   });
 }
 

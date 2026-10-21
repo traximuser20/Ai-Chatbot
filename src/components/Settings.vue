@@ -16,6 +16,8 @@ import { useChatStore } from '../stores/chat';
 import { useSettingsStore, type TextScale } from '../stores/settings';
 import { useThemeStore } from '../stores/theme';
 import { omniAi, gatewayUrl, setGatewayAddress, defaultGatewayHost, GATEWAY_PORT } from '../services/omni-ai';
+import { ensureNotifications } from '../services/permissions';
+import { ensureChannel } from '../services/notifications';
 import { enter, pulse } from '../utils/motion';
 import Icon from './Icon.vue';
 import MdSwitch from './MdSwitch.vue';
@@ -80,6 +82,9 @@ function popThemeSegment(index: number) {
 
 onMounted(() => {
   addressDraft.value = gatewayUrl();
+  sttDraft.value = settings.sttModel;
+  ttsDraft.value = settings.ttsModel;
+  voiceDraft.value = settings.ttsVoice;
   nextTick(() => {
     enter(bodyRef.value?.nativeView, { distance: 16, duration: 420 });
   });
@@ -95,6 +100,58 @@ function onShowTimestamps(value: boolean) {
 
 function onSendOnEnter(value: boolean) {
   settings.setSendOnEnter(value);
+}
+
+/* ------------------------------------------------------------------ */
+/* Voice and notifications                                              */
+/* ------------------------------------------------------------------ */
+
+/** What the user is typing in the model fields. */
+const sttDraft = ref('');
+const ttsDraft = ref('');
+const voiceDraft = ref('');
+
+/**
+ * Turns the reading of replies on or off.
+ *
+ * Switching it on asks for the notification permission as well: the two
+ * features are announced in the same place in the app, and the reader is
+ * silent when the reply lands in the background.
+ */
+async function onSpeakReplies(value: boolean) {
+  settings.setSpeakReplies(value);
+  if (value) {
+    await ensureNotifications();
+  }
+}
+
+/** Turns the notification for a reply that lands in the background on or off. */
+async function onNotifications(value: boolean) {
+  settings.setNotifications(value);
+  if (value) {
+    const granted = await ensureNotifications();
+    if (granted) {
+      ensureChannel();
+    }
+  }
+}
+
+/** Stores the speech-to-text model. */
+function saveSttModel() {
+  settings.setSttModel(sttDraft.value);
+  sttDraft.value = settings.sttModel;
+}
+
+/** Stores the text-to-speech model. */
+function saveTtsModel() {
+  settings.setTtsModel(ttsDraft.value);
+  ttsDraft.value = settings.ttsModel;
+}
+
+/** Stores the voice of the speech model. */
+function saveTtsVoice() {
+  settings.setTtsVoice(voiceDraft.value);
+  voiceDraft.value = settings.ttsVoice;
 }
 
 /** Re-probes the gateway so the connection state is accurate again. */
@@ -307,6 +364,85 @@ function clearHistory() {
             </StackLayout>
             <MdSwitch col="1" :checked="settings.sendOnEnter" @change="onSendOnEnter" />
           </GridLayout>
+
+          <!-- ── Voice & notifications ────────────────────────────────────── -->
+          <Label text="Voice & notifications" class="group-label" />
+
+          <GridLayout columns="*, auto" class="md-card card md-list-row">
+            <StackLayout col="0">
+              <Label text="Speak replies" class="md-title" />
+              <Label
+                text="Reads every answer out loud · voice chat always speaks"
+                class="md-support"
+                textWrap="true"
+              />
+            </StackLayout>
+            <MdSwitch col="1" :checked="settings.speakReplies" @change="onSpeakReplies" />
+          </GridLayout>
+
+          <GridLayout columns="*, auto" class="md-card card md-list-row">
+            <StackLayout col="0">
+              <Label text="Reply notifications" class="md-title" />
+              <Label
+                text="Tell me when a reply lands while the app is in the background"
+                class="md-support"
+                textWrap="true"
+              />
+            </StackLayout>
+            <MdSwitch col="1" :checked="settings.notifications" @change="onNotifications" />
+          </GridLayout>
+
+          <!--
+            The two models and the voice of the gateway's audio routes. An
+            empty field restores the default of the gateway.
+          -->
+          <Label text="Speech to text" class="field-label" />
+          <GridLayout columns="*" class="field-row">
+            <TextField
+              col="0"
+              v-model="sttDraft"
+              class="field"
+              hint="whisper-1"
+              returnKeyType="done"
+              @submit="saveSttModel"
+              @blur="saveSttModel"
+            />
+          </GridLayout>
+          <Label
+            text="The model that turns your voice into text · used by voice search and voice chat"
+            class="md-support field-hint"
+            textWrap="true"
+          />
+
+          <Label text="Text to speech" class="field-label" />
+          <GridLayout columns="*" class="field-row">
+            <TextField
+              col="0"
+              v-model="ttsDraft"
+              class="field"
+              hint="tts-1"
+              returnKeyType="done"
+              @submit="saveTtsModel"
+              @blur="saveTtsModel"
+            />
+          </GridLayout>
+          <Label text="Voice" class="field-label" />
+          <GridLayout columns="*" class="field-row">
+            <TextField
+              col="0"
+              v-model="voiceDraft"
+              class="field"
+              hint="alloy"
+              returnKeyType="done"
+              @submit="saveTtsVoice"
+              @blur="saveTtsVoice"
+            />
+          </GridLayout>
+          <Label
+            text="The model and the voice that read replies out loud"
+            class="md-support field-hint"
+            textWrap="true"
+          />
 
           <!-- ── Gateway ──────────────────────────────────────────────────── -->
           <Label text="Gateway" class="group-label" />

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:tools="http://schemas.android.com/tools"
 	package="__PACKAGE__">
 
 	<supports-screens
@@ -8,7 +9,6 @@
 		android:largeScreens="true"
 		android:xlargeScreens="true"/>
 
-	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 	<uses-permission android:name="android.permission.INTERNET"/>
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -18,12 +18,20 @@
 	<!-- Camera: taking a photo to attach to a message. -->
 	<uses-permission android:name="android.permission.CAMERA"/>
 	<!-- Attachments: picking images, video, audio and other documents.
-	     READ_MEDIA_* is the Android 13+ model, READ_EXTERNAL_STORAGE the legacy one. -->
+	     READ_MEDIA_* is the Android 13+ model, READ_EXTERNAL_STORAGE the
+	     legacy one - declared once, capped at API 32 so it does not clash
+	     with the READ_MEDIA_* grants above. -->
 	<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
 	<uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
 	<uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+	<!--
+	     READ_EXTERNAL_STORAGE is also declared by the widgets AAR with
+	     maxSdkVersion="28"; ours goes up to 32 (the READ_MEDIA_* model takes
+	     over from 33), so the app's value replaces the one of the library.
+	-->
 	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-		android:maxSdkVersion="32"/>
+		android:maxSdkVersion="32"
+		tools:replace="android:maxSdkVersion"/>
 	<!-- Notifications: shown when the app is in the background and a reply is ready. -->
 	<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 	<uses-permission android:name="android.permission.VIBRATE"/>

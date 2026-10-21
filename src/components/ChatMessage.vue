@@ -19,6 +19,8 @@ import MarkdownView from './MarkdownView.vue';
 import Icon from './Icon.vue';
 import { providerOf } from '../utils/accent';
 import { enter } from '../utils/motion';
+import { formatSize } from '../utils/attachments';
+import type { Attachment } from '../stores/chat';
 
 const props = defineProps<{
   text: string;
@@ -30,9 +32,16 @@ const props = defineProps<{
   /** Body text multiplier from the user's text-size setting. */
   scale?: number;
   showTimestamp?: boolean;
+  /** Files that were sent with this message. */
+  attachments?: Attachment[];
 }>();
 
 const isUser = computed(() => props.sender === 'user');
+
+/** The image attachments of the message, so they can be shown as thumbnails. */
+const images = computed(() => (props.attachments ?? []).filter((a) => a.kind === 'image'));
+/** The document attachments of the message. */
+const documents = computed(() => (props.attachments ?? []).filter((a) => a.kind === 'document'));
 
 /** The bubble, so it can be animated in when it appears. */
 const bubbleRef = ref<any>(null);
@@ -86,6 +95,28 @@ const paragraphs = computed(() =>
   >
     <!-- ── User message ─────────────────────────────────────────────────── -->
     <StackLayout v-if="isUser" col="1" class="user-bubble">
+      <!-- Attachments: a thumbnail for each image, a chip for each document. -->
+      <StackLayout v-if="images.length" class="att-thumbs">
+        <Image
+          v-for="(image, imageIndex) in images"
+          :key="`img-${imageIndex}`"
+          :src="image.path"
+          class="att-thumb"
+          stretch="aspectFill"
+        />
+      </StackLayout>
+
+      <StackLayout
+        v-for="(document, documentIndex) in documents"
+        :key="`doc-${documentIndex}`"
+        orientation="horizontal"
+        class="att-doc"
+      >
+        <Icon name="file" :size="15" tone="on-primary-container" class="att-doc-icon" />
+        <Label :text="document.name" class="att-doc-name" textWrap="true" />
+        <Label :text="formatSize(document.size)" class="att-doc-size" />
+      </StackLayout>
+
       <Label
         v-for="(paragraph, paragraphIndex) in paragraphs"
         :key="paragraphIndex"
@@ -154,6 +185,48 @@ const paragraphs = computed(() =>
 .user-text {
   color: var(--md-on-primary-container);
   margin-bottom: 2;
+}
+
+/* ---------- Attachments ---------- */
+.att-thumbs {
+  margin-bottom: 6;
+}
+
+/* A thumbnail of an attached image, capped so a photo does not fill the screen. */
+.att-thumb {
+  width: 208;
+  height: 156;
+  border-radius: 12;
+  margin-bottom: 6;
+}
+
+/* A document, shown as a compact chip that reads on the coloured bubble. */
+.att-doc {
+  background-color: var(--md-surface-container-high);
+  border-radius: 10;
+  padding: 8 10;
+  margin-bottom: 6;
+  width: 214;
+}
+
+.att-doc-icon {
+  margin-right: 8;
+  vertical-align: center;
+}
+
+.att-doc-name {
+  color: var(--md-on-surface);
+  font-size: 12;
+  font-weight: 500;
+  vertical-align: center;
+  width: 128;
+}
+
+.att-doc-size {
+  color: var(--md-on-surface-variant);
+  font-size: 11;
+  vertical-align: center;
+  margin-left: 6;
 }
 
 /* ---------- Assistant block ---------- */

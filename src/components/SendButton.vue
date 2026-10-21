@@ -17,6 +17,7 @@
  * and the route that is on screen.
  */
 import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { TouchAction } from '@nativescript/core/ui/gestures';
 import { animate, CURVE, DURATION, loopAnimation } from '../utils/motion';
 import Icon from './Icon.vue';
 
@@ -31,18 +32,12 @@ const emit = defineEmits<{
   press: [];
 }>();
 
+const buttonRef = ref<any>(null);
 const layerRef = ref<any>(null);
 const glyphRef = ref<any>(null);
 
 /** The opacity of the state layer while the button is held. */
 const LAYER_OPACITY = 0.12;
-
-/** android.view.MotionEvent.ACTION_DOWN */
-const ACTION_DOWN = 0;
-/** android.view.MotionEvent.ACTION_UP */
-const ACTION_UP = 1;
-/** android.view.MotionEvent.ACTION_CANCEL */
-const ACTION_CANCEL = 3;
 
 /** True while the button is held down. */
 let held = false;
@@ -53,6 +48,10 @@ let held = false;
  * It fades in while the button is held and fades out when it is released.
  * The touch handler always returns `false`, so the tap still reaches the
  * button.
+ *
+ * The action of a touch event is one of the strings of `TouchAction`
+ * (`down`, `up`, `move`, `cancel`) - not the integer of the motion event of
+ * Android.
  */
 function onTouch(args: any): boolean {
   const action = args?.action;
@@ -61,14 +60,14 @@ function onTouch(args: any): boolean {
     return false;
   }
 
-  if (action === ACTION_DOWN) {
+  if (action === TouchAction.down) {
     held = true;
     animate(
       layer,
       { opacity: LAYER_OPACITY },
       { duration: DURATION.instant, curve: CURVE.out },
     );
-  } else if (action === ACTION_UP || action === ACTION_CANCEL) {
+  } else if (action === TouchAction.up || action === TouchAction.cancel) {
     held = false;
     animate(layer, { opacity: 0 }, { duration: DURATION.fast, curve: CURVE.out });
   }
@@ -116,17 +115,35 @@ onMounted(() => {
   if (props.state === 'busy') {
     startThrob();
   }
+
+  /*
+    The touch listener is attached to the native view by hand, the way the
+    `v-press` directive does it: the `touch` event is a gesture, and only a
+    listener that is registered on the native view turns the view into a
+    gesture observer.
+  */
+  const button = buttonRef.value?.nativeView;
+  if (button && typeof button.on === 'function') {
+    button.on('touch', onTouch);
+  }
 });
 
-onUnmounted(() => stopThrobLoop());
+onUnmounted(() => {
+  stopThrobLoop();
+
+  const button = buttonRef.value?.nativeView;
+  if (button && typeof button.off === 'function') {
+    button.off('touch', onTouch);
+  }
+});
 </script>
 
 <template>
   <GridLayout
+    ref="buttonRef"
     columns="auto"
     class="send-button"
     :class="`send-button--${state}`"
-    @touch="onTouch"
     @tap="emit('press')"
   >
     <!--

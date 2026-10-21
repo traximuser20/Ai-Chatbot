@@ -126,7 +126,7 @@ export function notifyReply(notification: ReplyNotification): void {
       .setSmallIcon(android.R.drawable.stat_notify_chat)
       .setContentTitle(notification.title)
       .setContentText(notification.text)
-      .setStyle(android.app.Notification.BigTextStyle().bigText(notification.text))
+      .setStyle(new android.app.Notification.BigTextStyle().bigText(notification.text))
       .setAutoCancel(true)
       .setContentIntent(openIntent())
       .setPriority(android.app.Notification.PRIORITY_HIGH);

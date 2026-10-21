@@ -185,6 +185,12 @@ export async function transcribe(filePath: string, model: string): Promise<strin
 /** The Android voice, created the first time it is needed. */
 let androidTts: any;
 
+/** True once the Android voice has finished initialising. */
+let androidTtsReady = false;
+
+/** A line waiting for the Android voice to be ready. */
+let pendingAndroidText: string | undefined;
+
 /** Plays gateway audio bytes from a temp file. */
 let mediaPlayer: any;
 
@@ -193,6 +199,47 @@ let speakingWithAndroid = false;
 
 /** True while something is being read out loud. */
 let speaking = false;
+
+/** Speaks a line with the Android voice, now. */
+function speakNowAndroid(text: string): void {
+  try {
+    androidTts.speak(
+      text,
+      android.speech.tts.TextToSpeech.QUEUE_FLUSH,
+      null,
+      `omni_${Date.now()}`,
+    );
+  } catch (err) {
+    console.error('The platform voice could not speak:', err);
+    speaking = false;
+  }
+}
+
+/** Creates the Android voice once, with a listener that readies it. */
+function ensureAndroidTts(): void {
+  if (androidTts) {
+    return;
+  }
+  const listener = new android.speech.tts.TextToSpeech.OnInitListener({
+    onInit(status: number): void {
+      if (status === android.speech.tts.TextToSpeech.SUCCESS) {
+        try {
+          androidTts.setLanguage(java.util.Locale.getDefault());
+        } catch {
+          /* a missing locale is not fatal */
+        }
+        androidTtsReady = true;
+      }
+      // The first line was queued before the voice was ready - say it now.
+      const queued = pendingAndroidText;
+      pendingAndroidText = undefined;
+      if (queued) {
+        speakNowAndroid(queued);
+      }
+    },
+  });
+  androidTts = new android.speech.tts.TextToSpeech(context(), listener);
+}
 
 export interface SpeakOptions {
   /** Transcription-style model id for the gateway's speech route. */
@@ -212,6 +259,7 @@ export function isSpeaking(): boolean {
 export function stopSpeaking(): void {
   speaking = false;
   speakingWithAndroid = false;
+  pendingAndroidText = undefined;
 
   if (mediaPlayer) {
     try {
@@ -267,13 +315,14 @@ function speakWithAndroid(text: string): void {
     return;
   }
   try {
-    if (!androidTts) {
-      androidTts = new android.speech.tts.TextToSpeech(context(), null);
-      androidTts.setLanguage(java.util.Locale.getDefault());
-    }
     speakingWithAndroid = true;
-    // utteranceId lets an onDone listener be attached later; the id is enough here.
-    androidTts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, `omni_${Date.now()}`);
+    ensureAndroidTts();
+    if (androidTtsReady) {
+      speakNowAndroid(text);
+    } else {
+      // The voice is still warming up - hold the line until it is ready.
+      pendingAndroidText = text;
+    }
   } catch (err) {
     console.error('The platform voice could not speak:', err);
     speaking = false;

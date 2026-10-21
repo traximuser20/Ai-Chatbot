@@ -22,6 +22,7 @@ Whenever operating within this repository, all AI agents and assistants must str
   | `MarkdownView.vue` | Renders the blocks of a parsed reply. |
   | `MdList.vue` | A list of a reply. Recursive: a list indented under an item is a child of that item. |
   | `Icon.vue` | The whole icon set, drawn with the `OmniIcons` font. |
+  | `SendButton.vue` | The send button of the composer: a Material 3 filled icon button with a state layer. |
   | `MdSwitch.vue` | A Material 3 switch: the native one takes its colour from the platform. |
   | `Sidebar.vue` | The drawer: new conversation, the history, profile and settings. |
   | `ModelSheet.vue` | The bottom sheet that picks the route. |
@@ -264,6 +265,8 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | `left` / `top` in a style sheet | NativeScript 9 has no `left` and no `top` in its style sheets - the rule is dropped without a word | Set the `left` and the `top` **properties** of the view. A plain number is a length in dip, a string with `px` is a length in device pixels |
 | A `GridLayout` and an image that is bigger than its cell | The child is cut to the size of the cell, and the cut shows up as a hard line through the picture as soon as the view is moved | Put the image in an `AbsoluteLayout`, which gives every child its own size and place |
 | The colour of the system bars set from code | The framework draws the bars itself when the window reaches to the edges of the screen, and it paints them over the colour that was set | The colour of the bars belongs in the theme of the app; what is seen under a transparent bar is the background of the root view |
+| The `action` of a `touch` event compared with a number | The action is one of the strings of `TouchAction` (`down`, `up`, `move`, `cancel`) - not the integer of the motion event of Android - so the comparison is never true and the feedback never happens | Compare with `TouchAction.down` and `TouchAction.up` (`@nativescript/core/ui/gestures`) |
+| A `touch` listener bound with `@touch` | The `touch` event is a gesture, and only a listener that is registered on the **native view** turns the view into a gesture observer | Attach the listener by hand (`view.on('touch', handler)`), the way the `v-press` directive does it |
 
 ---
 

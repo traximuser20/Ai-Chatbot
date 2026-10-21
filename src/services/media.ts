@@ -261,8 +261,9 @@ function completeFromUri(uri: android.net.Uri | null) {
 /**
  * Opens the system picker for one or more kinds of file.
  *
- * `mimes` lists the accepted mime types; pass `['*/*']` for any document.
- * Resolves with the chosen file, or `null` when the picker was cancelled.
+ * `mimes` lists the accepted mime types - pass a catch-all type for any
+ * document. Resolves with the chosen file, or `null` when the picker was
+ * cancelled.
  */
 export function pickFile(mimes: string[] = ['*/*']): Promise<PickedFile | null> {
   const act = activity();
@@ -385,9 +386,12 @@ if (Application.android) {
 
     if (code === REQ_CAMERA) {
       const op = pending;
+      pending = undefined;
+      if (!op || op.kind !== 'camera') {
+        return;
+      }
       if (!ok) {
         // Cancelled: drop the MediaStore row that was created for it.
-        pending = undefined;
         try {
           context().getContentResolver().delete(op.uri, null, null);
         } catch {

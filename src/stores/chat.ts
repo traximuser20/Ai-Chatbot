@@ -1,8 +1,34 @@
 import { defineStore } from 'pinia';
 import { ApplicationSettings } from '@nativescript/core';
-import type { ChatMessagePayload } from '../services/omni-ai';
+import type { ChatMessagePayload, ContentPart } from '../services/omni-ai';
 
 export type MessageSender = 'user' | 'ai';
+
+/**
+ * A file that travels with a message.
+ *
+ * The bytes are held as base64 (or as inlined text for a text document) so
+ * they can be sent to the model. They are kept in memory only: persisting
+ * them would fill the preferences file within a handful of messages. What is
+ * stored is the metadata - the name, the kind and the path of the copy in
+ * the temp folder - which is enough to draw a chip and, while the temp copy
+ * still exists, a thumbnail.
+ */
+export interface Attachment {
+  kind: 'image' | 'document';
+  /** Display name of the file. */
+  name: string;
+  /** Mime type of the file. */
+  mime: string;
+  /** Size in bytes. */
+  size: number;
+  /** Path of the copy in the temp folder - drives the thumbnail. */
+  path?: string;
+  /** Base64 of the bytes, without the `data:` prefix. In memory only. */
+  data?: string;
+  /** Inlined text of a text document. In memory only. */
+  text?: string;
+}
 
 export interface Message {
   text: string;
@@ -12,6 +38,8 @@ export interface Message {
   isError?: boolean;
   /** Model that produced the reply - lets the UI attribute each answer. */
   model?: string;
+  /** Files that were sent with this message. */
+  attachments?: Attachment[];
 }
 
 /** A saved conversation shown in the drawer. */
@@ -104,7 +132,102 @@ function sanitizeMessage(raw: any): Message {
     timestamp: typeof raw?.timestamp === 'string' ? raw.timestamp : '',
     isError: !!raw?.isError,
     model: typeof raw?.model === 'string' ? raw.model : undefined,
+    attachments: sanitizeAttachments(raw?.attachments),
   };
+}
+
+/**
+ * Reads the attachments of a message back from storage.
+ *
+ * Only the metadata survives the round trip - the bytes were never written.
+ */
+function sanitizeAttachments(raw: any): Attachment[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) {
+    return undefined;
+  }
+  const attachments = raw
+    .map((item: any) => ({
+      kind: item?.kind === 'image' ? ('image' as const) : ('document' as const),
+      name: typeof item?.name === 'string' ? item.name : 'attachment',
+      mime: typeof item?.mime === 'string' ? item.mime : 'application/octet-stream',
+      size: typeof item?.size === 'number' ? item.size : 0,
+      path: typeof item?.path === 'string' ? item.path : undefined,
+    }))
+    .filter((item: Attachment) => !!item.name);
+  return attachments.length ? attachments : undefined;
+}
+
+/** The metadata of an attachment, without the bytes - what gets stored. */
+function attachmentMetadata(attachment: Attachment): Attachment {
+  return {
+    kind: attachment.kind,
+    name: attachment.name,
+    mime: attachment.mime,
+    size: attachment.size,
+    path: attachment.path,
+  };
+}
+
+/** Conversations shaped for storage: every attachment loses its bytes. */
+function forStorage(conversations: Conversation[]): Conversation[] {
+  return conversations.map((conversation) => ({
+    ...conversation,
+    messages: conversation.messages.map((message) => ({
+      ...message,
+      attachments: message.attachments?.map(attachmentMetadata),
+    })),
+  }));
+}
+
+/**
+ * The payload of one message as the gateway should receive it.
+ *
+ * A message without attachments is plain text. A message with attachments
+ * becomes a list of parts: the words, then each file - an image as a vision
+ * part, a text document inlined, any other document as a file part. An
+ * attachment whose bytes are no longer held (one from an earlier session) is
+ * named in the text, so the model still knows something was attached.
+ */
+function buildContent(message: Message): string | ContentPart[] {
+  const attachments = message.attachments ?? [];
+  if (!attachments.length) {
+    return message.text;
+  }
+
+  const parts: ContentPart[] = [];
+  if (message.text) {
+    parts.push({ type: 'text', text: message.text });
+  }
+
+  for (const attachment of attachments) {
+    if (attachment.kind === 'image') {
+      if (attachment.data) {
+        parts.push({
+          type: 'image_url',
+          image_url: { url: `data:${attachment.mime};base64,${attachment.data}` },
+        });
+      } else {
+        parts.push({ type: 'text', text: `[image: ${attachment.name}]` });
+      }
+    } else if (attachment.text) {
+      parts.push({
+        type: 'text',
+        text: `\n\nAttached document "${attachment.name}":\n${attachment.text}`,
+      });
+    } else if (attachment.data) {
+      parts.push({
+        type: 'file',
+        file: {
+          filename: attachment.name,
+          file_data: `data:${attachment.mime};base64,${attachment.data}`,
+        },
+      });
+    } else {
+      parts.push({ type: 'text', text: `[document: ${attachment.name}]` });
+    }
+  }
+
+  return parts.length ? parts : message.text;
 }
 
 /** Normalises a conversation that came back from storage. */
@@ -190,7 +313,9 @@ export const useChatStore = defineStore('chat', {
         ApplicationSettings.setString(
           STORAGE_KEY,
           JSON.stringify({
-            conversations: this.conversations.slice(0, MAX_CONVERSATIONS),
+            // The bytes of an attachment never reach the disk - only its
+            // metadata does, so the preferences file stays small.
+            conversations: forStorage(this.conversations.slice(0, MAX_CONVERSATIONS)),
             activeId: this.activeConversationId,
           }),
         );
@@ -262,7 +387,12 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    addMessage(text: string, sender: MessageSender, isError = false) {
+    addMessage(
+      text: string,
+      sender: MessageSender,
+      options: { isError?: boolean; attachments?: Attachment[] } = {},
+    ) {
+      const { isError = false, attachments } = options;
       const conversation = this.ensureActiveConversation();
       conversation.messages.push({
         text,
@@ -270,6 +400,7 @@ export const useChatStore = defineStore('chat', {
         timestamp: formatClockTime(),
         isError,
         model: sender === 'ai' && !isError ? this.model : undefined,
+        attachments: attachments?.length ? attachments : undefined,
       });
       conversation.updatedAt = Date.now();
 
@@ -320,7 +451,7 @@ export const useChatStore = defineStore('chat', {
         .filter((message) => !message.isError)
         .map((message) => ({
           role: message.sender === 'user' ? ('user' as const) : ('assistant' as const),
-          content: message.text,
+          content: buildContent(message),
         }));
 
       // Drop a trailing assistant reply - it would be duplicated by the

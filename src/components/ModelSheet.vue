@@ -11,6 +11,7 @@ import { computed, ref, onMounted } from 'vue';
 import type { OmniAiModel } from '../services/omni-ai';
 import { providerOf } from '../utils/accent';
 import Icon from './Icon.vue';
+import VoiceSheet from './VoiceSheet.vue';
 
 const props = defineProps<{
   models: OmniAiModel[];
@@ -25,6 +26,25 @@ const emit = defineEmits<{
 }>();
 
 const filter = ref('');
+
+/** Voice search: the sheet opens over the list, the words fill the filter. */
+const showVoice = ref(false);
+
+function onVoiceDone(text: string) {
+  showVoice.value = false;
+  filter.value = text;
+}
+
+/**
+ * The backdrop of the sheet. It stays deaf while the voice sheet is open -
+ * the voice sheet owns the taps of that moment.
+ */
+function onBackdropTap() {
+  if (showVoice.value) {
+    return;
+  }
+  emit('close');
+}
 
 const filtered = computed(() => {
   const term = filter.value.trim().toLowerCase();
@@ -63,7 +83,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <GridLayout ref="backdropRef" class="sheet-backdrop" @tap="emit('close')">
+  <GridLayout ref="backdropRef" class="sheet-backdrop" @tap="onBackdropTap">
     <GridLayout ref="sheetRef" class="sheet" rows="auto, auto, auto, *" @tap="() => {}">
       <!-- Drag handle -->
       <Label row="0" class="sheet-handle" />
@@ -88,8 +108,8 @@ onMounted(() => {
         </GridLayout>
       </GridLayout>
 
-      <!-- Search: a filled text field -->
-      <GridLayout row="2" columns="auto, *" class="sheet-search">
+      <!-- Search: a filled text field, with the voice behind a mic button -->
+      <GridLayout row="2" columns="auto, *, auto" class="sheet-search">
         <Icon col="0" name="search" :size="18" tone="on-surface-variant" class="sheet-search-icon" />
         <TextField
           col="1"
@@ -98,6 +118,15 @@ onMounted(() => {
           class="sheet-search-field"
           returnKeyType="search"
         />
+        <GridLayout
+          col="2"
+          columns="auto"
+          class="sheet-search-mic"
+          v-press
+          @tap="showVoice = true"
+        >
+          <Icon col="0" name="microphone" :size="18" tone="primary" />
+        </GridLayout>
       </GridLayout>
 
       <!-- Routes -->
@@ -161,6 +190,14 @@ onMounted(() => {
         />
       </StackLayout>
     </GridLayout>
+
+    <!-- Voice search: the words become the filter of the list. -->
+    <VoiceSheet
+      v-if="showVoice"
+      label="Search"
+      @done="onVoiceDone"
+      @close="showVoice = false"
+    />
   </GridLayout>
 </template>
 
@@ -238,6 +275,17 @@ onMounted(() => {
   placeholder-color: var(--md-on-surface-variant);
   font-size: 15;
   vertical-align: center;
+  /* The mic button sits to the right of the field. */
+  margin-right: 40;
+}
+
+/* Voice search: the words become the filter. */
+.sheet-search-mic {
+  width: 36;
+  height: 36;
+  border-radius: 18;
+  vertical-align: center;
+  horizontal-align: center;
 }
 
 /* ---------- Rows ---------- */

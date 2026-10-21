@@ -16,8 +16,9 @@
  * (`var(--md-*)`), so the whole interface follows the theme *and* the route
  * that answers. The palette itself is written by `src/utils/dynamic-color.ts`.
  *
- * Two overlays sit on top of the grid: the navigation drawer and the model
- * picker. Both span all rows so they cover the whole screen.
+ * Overlays sit on top of the grid - the navigation drawer, the model
+ * picker, the attach sheet and the voice sheet - and each spans all rows
+ * so it covers the whole screen.
  */
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
@@ -39,6 +40,14 @@ import Settings from './Settings.vue';
 import SplashScreen from './SplashScreen.vue';
 import SendButton from './SendButton.vue';
 import Icon from './Icon.vue';
+import VoiceSheet from './VoiceSheet.vue';
+import AttachSheet from './AttachSheet.vue';
+import { pickImage, pickFile, takePhoto } from '../services/media';
+import { speak, stopSpeaking } from '../services/audio';
+import { notifyReply } from '../services/notifications';
+import { ensureAttachments, ensureCamera } from '../services/permissions';
+import { buildAttachment } from '../utils/attachments';
+import type { Attachment } from '../stores/chat';
 
 const chatStore = useChatStore();
 const settings = useSettingsStore();
@@ -74,7 +83,10 @@ const modelLabel = computed(() => {
   return slash > -1 ? chatStore.model.slice(slash + 1) : chatStore.model;
 });
 
-const canSend = computed(() => userInput.value.trim().length > 0 && !chatStore.isTyping);
+const canSend = computed(
+  () =>
+    (userInput.value.trim().length > 0 || attachments.value.length > 0) && !chatStore.isTyping,
+);
 
 /**
  * The state of the send button.
@@ -96,9 +108,24 @@ let inFlight: AbortController | undefined;
 
 /** The message that failed, so it can be sent again. */
 let failedText = '';
+/** The attachments the failed message carried, so the retry keeps them. */
+let failedAttachments: Attachment[] = [];
 
 /** A short, actionable description of the last failure. */
 const lastError = ref('');
+
+/* ------------------------------------------------------------------ */
+/* Attachments and voice                                               */
+/* ------------------------------------------------------------------ */
+
+/** Files waiting to be sent with the next message. */
+const attachments = ref<Attachment[]>([]);
+/** True while the attach sheet is open. */
+const showAttachSheet = ref(false);
+/** True while the voice sheet is open for a chat message. */
+const showVoiceChat = ref(false);
+/** True when the message was dictated, so its reply is read out loud. */
+const voiceChatActive = ref(false);
 
 /* ------------------------------------------------------------------ */
 /* Motion                                                               */
@@ -209,6 +236,7 @@ onMounted(async () => {
 onUnmounted(() => {
   unsubscribeStatus?.();
   stopAllLoops();
+  stopSpeaking();
   Application.off(Application.suspendEvent, onSuspend);
   Application.off(Application.resumeEvent, onResume);
 });
@@ -220,6 +248,7 @@ onUnmounted(() => {
  */
 function onSuspend() {
   stopAllLoops();
+  stopSpeaking();
 }
 
 function onResume() {
@@ -345,6 +374,8 @@ function onSplashDone() {
 function onNewChat() {
   chatStore.newChat();
   userInput.value = '';
+  attachments.value = [];
+  stopSpeaking();
   drawerOpen.value = false;
 }
 
@@ -366,6 +397,69 @@ function useSuggestion(text: string) {
   userInput.value = text;
 }
 
+/* ------------------------------------------------------------------ */
+/* Attachments                                                         */
+/* ------------------------------------------------------------------ */
+
+function openAttachSheet() {
+  showAttachSheet.value = true;
+}
+
+/** Picks a file from the chosen source and queues it as an attachment. */
+async function onAttachPick(source: 'gallery' | 'camera' | 'document') {
+  showAttachSheet.value = false;
+  try {
+    let picked = null;
+    if (source === 'gallery') {
+      await ensureAttachments();
+      picked = await pickImage();
+    } else if (source === 'camera') {
+      const granted = await ensureCamera();
+      if (!granted) {
+        lastError.value = 'The camera is off. Allow camera access in Settings to take a photo.';
+        return;
+      }
+      picked = await takePhoto();
+    } else {
+      await ensureAttachments();
+      picked = await pickFile();
+    }
+
+    if (!picked) {
+      return;
+    }
+    attachments.value = [...attachments.value, buildAttachment(picked)];
+    lastError.value = '';
+  } catch (err) {
+    console.error('Could not attach the file:', err);
+    lastError.value = 'That file could not be attached.';
+  }
+}
+
+function removeAttachment(index: number) {
+  attachments.value = attachments.value.filter((_, i) => i !== index);
+}
+
+/* ------------------------------------------------------------------ */
+/* Voice chat                                                          */
+/* ------------------------------------------------------------------ */
+
+function openVoiceChat() {
+  showVoiceChat.value = true;
+}
+
+/** The voice sheet finished: the words become the message. */
+function onVoiceDone(text: string) {
+  showVoiceChat.value = false;
+  userInput.value = text;
+  voiceChatActive.value = true;
+  sendMessage();
+}
+
+function onVoiceChatClose() {
+  showVoiceChat.value = false;
+}
+
 function onSubmit() {
   if (settings.sendOnEnter) {
     sendMessage();
@@ -374,12 +468,14 @@ function onSubmit() {
 
 async function sendMessage() {
   const text = userInput.value.trim();
-  if (!text || chatStore.isTyping) {
+  const files = attachments.value;
+  if ((!text && !files.length) || chatStore.isTyping) {
     return;
   }
 
   userInput.value = '';
-  chatStore.addMessage(text, 'user');
+  attachments.value = [];
+  chatStore.addMessage(text, 'user', { attachments: files.length ? files : undefined });
   chatStore.setTypingStatus(true);
   scrollToBottom();
 
@@ -390,6 +486,7 @@ async function sendMessage() {
   const controller = new AbortController();
   inFlight = controller;
   failedText = text;
+  failedAttachments = files;
 
   try {
     const reply = await omniAi.sendChat(history, chatStore.model, undefined, controller.signal);
@@ -398,6 +495,7 @@ async function sendMessage() {
 
     if (reply && reply.trim()) {
       chatStore.addMessage(reply, 'ai');
+      afterReply(reply);
     } else {
       lastError.value = 'The gateway answered with an empty reply.';
     }
@@ -407,6 +505,7 @@ async function sendMessage() {
     setTimeout(() => scrollToBottom(false), 320);
   } catch (error) {
     chatStore.setTypingStatus(false);
+    voiceChatActive.value = false;
 
     // A cancelled request is not an error - the user pressed stop.
     if (error instanceof OmniAiError && error.cancelled) {
@@ -422,6 +521,31 @@ async function sendMessage() {
     console.error('The request failed:', error);
   } finally {
     inFlight = undefined;
+  }
+}
+
+/**
+ * What happens the moment an answer lands.
+ *
+ * Two things the reader asked for: the reply is read out loud when the
+ * exchange was started with the voice (or the "speak replies" toggle is on),
+ * and a notification is posted when the app is in the background, so an
+ * answer is never missed.
+ */
+function afterReply(reply: string) {
+  if (voiceChatActive.value || settings.speakReplies) {
+    void speak(reply, {
+      model: settings.ttsModel,
+      voice: settings.ttsVoice,
+      onFallback: (reason) => console.warn('Spoke with the platform voice:', reason),
+    });
+  }
+  voiceChatActive.value = false;
+
+  // A reply that arrives while the app is open needs no notification.
+  if (Application.inBackground && settings.notifications) {
+    const title = chatStore.activeConversation?.title || provider.value || 'Omni Ai';
+    notifyReply({ title, text: reply.slice(0, 400) });
   }
 }
 
@@ -443,6 +567,10 @@ function retryLastMessage() {
   }
   lastError.value = '';
   userInput.value = failedText;
+  // The files go out with the retry as well - they were dropped from the
+  // composer when the message was first sent.
+  attachments.value = failedAttachments;
+  failedAttachments = [];
   sendMessage();
 }
 
@@ -555,6 +683,7 @@ function onSendPress() {
             :model="message.model"
             :scale="settings.fontScale"
             :show-timestamp="settings.showTimestamps"
+            :attachments="message.attachments"
           />
 
           <!-- Pending indicator -->
@@ -597,9 +726,51 @@ function onSendPress() {
           />
         </GridLayout>
 
-        <GridLayout columns="*, auto" class="composer-inner">
-          <TextField
+        <!--
+          Attachments that are waiting to be sent. Each chip can be tapped to
+          drop the file before the message goes out.
+        -->
+        <WrapLayout v-if="attachments.length" class="attach-chips">
+          <GridLayout
+            v-for="(attachment, index) in attachments"
+            :key="`${attachment.name}-${index}`"
+            columns="auto, auto, auto"
+            class="attach-chip"
+            v-press
+            @tap="removeAttachment(index)"
+          >
+            <Icon
+              col="0"
+              :name="attachment.kind === 'image' ? 'image' : 'file'"
+              :size="15"
+              tone="on-surface-variant"
+              class="attach-chip-icon"
+            />
+            <Label col="1" :text="attachment.name" class="attach-chip-name" />
+            <Icon col="2" name="close" :size="13" tone="on-surface-variant" class="attach-chip-x" />
+          </GridLayout>
+        </WrapLayout>
+
+        <!--
+          The trailing button swaps: the microphone while there is nothing
+          to send, the send button the moment there is something - and the
+          stop button while a reply is on its way. Both are the same width,
+          so the text field does not jump when the two trade places.
+        -->
+        <GridLayout columns="auto, *, auto" class="composer-inner">
+          <!-- Attach a photo, one taken now, or a document. -->
+          <GridLayout
             col="0"
+            columns="auto"
+            class="composer-icon-btn"
+            v-press
+            @tap="openAttachSheet"
+          >
+            <Icon col="0" name="paperclip" :size="21" tone="on-surface-variant" />
+          </GridLayout>
+
+          <TextField
+            col="1"
             v-model="userInput"
             hint="Ask anything…"
             class="composer-input"
@@ -607,15 +778,24 @@ function onSendPress() {
             :returnKeyType="settings.sendOnEnter ? 'send' : 'done'"
             @submit="onSubmit"
           />
+
+          <!-- Dictate a message with the voice, while there is nothing to send. -->
+          <GridLayout
+            v-if="sendState === 'idle'"
+            col="2"
+            columns="auto"
+            class="composer-icon-btn"
+            v-press
+            @tap="openVoiceChat"
+          >
+            <Icon col="0" name="microphone" :size="21" tone="on-surface-variant" />
+          </GridLayout>
+
           <!--
-            The button does double duty: it sends the message, and while a
-            reply is on its way it turns into a stop button.
+            Otherwise the button sends the message, and while a reply is on
+            its way it turns into a stop button.
           -->
-          <SendButton
-            col="1"
-            :state="sendState"
-            @press="onSendPress"
-          />
+          <SendButton v-else col="2" :state="sendState" @press="onSendPress" />
         </GridLayout>
       </StackLayout>
 
@@ -650,6 +830,28 @@ function onSendPress() {
           @close="closeModelPicker"
           @select="selectModel"
         />
+      </GridLayout>
+
+      <!-- ============ Attachments ============ -->
+      <GridLayout
+        v-if="showAttachSheet"
+        row="0"
+        rowSpan="3"
+        columns="*"
+        class="overlay"
+      >
+        <AttachSheet @close="showAttachSheet = false" @pick="onAttachPick" />
+      </GridLayout>
+
+      <!-- ============ Voice ============ -->
+      <GridLayout
+        v-if="showVoiceChat"
+        row="0"
+        rowSpan="3"
+        columns="*"
+        class="overlay"
+      >
+        <VoiceSheet @done="onVoiceDone" @close="onVoiceChatClose" />
       </GridLayout>
 
       <!-- ============ Launch sequence ============ -->
@@ -838,8 +1040,42 @@ function onSendPress() {
   margin-left: 12;
 }
 
-.composer-inner {
-  columns: *, auto;
+/* The files that are waiting to go out with the message. */
+.attach-chips {
+  margin-bottom: 8;
+}
+
+.attach-chip {
+  background-color: var(--md-secondary-container);
+  border-radius: 8;
+  padding: 6 8;
+  margin: 0 6 4 0;
+}
+
+.attach-chip-icon {
+  margin-right: 6;
+  vertical-align: center;
+}
+
+.attach-chip-name {
+  color: var(--md-on-secondary-container);
+  font-size: 12;
+  font-weight: 600;
+  vertical-align: center;
+  margin-right: 6;
+  max-width: 150;
+}
+
+.attach-chip-x {
+  vertical-align: center;
+}
+
+/* The two icon buttons of the composer: attach, dictate. */
+.composer-icon-btn {
+  border-radius: 28;
+  padding: 12;
+  margin-right: 4;
+  vertical-align: center;
 }
 
 /* A filled text field: the container of the composer. */

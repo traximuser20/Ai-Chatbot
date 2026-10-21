@@ -8,10 +8,8 @@
  *     <Label v-press text="Send" @tap="send" />
  */
 import type { DirectiveBinding, ObjectDirective } from 'vue';
+import { TouchAction } from '@nativescript/core/ui/gestures';
 import { pressIn, pressOut } from '../utils/motion';
-
-/** android.view.MotionEvent.ACTION_DOWN */
-const ACTION_DOWN = 0;
 
 function nativeViewOf(el: any) {
   return el?.nativeView ?? el;
@@ -27,14 +25,21 @@ export const press: ObjectDirective = {
     const scale = Number(binding.value) || 0.93;
     let held = false;
 
+    /*
+      The action of a touch event is one of the strings of `TouchAction`
+      (`down`, `up`, `move`, `cancel`) - not the integer of the motion event
+      of Android, so it is compared with the constants of the enum.
+    */
     const onTouch = (args: any) => {
       const action = args?.action;
-      if (action === ACTION_DOWN) {
+      if (action === TouchAction.down) {
         held = true;
         pressIn(view, scale);
-      } else if (held) {
-        held = false;
-        pressOut(view, scale);
+      } else if (action === TouchAction.up || action === TouchAction.cancel) {
+        if (held) {
+          held = false;
+          pressOut(view, scale);
+        }
       }
       // Never consume the event: the tap has to reach the control.
       return false;
