@@ -8,6 +8,10 @@
  *   - the list of past conversations
  *   - and, at the very end, Profile and Settings
  *
+ * The panel follows the Material 3 recipe of a navigation drawer: a header, a
+ * filled button, a section label in the primary colour and rows of 56dp that
+ * carry a rounded indicator when they are the active one.
+ *
  * The panel slides in from the left over a scrim. The animation is driven
  * with the core `animate` API because NativeScript's CSS engine has no
  * transition support for `translate`.
@@ -123,7 +127,7 @@ function metaOf(conversation: Conversation): string {
       rows="auto, auto, auto, *, auto"
       class="panel"
     >
-      <!-- Gateway identity -->
+      <!-- Gateway identity: the header of the drawer. -->
       <GridLayout row="0" columns="auto, *" class="brand">
         <Image col="0" src="~/assets/img/prism-glyph.png" class="brand-mark" />
         <StackLayout col="1">
@@ -263,21 +267,21 @@ function metaOf(conversation: Conversation): string {
   padding: 20 0 0 0;
 }
 
-/* ---------- Brand ---------- */
+/* ---------- Header ---------- */
 .brand {
-  padding: 0 20 18 20;
+  padding: 0 20 20 20;
 }
 
 .brand-mark {
-  width: 28;
-  height: 28;
-  margin-right: 12;
+  width: 30;
+  height: 30;
+  margin-right: 14;
   vertical-align: center;
 }
 
 .brand-name {
   color: var(--md-on-surface);
-  font-size: 18;
+  font-size: 19;
   font-weight: 600;
 }
 
@@ -286,7 +290,7 @@ function metaOf(conversation: Conversation): string {
   font-size: 11;
   font-weight: 500;
   letter-spacing: 0.04;
-  margin-top: 2;
+  margin-top: 3;
 }
 
 .brand-status--offline {
@@ -297,7 +301,7 @@ function metaOf(conversation: Conversation): string {
 .new-chat {
   background-color: var(--md-primary);
   border-radius: 24;
-  margin: 0 16 20 16;
+  margin: 0 16 22 16;
   padding: 0 20;
   height: 48;
 }
@@ -324,7 +328,7 @@ function metaOf(conversation: Conversation): string {
   color: var(--md-primary);
   font-size: 12;
   font-weight: 600;
-  letter-spacing: 0.08;
+  letter-spacing: 0.1;
   text-transform: uppercase;
 }
 
@@ -342,11 +346,11 @@ function metaOf(conversation: Conversation): string {
 
 .history-row-wrap {
   width: 100%;
-  padding: 0 12 0 14;
+  padding: 2 12 2 14;
 }
 
 .history-row {
-  padding: 10 12;
+  padding: 12;
   border-radius: 28;
 }
 
@@ -360,7 +364,7 @@ function metaOf(conversation: Conversation): string {
 .history-dot {
   vertical-align: top;
   margin-top: 5;
-  margin-right: 10;
+  margin-right: 12;
 }
 
 .history-title {
@@ -379,11 +383,12 @@ function metaOf(conversation: Conversation): string {
 }
 
 .history-delete {
-  width: 36;
-  height: 36;
+  width: 40;
+  height: 40;
   vertical-align: center;
-  padding-right: 4;
+  padding-right: 6;
 }
+
 .history-confirm {
   vertical-align: center;
   padding-right: 6;
@@ -438,16 +443,16 @@ function metaOf(conversation: Conversation): string {
 }
 
 .footer-mark {
-  width: 28;
+  width: 30;
   vertical-align: center;
 }
 
 .footer-avatar {
-  font-size: 11;
+  font-size: 12;
   font-weight: 700;
-  width: 28;
-  height: 28;
-  border-radius: 14;
+  width: 30;
+  height: 30;
+  border-radius: 15;
   background-color: var(--md-primary-container);
   color: var(--md-on-primary-container);
   text-align: center;

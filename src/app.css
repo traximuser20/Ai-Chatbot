@@ -191,9 +191,49 @@ Frame {
   The shared pieces of the design system.
 
   They live here rather than in a component, because more than one screen
-  uses them: the cards of the settings, the drawer and the profile screen,
+  uses them: the top app bar of the chat, of the settings and of the
+  profile, the cards of the settings, the drawer and the profile screen,
   the chips of the empty state and of the model picker.
 */
+
+/*
+  The top app bar.
+
+  The system bars are transparent, so the background of the root view is
+  seen under the status bar. It is painted with the same surface as the bar
+  itself, so the two read as one band - and the status bar carries the icons
+  of the system, which follow the theme (see src/utils/status-bar.ts).
+*/
+.md-top-bar {
+  background-color: var(--md-surface);
+  border-bottom-width: 1;
+  border-bottom-color: var(--md-outline-variant);
+  padding: 6 8;
+  horizontal-align: stretch;
+}
+
+/* The title of a top app bar. */
+.md-top-bar-title {
+  color: var(--md-on-surface);
+  font-size: 22;
+  font-weight: 600;
+  vertical-align: center;
+  margin-left: 4;
+}
+
+/* An icon button: a 48dp touch area around a 24dp glyph. */
+.md-icon-button {
+  width: 48;
+  height: 48;
+  vertical-align: center;
+  horizontal-align: center;
+}
+
+/* A row of a list: the title, the supporting line and the trailing control. */
+.md-list-row {
+  padding: 14 16;
+  vertical-align: center;
+}
 
 /* A card: a surface that stands above the canvas, with a soft shadow. */
 .md-card {

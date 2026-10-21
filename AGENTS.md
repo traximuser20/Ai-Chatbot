@@ -22,6 +22,7 @@ Whenever operating within this repository, all AI agents and assistants must str
   | `MarkdownView.vue` | Renders the blocks of a parsed reply. |
   | `MdList.vue` | A list of a reply. Recursive: a list indented under an item is a child of that item. |
   | `Icon.vue` | The whole icon set, drawn with the `OmniIcons` font. |
+  | `MdSwitch.vue` | A Material 3 switch: the native one takes its colour from the platform. |
   | `Sidebar.vue` | The drawer: new conversation, the history, profile and settings. |
   | `ModelSheet.vue` | The bottom sheet that picks the route. |
   | `Profile.vue` | The profile of the operator. |
@@ -32,12 +33,18 @@ Whenever operating within this repository, all AI agents and assistants must str
   - `chat.ts` - the conversations, the model, the connection state. Persisted with `ApplicationSettings`.
   - `settings.ts` - the preferences of the user. Persisted with `ApplicationSettings`.
   - `theme.ts` - the theme that is on screen (follows the device, or is pinned).
+  - `palette.ts` - the Material 3 scheme of the active route (see §7.1).
 - **Backend**: the gateway, over its **OpenAI-compatible HTTP API** (see §3). The client is `src/services/omni-ai.ts`.
 - **Design system**:
-  - `src/app.css` - the palette (light and dark) as CSS custom properties.
+  - `src/app.css` - the roles of the Material 3 scheme (light and dark) as CSS custom properties, and the shared classes of the design system.
+  - `src/utils/material.ts` - the colour engine: the tonal palettes of Material 3 in OKLCh.
+  - `src/utils/dynamic-color.ts` - writes the scheme of the route into the CSS variables of the root frame.
   - `src/utils/theme.ts` - the theme modes and the reading of a token.
   - `src/utils/accent.ts` - the provider colours and the brand tokens.
   - `src/utils/motion.ts` - the timing of every animation.
+  - `src/utils/parallax.ts` - the planes of the launch sequence and the way they lean with the phone.
+  - `src/utils/tilt.ts` - the reading of the gravity sensor of Android.
+  - `src/utils/status-bar.ts` - the notification bar and the navigation bar of the window.
   - `src/directives/press.ts` - the tactile feedback of a tappable surface.
   - `src/fonts/OmniIcons.ttf` - the icon font, built by `design/icons/build_font.py`.
   - `design/logo/` - the mark and the launch assets, built by `design/logo/build-assets.py`.
@@ -68,9 +75,10 @@ NativeScript renders to native mobile widgets, **not a browser DOM**.
 - For back navigation, use `$navigateBack` from `nativescript-vue`; to push a screen, `$navigateTo(Component, { transition: { name: 'slide', duration: 260 } })`.
 
 ### 2.4 Styling Rules
-- The palette is a set of **tokens**, not a second set of rules. `src/app.css` declares the light and the dark values, and every component uses `var(--app-*)`. **A hardcoded hex in a component is a bug** - it does not follow the theme.
-- A **property** (`:backgroundColor`, `:color`) always wins over a rule. A surface that has to follow the theme is painted with a rule; a runtime colour (the accent) gets a view of its own. The send button is the example: its accent fill is a separate view.
-- `Icon.vue` takes a `tone` (a token of the palette) or a `color` (the runtime accent). The tone is a rule, the colour is a property.
+- The palette is a set of **tokens**, not a second set of rules. `src/app.css` declares the light and the dark values of every role of the Material 3 scheme, and every component uses `var(--md-*)`. **A hardcoded hex in a component is a bug** - it does not follow the theme, and it does not follow the route.
+- A **property** (`:backgroundColor`, `:color`) always wins over a rule. A surface that has to follow the theme is painted with a rule. A runtime colour - the colour of an inline code token inside a `Span`, for instance - is a property, because a `Span` cannot be painted by a rule.
+- `Icon.vue` takes a `tone` - a **role** of the scheme, such as `primary` or `on-surface-variant` - or a `color` for a runtime value. The tone is a rule, the colour is a property.
+- The shape of a surface is a literal number (4, 8, 12, 16, 28) taken from the Material 3 shape scale. The corners are not a token.
 
 ---
 
@@ -253,25 +261,56 @@ NativeScript's CSS engine is **not** a browser engine. The following Tailwind/CS
 | An endless animation that is never stopped | The animation chain keeps the view alive; a few of them fill the 192 MB V8 heap and the app dies with an OutOfMemoryError | `loopAnimation()` returns a stop function - call it when the view goes away |
 | An animation of a view that is not on screen | The animation is resolved at once, so the chain starts the next frame immediately, again and again - the thread spins at full speed and the app stops answering | `loopAnimation()` stops when the view is not loaded, or when an animation resolves faster than it could have run |
 | `<template v-for>` inside a native view | The element of the second round lands inside the element of the first one - a nested list was drawn in the row of the item above it | Put the `v-for` on a real element (`<StackLayout v-for>`) instead of on a `<template>` |
+| `left` / `top` in a style sheet | NativeScript 9 has no `left` and no `top` in its style sheets - the rule is dropped without a word | Set the `left` and the `top` **properties** of the view. A plain number is a length in dip, a string with `px` is a length in device pixels |
+| A `GridLayout` and an image that is bigger than its cell | The child is cut to the size of the cell, and the cut shows up as a hard line through the picture as soon as the view is moved | Put the image in an `AbsoluteLayout`, which gives every child its own size and place |
+| The colour of the system bars set from code | The framework draws the bars itself when the window reaches to the edges of the screen, and it paints them over the colour that was set | The colour of the bars belongs in the theme of the app; what is seen under a transparent bar is the background of the root view |
 
 ---
 
-## 7.1 Theming (light and dark)
+## 7.1 Theming: Material 3 and Material You
 
-The palette lives in **`src/app.css`** as CSS custom properties, declared twice:
+The interface follows **Material 3**, and its palette is derived the way **Material You** derives one: from a single source colour.
+
+### The scheme
+
+`src/utils/material.ts` is the colour engine. It works in **OKLCh**, a perceptually uniform space, and builds the **tonal palettes** of Material 3: the hue and the chroma of the source colour decide the primary, the secondary, the tertiary and even the tint of the neutral greys, and every role of the scheme is a *tone* - a lightness - of one of those palettes.
+
+- The **source colour** of the app is the accent of the provider that answers (`src/utils/accent.ts`). Switching the route therefore repaints the whole interface - which is exactly what Material You does with the wallpaper of the device.
+- `src/stores/palette.ts` holds the scheme of the active route and of the theme that is on screen.
+- `src/utils/dynamic-color.ts` writes the scheme into the **CSS variables of the root frame** and re-applies the styles of the tree, so the new colours are picked up.
+
+### The tokens
+
+The roles live in **`src/app.css`** as CSS custom properties, declared twice:
 
 ```css
-.theme-light { --app-canvas: #f2f3f6; --app-surface: #ffffff; … }
-.theme-dark  { --app-canvas: #0b0e17; --app-surface: #171b2b; … }
+.theme-light { --md-primary: #1c37a8; --md-surface: #f8f8fa; … }
+.theme-dark  { --md-primary: #a0bcff; --md-surface: #020204; … }
 ```
 
-- The **root frame** (`src/App.vue`) carries the class. NativeScript resolves `var(--app-*)` by walking up the view tree, so a token declared on the root reaches every view below it - including the pages that `$navigateTo` pushes onto the frame.
+- The values in the file are the **fallback**: the palette of the brand's own cobalt. The runtime palette of the route is written over them as *unscoped* variables of the root frame, and an unscoped variable wins over the one a stylesheet declares.
+- The **root frame** (`src/App.vue`) carries the class. NativeScript resolves `var(--md-*)` by walking up the view tree, so a token declared on the root reaches every view below it - including the pages that `$navigateTo` pushes onto the frame.
 - Changing the class re-applies the styles of the whole tree: the setter of `className` calls `_onCssStateChange()`, which walks the descendants. The switch is therefore instant, with no restart.
 - A token is only found by the **descendants** of the view that declares it, never by a sibling. The tokens belong on the root for that reason.
 - The user picks a mode in the settings screen (`system`, `light`, `dark`); `src/stores/theme.ts` turns it into the theme that is shown and follows the device when the mode is `system`. The mode is persisted with the rest of the settings.
-- A **property** (`:backgroundColor`, `:color`) always wins over a rule, so a surface that has to follow the theme is painted with a rule. The send button is the example: its accent fill is a view of its own, because the accent is a runtime value.
-- `Icon.vue` takes a `tone` (a token of the palette) or a `color` (the runtime accent). The tone is a rule, the colour is a property.
+- The shared pieces of the design system - the top app bar, the icon button, the card, the chip, the list row - are classes in the same file (`.md-top-bar`, `.md-icon-button`, `.md-card`, `.md-chip`, `.md-list-row`). More than one screen uses them, so they do not live in a component.
 - `placeholder-color` is a CSS property, so the hint of a text field follows the theme. Android would otherwise take it from the theme of the platform.
+
+### The status bar
+
+The system bars are transparent (see the theme of the app), so what is seen under them is the **background of the root view**. The home screen paints it with the surface of the palette (`paintRootBackground`) and the icons of the bar follow the theme - the status bar and the app bar read as one band.
+
+---
+
+## 7.2 The Launch Sequence and the System Bars
+
+The splash (`SplashScreen.vue`) is a set of **planes** at different depths, and the phone leans with them.
+
+- `src/utils/tilt.ts` reads the **gravity sensor** of Android (`TYPE_GRAVITY`, the accelerometer as the fallback) and reports the tilt as two numbers between -1 and 1. The reading is **relative**: the direction of "up" when the splash opened is the reference, so the posture of the hand does not matter. The sensor is read directly - the `nativescript-accelerometer` plugin wants the legacy `tns-core-modules`, which would put a second copy of the framework into the bundle.
+- `src/utils/parallax.ts` moves the planes. Every plane has a **depth** (how far it travels at a full tilt) and a **direction**: the far plane leans against the movement, the near plane follows it, and that is what reads as depth. Every plane also **drifts** on its own, at its own rate, so the scene is alive when the phone lies still.
+- The motion is written straight onto the views, one frame at a time, through `requestAnimationFrame`. The animation API is for the beats of the entrance; a loop that has to follow the hand must not queue animations.
+- The **system bars are transparent** (see the theme of the app), so the splash reaches to the edges of the screen. What is seen under them is the **background of the root view**, which the splash paints with its ink (`paintRootBackground`) and gives back to the app when it leaves.
+- A plane that holds an image has to be an `AbsoluteLayout`: a grid cuts the image to the size of its cell, and the cut becomes a hard line through the picture as soon as the plane moves.
 
 ---
 
@@ -280,9 +319,9 @@ The palette lives in **`src/app.css`** as CSS custom properties, declared twice:
 - **Never put a `v-for` directly in a `GridLayout`.** GridLayout columns are not assigned reliably to `v-for` children in NativeScript-Vue.
 - **Never put a `v-for` on a `<template>` inside a native view.** The element of the second round lands inside the element of the first one. Put the `v-for` on a real element.
 - **Always set `orientation="horizontal"` on a `StackLayout` that holds side-by-side items.** The default is vertical.
-- The accent colour is derived from the provider prefix of the selected model (`src/utils/accent.ts`). Changing the model in the picker repaints the whole interface, so every accent-coloured surface must be bound to it rather than hard-coded.
-- The theme is a **palette of tokens**, not a second set of rules: `src/app.css` declares the light and the dark values, and every component uses `var(--app-*)`. A hardcoded hex in a component is a bug - it does not follow the theme.
-- `src/components/Icon.vue` draws the whole icon set with the `OmniIcons` font, a subset of Font Awesome (18 glyphs, 4 kB). It is built by `design/icons/build_font.py`; the font lives in `src/fonts`, which NativeScript copies into the app's `files/app/fonts` - the place the runtime looks for a font by its family name. A glyph in a `Label` is recoloured like any other text, so the icons follow the accent of the selected provider.
+- The **palette** is derived from the provider prefix of the selected model (`src/utils/accent.ts`) and reaches the interface through the CSS variables of the root frame. Changing the model in the picker repaints the whole interface, so no component may name a colour of its own - it names a **role** (`var(--md-primary)`) and the scheme of the route paints it.
+- The theme is a **palette of tokens**, not a second set of rules: `src/app.css` declares the light and the dark values of every role, and every component uses `var(--md-*)`. A hardcoded hex in a component is a bug - it does not follow the theme, and it does not follow the route.
+- `src/components/Icon.vue` draws the whole icon set with the `OmniIcons` font, a subset of Font Awesome (18 glyphs, 4 kB). It is built by `design/icons/build_font.py`; the font lives in `src/fonts`, which NativeScript copies into the app's `files/app/fonts` - the place the runtime looks for a font by its family name. A glyph in a `Label` is recoloured like any other text, so the icons follow the palette of the selected provider.
 - `src/utils/motion.ts` owns the timing of every animation (`enter`, `exit`, `pressIn`, `pressOut`, `pulse`, `loopAnimation`). `src/directives/press.ts` is registered globally as `v-press` and gives every tappable surface a tactile response; its `touch` handler always returns `false` so the `tap` still fires.
 - A `loopAnimation()` always has to be stopped again - see `stopAllLoops()` in `Home.vue` for the pattern. The loops of a screen are stopped when the screen is left **and** when the app is suspended.
 - A failed request is **not** a message of the conversation: it is reported in the banner above the composer, with a retry. Failures that older versions stored in the history are dropped when the conversations are read back.
@@ -302,6 +341,8 @@ The palette lives in **`src/app.css`** as CSS custom properties, declared twice:
 | `ns run android --device localhost:5555` | Run development server from host directly targeting the emulator |
 | `ns clean` | Wipe `platforms/android` and `hooks/` to resolve build corruption |
 | `npx tsc --noEmit -p tsconfig.json` | Type check the sources |
+| `node tools/check-vue.js` | Compile every single file component - `tsc` does not look at a template |
+| `docker exec nativescript-vue-android sh tools/restart-emulator.sh` | Restart the emulator of the container after it died |
 | `python3 design/logo/build-assets.py` | Rebuild the mark, the icons and the launch assets |
 | `python3 design/icons/build_font.py` | Rebuild the icon font from Font Awesome |
 | `adb exec-out screencap -p > shot.png` | A screenshot of the emulator |
@@ -318,7 +359,7 @@ The palette lives in **`src/app.css`** as CSS custom properties, declared twice:
 A short description of what the app does, for an agent that has to change it.
 
 1. **Launch** - `SplashScreen.vue` plays the mark: a dark ink field, two slow aurora blobs, two orbit rings with satellites, the prism mark with its beam, and the wordmark with the live state of the gateway. The planes move at their own rate, so the composition reads as depth. The exit is a two stage crossfade: the ink dissolves into the colour of the app, and only then does that dissolve into the chat screen.
-2. **Chat** - the app bar carries the drawer handle, the active route (a chip that opens the model sheet) and the state of the gateway. The conversation is a list of messages: the user in an ink bubble on the right, the assistant in Markdown on the left, each reply introduced by the route it came from.
+2. **Chat** - the top app bar carries the drawer handle, the active route (a chip that opens the model sheet) and the state of the gateway. The conversation is a list of messages: the user in a container bubble on the right, the assistant in Markdown on the left, each reply introduced by the route it came from. The composer is a filled text field with a filled icon button.
 3. **Drawer** - new conversation, the history of the conversations, and at the end profile and settings.
 4. **Model sheet** - the several hundred routes the gateway publishes, searchable, each with the colour of its provider.
 5. **Profile** - the name of the operator, a few facts about the local history and the route in use.

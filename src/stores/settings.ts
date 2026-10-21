@@ -32,6 +32,16 @@ export interface SettingsState {
   sendOnEnter: boolean;
   /** Follow the device theme, or pin light / dark. */
   theme: ThemeMode;
+  /** Read every finished reply out loud (voice chat always speaks). */
+  speakReplies: boolean;
+  /** Tell the reader when a reply lands while the app is in the background. */
+  notifications: boolean;
+  /** The gateway's transcription model, used by voice search and voice chat. */
+  sttModel: string;
+  /** The gateway's speech model, used to read replies out loud. */
+  ttsModel: string;
+  /** The voice the speech model speaks with. */
+  ttsVoice: string;
 }
 
 const DEFAULTS: SettingsState = {
@@ -40,6 +50,11 @@ const DEFAULTS: SettingsState = {
   showTimestamps: false,
   sendOnEnter: true,
   theme: 'system',
+  speakReplies: false,
+  notifications: true,
+  sttModel: 'whisper-1',
+  ttsModel: 'tts-1',
+  ttsVoice: 'alloy',
 };
 
 /** Multiplier applied to every body font size. */
@@ -104,6 +119,11 @@ export const useSettingsStore = defineStore('settings', {
             showTimestamps: this.showTimestamps,
             sendOnEnter: this.sendOnEnter,
             theme: this.theme,
+            speakReplies: this.speakReplies,
+            notifications: this.notifications,
+            sttModel: this.sttModel,
+            ttsModel: this.ttsModel,
+            ttsVoice: this.ttsVoice,
           }),
         );
       } catch (err) {
@@ -128,6 +148,26 @@ export const useSettingsStore = defineStore('settings', {
     },
     setTheme(mode: ThemeMode) {
       this.theme = asThemeMode(mode);
+      this.persist();
+    },
+    setSpeakReplies(value: boolean) {
+      this.speakReplies = value;
+      this.persist();
+    },
+    setNotifications(value: boolean) {
+      this.notifications = value;
+      this.persist();
+    },
+    setSttModel(value: string) {
+      this.sttModel = value.trim() || DEFAULTS.sttModel;
+      this.persist();
+    },
+    setTtsModel(value: string) {
+      this.ttsModel = value.trim() || DEFAULTS.ttsModel;
+      this.persist();
+    },
+    setTtsVoice(value: string) {
+      this.ttsVoice = value.trim() || DEFAULTS.ttsVoice;
       this.persist();
     },
     reset() {

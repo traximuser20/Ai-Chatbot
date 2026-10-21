@@ -69,11 +69,11 @@ function back() {
   <Page actionBarHidden="true" class="screen">
     <GridLayout rows="auto, *">
       <!-- ── Top app bar ────────────────────────────────────────────────── -->
-      <GridLayout row="0" columns="auto, *" class="app-bar">
-        <GridLayout col="0" columns="auto" class="back-button" v-press @tap="back">
+      <GridLayout row="0" columns="auto, *" class="md-top-bar">
+        <GridLayout col="0" columns="auto" class="md-icon-button" v-press @tap="back">
           <Icon col="0" name="chevron-left" :size="22" tone="on-surface-variant" />
         </GridLayout>
-        <Label col="1" text="Profile" class="app-bar-title" />
+        <Label col="1" text="Profile" class="md-top-bar-title" />
       </GridLayout>
 
       <ScrollView row="1" class="screen-scroll">
@@ -140,27 +140,6 @@ function back() {
 <style scoped>
 .screen {
   background-color: var(--md-surface);
-}
-
-/* ---------- Top app bar ---------- */
-.app-bar {
-  background-color: var(--md-surface);
-  border-bottom-width: 1;
-  border-bottom-color: var(--md-outline-variant);
-  padding: 8 12;
-}
-
-.back-button {
-  width: 44;
-  height: 44;
-  vertical-align: center;
-}
-
-.app-bar-title {
-  color: var(--md-on-surface);
-  font-size: 22;
-  font-weight: 600;
-  vertical-align: center;
 }
 
 .screen-scroll {

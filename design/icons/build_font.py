@@ -52,6 +52,14 @@ ICONS = {
     "warning": "f071",  # triangle-exclamation
     "plane": "f1d8",  # paper-plane
     "info": "f05a",  # circle-info
+    # The controls of voice, attachments and the camera.
+    "microphone": "f130",
+    "camera": "f030",
+    "paperclip": "f0c6",
+    "image": "f03e",
+    "file": "f0f6",
+    "volume": "f028",  # volume-high
+    "play": "f04b",
 }
 
 

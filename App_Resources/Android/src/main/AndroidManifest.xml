@@ -13,6 +13,25 @@
 	<uses-permission android:name="android.permission.INTERNET"/>
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
+	<!-- Voice: voice search and voice chat record from the microphone. -->
+	<uses-permission android:name="android.permission.RECORD_AUDIO"/>
+	<!-- Camera: taking a photo to attach to a message. -->
+	<uses-permission android:name="android.permission.CAMERA"/>
+	<!-- Attachments: picking images, video, audio and other documents.
+	     READ_MEDIA_* is the Android 13+ model, READ_EXTERNAL_STORAGE the legacy one. -->
+	<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+	<uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+	<uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+		android:maxSdkVersion="32"/>
+	<!-- Notifications: shown when the app is in the background and a reply is ready. -->
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+	<uses-permission android:name="android.permission.VIBRATE"/>
+
+	<!-- The camera app is required for taking a photo. -->
+	<uses-feature android:name="android.hardware.camera" android:required="false"/>
+	<uses-feature android:name="android.hardware.microphone" android:required="false"/>
+
 	<application
 		android:name="com.tns.NativeScriptApplication"
 		android:networkSecurityConfig="@xml/network_security"

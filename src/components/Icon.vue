@@ -55,6 +55,14 @@ const GLYPHS: Record<string, string> = {
   warning: '\uf071', // triangle-exclamation
   plane: '\uf1d8', // paper-plane
   info: '\uf05a', // circle-info
+  // Voice, attachments and the camera.
+  microphone: '\uf130',
+  camera: '\uf030',
+  paperclip: '\uf0c6',
+  image: '\uf03e',
+  file: '\uf0f6',
+  volume: '\uf028', // volume-high
+  play: '\uf04b',
 };
 
 const props = withDefaults(

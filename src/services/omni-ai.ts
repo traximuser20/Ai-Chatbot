@@ -1,4 +1,4 @@
-import { Application, ApplicationSettings } from '@nativescript/core';
+import { Application, ApplicationSettings, File } from '@nativescript/core';
 import { isEmulator } from '../utils/device';
 
 /**
@@ -114,14 +114,39 @@ export const API_KEY = 'sk-cf2c8acbccfc179f-443d10-95acbd1b';
 /** Model used when the user has not picked one. */
 export const DEFAULT_MODEL = 'auto/best-fast';
 
+/** Transcription model used for voice search and voice chat. */
+export const DEFAULT_TRANSCRIBE_MODEL = 'whisper-1';
+
+/** Speech model used to read replies out loud. */
+export const DEFAULT_SPEECH_MODEL = 'tts-1';
+
+/** The voice the speech model speaks with. */
+export const DEFAULT_SPEECH_VOICE = 'alloy';
+
 export interface OmniAiModel {
   id: string;
   owned_by?: string;
 }
 
+/**
+ * One piece of a message's content.
+ *
+ * A message is usually a plain string, but it can be a list of parts - that
+ * is how an image or a document travels with the words that describe it. The
+ * shapes are the OpenAI multimodal ones, which the gateway passes through.
+ */
+export type ContentPart =
+  /** A run of text. */
+  | { type: 'text'; text: string }
+  /** An image, as a data URL (`data:image/jpeg;base64,...`). Needs a vision model. */
+  | { type: 'image_url'; image_url: { url: string } }
+  /** A document, as a data URL. Needs a model that accepts file parts. */
+  | { type: 'file'; file: { filename: string; file_data: string } };
+
 export interface ChatMessagePayload {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  /** Plain text, or a list of parts when the message carries an attachment. */
+  content: string | ContentPart[];
 }
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -240,6 +265,81 @@ class OmniAiService {
     }
   }
 
+  /**
+   * Turns a recording into text (speech to text).
+   *
+   * The audio file is uploaded as multipart form data to the gateway's
+   * `POST /v1/audio/transcriptions`, which routes it to a transcription
+   * model. The body is built by hand rather than with `FormData`, because
+   * the NativeScript `fetch` does not serialise a file part reliably.
+   */
+  public async transcribeAudio(
+    filePath: string,
+    model: string = DEFAULT_TRANSCRIBE_MODEL,
+  ): Promise<string> {
+    try {
+      const file = File.fromPath(filePath);
+      const audio = javaBytesToU8(file.readSync());
+
+      const boundary = `omniai${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      const head = asciiToU8(
+        `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="model"\r\n\r\n` +
+          `${model}\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="file"; filename="${file.name}"\r\n` +
+          `Content-Type: audio/mp4\r\n\r\n`,
+      );
+      const tail = asciiToU8(`\r\n--${boundary}--\r\n`);
+
+      const body = new Uint8Array(head.length + audio.length + tail.length);
+      body.set(head, 0);
+      body.set(audio, head.length);
+      body.set(tail, head.length + audio.length);
+
+      const response = await this.request('/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+        body,
+      });
+
+      const payload = await this.parseJson(response);
+      this.notifyStatus('connected');
+      return (payload?.text ?? '') as string;
+    } catch (err) {
+      this.notifyStatus('error');
+      throw err;
+    }
+  }
+
+  /**
+   * Reads text out loud (text to speech).
+   *
+   * The gateway's `POST /v1/audio/speech` returns the spoken audio as bytes
+   * (mp3 by default), which the caller plays. The response is binary, so it
+   * is read as an `ArrayBuffer` rather than as text.
+   */
+  public async speech(
+    text: string,
+    model: string = DEFAULT_SPEECH_MODEL,
+    voice: string = DEFAULT_SPEECH_VOICE,
+  ): Promise<Uint8Array> {
+    const response = await this.request('/v1/audio/speech', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        input: text,
+        voice,
+        response_format: 'mp3',
+      }),
+    });
+
+    const buffer = await response.arrayBuffer();
+    this.notifyStatus('connected');
+    return new Uint8Array(buffer);
+  }
+
   private async request(path: string, init: RequestInit = {}): Promise<Response> {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${API_KEY}`,
@@ -291,6 +391,34 @@ class OmniAiService {
       throw new OmniAiError('The gateway returned a malformed response.');
     }
   }
+}
+
+/**
+ * Copies a Java `byte[]` into a JS `Uint8Array`.
+ *
+ * `File.readSync()` returns a Java byte array, which the bridge exposes as a
+ * proxy that can be indexed but is not a typed array. The copy also clears
+ * the sign, so a byte above 0x7F survives the round trip.
+ */
+function javaBytesToU8(bytes: any): Uint8Array {
+  if (bytes instanceof Uint8Array) {
+    return bytes;
+  }
+  const length = bytes?.length ?? 0;
+  const out = new Uint8Array(length);
+  for (let i = 0; i < length; i++) {
+    out[i] = bytes[i] & 0xff;
+  }
+  return out;
+}
+
+/** Encodes an ASCII/UTF-8 string as bytes, for a multipart header. */
+function asciiToU8(text: string): Uint8Array {
+  const out = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) {
+    out[i] = text.charCodeAt(i) & 0xff;
+  }
+  return out;
 }
 
 export const omniAi = new OmniAiService();

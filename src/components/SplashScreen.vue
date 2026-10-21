@@ -55,12 +55,13 @@ const theme = useThemeStore();
  * current theme, so the app fades in on exactly the colour it uses.
  */
 const INK = '#0B0E17';
+
 /**
  * How long the splash stays on screen once the native views are up.
  * The entrance takes ~4.3s, so the mark gets a long moment to breathe
  * before it leaves.
  */
-const HOLD_MS = 15000;
+const HOLD_MS = 3900;
 
 /** How long the whole exit takes. */
 const EXIT_MS = 1500;
@@ -69,7 +70,7 @@ const EXIT_MS = 1500;
  * Safety net: if the native `loaded` event never arrives the splash must
  * still get out of the way.
  */
-const MAX_LIFE_MS = 60000;
+const MAX_LIFE_MS = 9000;
 
 const rootRef = ref(null);
 const inkRef = ref(null);

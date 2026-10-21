@@ -135,19 +135,19 @@ const paragraphs = computed(() =>
 
 <style scoped>
 .message-row {
-  padding: 6 16;
+  padding: 8 16;
   horizontal-align: stretch;
 }
 
 /* ---------- User bubble ---------- */
 .user-bubble {
   background-color: var(--md-primary-container);
-  border-top-left-radius: 16;
-  border-top-right-radius: 16;
-  border-bottom-left-radius: 16;
+  border-top-left-radius: 18;
+  border-top-right-radius: 18;
+  border-bottom-left-radius: 18;
   border-bottom-right-radius: 4;
   padding: 12 16;
-  max-width: 290;
+  max-width: 300;
   horizontal-align: right;
 }
 
@@ -158,30 +158,30 @@ const paragraphs = computed(() =>
 
 /* ---------- Assistant block ---------- */
 .ai-block {
-  padding: 2 0 8 0;
+  padding: 2 0 10 0;
 }
 
 .ai-chip {
-  margin-bottom: 6;
+  margin-bottom: 8;
 }
 
 .ai-chip-dot {
-  margin-right: 6;
+  margin-right: 7;
   vertical-align: center;
 }
 
 .ai-chip-text {
   color: var(--md-on-surface-variant);
   font-size: 11;
-  font-weight: 500;
-  letter-spacing: 0.04;
+  font-weight: 600;
+  letter-spacing: 0.06;
   vertical-align: center;
 }
 
 .ai-timestamp {
   color: var(--md-outline);
   font-size: 11;
-  margin-top: 6;
+  margin-top: 8;
 }
 
 /* ---------- Error ---------- */

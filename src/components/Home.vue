@@ -1,10 +1,13 @@
 <script lang="ts" setup>
 /**
- * The chat screen.
+ * The chat screen - and the home screen, which is the same screen without a
+ * conversation.
  *
  * Layout (top to bottom):
  *  - A Material 3 top app bar: the navigation handle, the active route as a
  *    chip that opens the model sheet, and the live state of the gateway.
+ *    The system bars are transparent, so the status bar is seen on the same
+ *    surface as the app bar - the two read as one band.
  *  - A scrollable conversation. Assistant replies are rendered as Markdown,
  *    user messages sit in a container bubble on the right.
  *  - A composer with a filled text field and a filled icon button.
@@ -22,18 +25,19 @@ import { Application, Screen } from '@nativescript/core';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { useThemeStore } from '../stores/theme';
+import { usePaletteStore } from '../stores/palette';
 import { omniAi, OmniAiError, type OmniAiModel } from '../services/omni-ai';
 import { providerOf } from '../utils/accent';
 import { enter, loopAnimation } from '../utils/motion';
 import { paintRootBackground, restoreSystemBars } from '../utils/status-bar';
 import { themeToken } from '../utils/theme';
-import { usePaletteStore } from '../stores/palette';
 import ChatMessage from './ChatMessage.vue';
 import Sidebar from './Sidebar.vue';
 import ModelSheet from './ModelSheet.vue';
 import Profile from './Profile.vue';
 import Settings from './Settings.vue';
 import SplashScreen from './SplashScreen.vue';
+import SendButton from './SendButton.vue';
 import Icon from './Icon.vue';
 
 const chatStore = useChatStore();
@@ -72,6 +76,19 @@ const modelLabel = computed(() => {
 
 const canSend = computed(() => userInput.value.trim().length > 0 && !chatStore.isTyping);
 
+/**
+ * The state of the send button.
+ *
+ * It is a stop button while an answer is on its way, it is filled when
+ * there is something to send, and it is dimmed when there is not.
+ */
+const sendState = computed<'idle' | 'ready' | 'busy'>(() => {
+  if (chatStore.isTyping) {
+    return 'busy';
+  }
+  return canSend.value ? 'ready' : 'idle';
+});
+
 const statusText = computed(() => (chatStore.isConnected ? 'live' : 'offline'));
 
 /** The request that is currently in flight, so it can be stopped. */
@@ -94,7 +111,6 @@ const heroSub = ref<any>(null);
 const heroChips = ref<any[]>([]);
 const liveDot = ref<any>(null);
 const typingDots = ref<any[]>([]);
-const sendButton = ref<any>(null);
 
 /**
  * The loops that are currently running.
@@ -104,7 +120,6 @@ const sendButton = ref<any>(null);
  */
 let stopHero: (() => void) | undefined;
 let stopLive: (() => void) | undefined;
-let stopBusy: (() => void) | undefined;
 let stopTyping: (() => void)[] = [];
 
 /** Brings the empty state in, one element after the other. */
@@ -156,23 +171,13 @@ function startTypingDots() {
   });
 }
 
-/** The send button throbs while it waits for the answer. */
-function startBusyLoop() {
-  stopBusy = loopAnimation(sendButton.value?.nativeView, [
-    { properties: { scale: { x: 1.06, y: 1.06 } }, duration: 800 },
-    { properties: { scale: { x: 1, y: 1 } }, duration: 800 },
-  ]);
-}
-
 /** Stops every loop that is running. */
 function stopAllLoops() {
   stopHero?.();
   stopLive?.();
-  stopBusy?.();
   stopTyping.forEach((stop) => stop());
   stopHero = undefined;
   stopLive = undefined;
-  stopBusy = undefined;
   stopTyping = [];
 }
 
@@ -259,19 +264,17 @@ watch(
   },
 );
 
-// The dots only hop while a reply is on its way, and the send button
-// breathes to show that something is happening.
+// The dots only hop while a reply is on its way. The send button has its
+// own motion while it waits - it breathes - so it lives in its own
+// component.
 watch(
   () => chatStore.isTyping,
   (typing) => {
     if (typing) {
       nextTick(() => {
         startTypingDots();
-        startBusyLoop();
       });
     } else {
-      stopBusy?.();
-      stopBusy = undefined;
       stopTyping.forEach((stop) => stop());
       stopTyping = [];
     }
@@ -447,18 +450,27 @@ function retryLastMessage() {
 function stopGenerating() {
   inFlight?.abort();
 }
+
+/** The send button was pressed: send the message, or stop the answer. */
+function onSendPress() {
+  if (chatStore.isTyping) {
+    stopGenerating();
+    return;
+  }
+  sendMessage();
+}
 </script>
 
 <template>
   <Page actionBarHidden="true">
     <GridLayout rows="auto, *, auto" class="page-root">
       <!-- ============ Top app bar ============ -->
-      <GridLayout row="0" columns="auto, *, auto" class="app-bar">
+      <GridLayout row="0" columns="auto, *, auto" class="md-top-bar app-bar">
         <!-- Navigation handle -->
         <GridLayout
           col="0"
           columns="auto"
-          class="icon-button"
+          class="md-icon-button app-bar-handle"
           v-press
           @tap="drawerOpen = true"
         >
@@ -476,7 +488,7 @@ function stopGenerating() {
           <Icon col="0" name="dot" :size="8" tone="primary" class="route-chip-dot" />
           <Label col="1" :text="provider" class="route-chip-provider" />
           <Label col="2" :text="modelLabel" class="route-chip-model" />
-          <Icon col="3" name="chevron-down" :size="13" tone="on-secondary-container" />
+          <Icon col="3" name="chevron-down" :size="14" tone="on-secondary-container" />
         </GridLayout>
 
         <!-- Gateway state -->
@@ -494,7 +506,7 @@ function stopGenerating() {
 
       <!-- ============ Conversation ============ -->
       <ScrollView row="1" ref="scrollRef" class="message-scroll">
-        <!-- Empty state -->
+        <!-- Empty state: the home screen -->
         <StackLayout v-if="!chatStore.messages.length" class="hero">
           <!--
             The brand mark: a rotated square split by a single beam - one
@@ -599,32 +611,11 @@ function stopGenerating() {
             The button does double duty: it sends the message, and while a
             reply is on its way it turns into a stop button.
           -->
-          <GridLayout
-            ref="sendButton"
+          <SendButton
             col="1"
-            columns="auto"
-            class="send-button"
-            :class="{
-              'send-button--idle': !canSend && !chatStore.isTyping,
-              'send-button--busy': chatStore.isTyping,
-            }"
-            v-press
-            @tap="chatStore.isTyping ? stopGenerating() : sendMessage()"
-          >
-            <!--
-              The three states are rules, so they follow the palette of the
-              route: the filled button is the primary colour of the scheme.
-            -->
-            <GridLayout col="0" columns="auto" class="send-glyph-wrap">
-              <Icon
-                v-if="!chatStore.isTyping"
-                name="arrow-up"
-                :size="20"
-                :tone="canSend ? 'on-primary' : 'outline'"
-              />
-              <Icon v-else name="stop" :size="16" tone="on-error" />
-            </GridLayout>
-          </GridLayout>
+            :state="sendState"
+            @press="onSendPress"
+          />
         </GridLayout>
       </StackLayout>
 
@@ -675,30 +666,27 @@ function stopGenerating() {
 }
 
 /* ---------- Top app bar ---------- */
+/*
+  The app bar and the status bar are one band: the system bar is transparent
+  and the root view - whose background reaches under it - carries the same
+  surface.
+*/
 .app-bar {
-  background-color: var(--md-surface);
-  border-bottom-width: 1;
-  border-bottom-color: var(--md-outline-variant);
-  padding: 8 12;
-  horizontal-align: stretch;
+  padding: 4 8;
 }
 
-/* An icon button: 48dp of touch area around a 24dp glyph. */
-.icon-button {
-  width: 44;
-  height: 44;
+.app-bar-handle {
   horizontal-align: left;
-  vertical-align: center;
 }
 
 /* The chip that shows the active route. */
 .route-chip {
   background-color: var(--md-secondary-container);
   border-radius: 8;
-  height: 32;
+  height: 34;
   padding: 0 8;
   margin-left: 4;
-  margin-right: 10;
+  margin-right: 8;
   horizontal-align: left;
   vertical-align: center;
 }
@@ -706,7 +694,7 @@ function stopGenerating() {
 .route-chip-dot {
   /* The gap is a margin: the icon sizes itself through its prop, a width in
      the style sheet would be overwritten by it. */
-  margin-right: 6;
+  margin-right: 7;
   vertical-align: center;
 }
 
@@ -723,19 +711,20 @@ function stopGenerating() {
   font-size: 13;
   font-weight: 700;
   vertical-align: center;
-  margin-right: 4;
+  margin-right: 3;
 }
 
 .status-chip {
   horizontal-align: right;
   vertical-align: center;
+  padding-right: 6;
 }
 
 .status-text {
   color: var(--md-on-surface-variant);
   font-size: 11;
-  font-weight: 500;
-  letter-spacing: 0.06;
+  font-weight: 600;
+  letter-spacing: 0.08;
   text-transform: uppercase;
   vertical-align: center;
 }
@@ -746,16 +735,16 @@ function stopGenerating() {
 }
 
 .message-list {
-  padding-bottom: 12;
+  padding: 4 0 8 0;
 }
 
 /* ---------- Empty state ---------- */
 .hero {
-  padding: 40 24 24 24;
+  padding: 44 24 24 24;
 }
 
 .hero-mark-wrap {
-  margin-bottom: 18;
+  margin-bottom: 20;
 }
 
 .hero-glow {
@@ -774,19 +763,19 @@ function stopGenerating() {
 
 .hero-title {
   color: var(--md-on-surface);
-  font-size: 26;
+  font-size: 27;
   font-weight: 500;
   letter-spacing: -0.01;
 }
 
 .hero-sub {
   color: var(--md-on-surface-variant);
-  font-size: 14;
-  margin-top: 8;
+  font-size: 15;
+  margin-top: 10;
 }
 
 .hero-chips {
-  margin-top: 24;
+  margin-top: 26;
 }
 
 .hero-chip {
@@ -798,7 +787,7 @@ function stopGenerating() {
 
 /* ---------- Pending indicator ---------- */
 .typing-row {
-  padding: 4 16 8 16;
+  padding: 4 16 12 16;
 }
 
 .typing-bubble {
@@ -844,9 +833,13 @@ function stopGenerating() {
   color: var(--md-error);
   font-size: 12;
   font-weight: 700;
-  letter-spacing: 0.06;
+  letter-spacing: 0.08;
   vertical-align: center;
   margin-left: 12;
+}
+
+.composer-inner {
+  columns: *, auto;
 }
 
 /* A filled text field: the container of the composer. */
@@ -855,32 +848,11 @@ function stopGenerating() {
   color: var(--md-on-surface);
   /* Android takes the colour of the hint from the theme of the platform. */
   placeholder-color: var(--md-on-surface-variant);
-  border-radius: 26;
+  border-radius: 28;
   border-width: 0;
-  padding: 13 18;
+  padding: 0 20;
+  height: 56;
   margin-right: 10;
-  vertical-align: center;
-}
-
-/* A filled icon button: the send button, and the stop button while it waits. */
-.send-button {
-  width: 48;
-  height: 48;
-  border-radius: 24;
-  background-color: var(--md-primary);
-  horizontal-align: right;
-  vertical-align: center;
-}
-
-.send-button--idle {
-  background-color: var(--md-surface-container-high);
-}
-
-.send-button--busy {
-  background-color: var(--md-error);
-}
-
-.send-glyph-wrap {
   vertical-align: center;
 }
 

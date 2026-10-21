@@ -137,11 +137,11 @@ function clearHistory() {
   <Page actionBarHidden="true" class="screen">
     <GridLayout rows="auto, *">
       <!-- ── Top app bar ────────────────────────────────────────────────── -->
-      <GridLayout row="0" columns="auto, *" class="app-bar">
-        <GridLayout col="0" columns="auto" class="back-button" v-press @tap="back">
+      <GridLayout row="0" columns="auto, *" class="md-top-bar">
+        <GridLayout col="0" columns="auto" class="md-icon-button" v-press @tap="back">
           <Icon col="0" name="chevron-left" :size="22" tone="on-surface-variant" />
         </GridLayout>
-        <Label col="1" text="Settings" class="app-bar-title" />
+        <Label col="1" text="Settings" class="md-top-bar-title" />
       </GridLayout>
 
       <ScrollView row="1" class="screen-scroll">
@@ -288,7 +288,7 @@ function clearHistory() {
           <!-- ── Conversation ─────────────────────────────────────────────── -->
           <Label text="Conversation" class="group-label" />
 
-          <GridLayout columns="*, auto" class="md-card card row">
+          <GridLayout columns="*, auto" class="md-card card md-list-row">
             <StackLayout col="0">
               <Label text="Show timestamps" class="md-title" />
               <Label text="Print the time under each reply" class="md-support" />
@@ -300,7 +300,7 @@ function clearHistory() {
             />
           </GridLayout>
 
-          <GridLayout columns="*, auto" class="md-card card row">
+          <GridLayout columns="*, auto" class="md-card card md-list-row">
             <StackLayout col="0">
               <Label text="Send with Enter" class="md-title" />
               <Label text="Submit the composer from the keyboard" class="md-support" />
@@ -311,7 +311,7 @@ function clearHistory() {
           <!-- ── Gateway ──────────────────────────────────────────────────── -->
           <Label text="Gateway" class="group-label" />
 
-          <GridLayout rows="auto, auto, auto" columns="auto, *" class="md-card card row">
+          <GridLayout rows="auto, auto, auto" columns="auto, *" class="md-card card md-list-row">
             <Icon
               col="0"
               row="0"
@@ -356,10 +356,11 @@ function clearHistory() {
           </GridLayout>
           <Label :text="`Default: ${defaultAddress}`" class="md-support field-hint" />
 
-          <GridLayout columns="*, auto" class="md-card card row" v-press @tap="reconnect">
-            <Label col="0" text="Reconnect" class="md-title" />
+          <GridLayout columns="auto, *, auto" class="md-card card md-list-row" v-press @tap="reconnect">
+            <Icon col="0" name="retry" :size="20" tone="on-surface-variant" class="row-icon" />
+            <Label col="1" text="Reconnect" class="md-title" />
             <Label
-              col="1"
+              col="2"
               :text="reconnecting ? '…' : 'Retry'"
               class="row-action"
             />
@@ -368,23 +369,25 @@ function clearHistory() {
           <!-- ── Data ─────────────────────────────────────────────────────── -->
           <Label text="Data" class="group-label" />
 
-          <GridLayout columns="*, auto" class="md-card card row" v-press @tap="clearHistory">
-            <StackLayout col="0">
+          <GridLayout columns="auto, *, auto" class="md-card card md-list-row" v-press @tap="clearHistory">
+            <Icon col="0" name="trash" :size="20" tone="on-surface-variant" class="row-icon" />
+            <StackLayout col="1">
               <Label text="Clear chat history" class="md-title" />
               <Label text="Removes every stored conversation" class="md-support" />
             </StackLayout>
-            <Label col="1" text="Clear" class="row-action row-action--danger" />
+            <Label col="2" text="Clear" class="row-action row-action--danger" />
           </GridLayout>
 
           <!-- ── About ────────────────────────────────────────────────────── -->
           <Label text="About" class="group-label" />
 
-          <GridLayout columns="*, auto" class="md-card card row">
-            <StackLayout col="0">
+          <GridLayout columns="auto, *, auto" class="md-card card md-list-row">
+            <Icon col="0" name="info" :size="20" tone="on-surface-variant" class="row-icon" />
+            <StackLayout col="1">
               <Label text="Omni Ai client" class="md-title" />
               <Label text="NativeScript · Vue 3 · Pinia · Material 3" class="md-support" />
             </StackLayout>
-            <Label col="1" text="v1.0.0" class="row-mono" />
+            <Label col="2" text="v1.0.0" class="row-mono" />
           </GridLayout>
         </StackLayout>
       </ScrollView>
@@ -395,27 +398,6 @@ function clearHistory() {
 <style scoped>
 .screen {
   background-color: var(--md-surface);
-}
-
-/* ---------- Top app bar ---------- */
-.app-bar {
-  background-color: var(--md-surface);
-  border-bottom-width: 1;
-  border-bottom-color: var(--md-outline-variant);
-  padding: 8 12;
-}
-
-.back-button {
-  width: 44;
-  height: 44;
-  vertical-align: center;
-}
-
-.app-bar-title {
-  color: var(--md-on-surface);
-  font-size: 22;
-  font-weight: 600;
-  vertical-align: center;
 }
 
 .screen-scroll {
@@ -431,10 +413,10 @@ function clearHistory() {
   color: var(--md-primary);
   font-size: 12;
   font-weight: 600;
-  letter-spacing: 0.08;
+  letter-spacing: 0.1;
   text-transform: uppercase;
   margin-bottom: 8;
-  margin-top: 18;
+  margin-top: 20;
 }
 
 /* ---------- Rows ---------- */
@@ -442,8 +424,10 @@ function clearHistory() {
   margin-bottom: 8;
 }
 
-.row {
-  padding: 14 16;
+.row-icon {
+  width: 30;
+  margin-right: 12;
+  vertical-align: center;
 }
 
 .row-mono {
@@ -465,7 +449,7 @@ function clearHistory() {
 }
 
 .status-dot {
-  margin-right: 8;
+  margin-right: 10;
   vertical-align: center;
 }
 
@@ -473,11 +457,11 @@ function clearHistory() {
 .field-label {
   color: var(--md-on-surface-variant);
   font-size: 12;
-  font-weight: 500;
-  letter-spacing: 0.06;
+  font-weight: 600;
+  letter-spacing: 0.08;
   text-transform: uppercase;
   margin-bottom: 8;
-  margin-top: 4;
+  margin-top: 6;
 }
 
 .field-row {
