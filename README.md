@@ -30,7 +30,7 @@
 
 ## The idea
 
-A gateway that publishes **five hundred and seventy routes** is not a menu, it is a maze. Most clients hide that: a grey dropdown, a model name, no sense of where the answer is coming from.
+A gateway that publishes **several hundred routes** is not a menu, it is a maze. Most clients hide that: a grey dropdown, a model name, no sense of where the answer is coming from.
 
 Omni Ai takes the opposite position. **The provider of the selected model is the accent colour of the entire interface.** Pick a route from `auto/` and the app is violet. Pick one from `aihorde/` and it turns green. The colour is not decoration - it is a label, it is a state, and it is the same colour on the send button, on the bullets of a reply, on the check next to the active model, and on the dot that says the gateway is live.
 
