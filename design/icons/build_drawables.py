@@ -63,6 +63,8 @@ ICONS = {
     "file": "description",
     "volume": "volume_up",
     "play": "play_arrow",
+    # The voice chat: the wave button that opens the full screen voice mode.
+    "wave": "graphic_eq",
 }
 
 # The colour of a shape. It is black: the icon is tinted with the colour of

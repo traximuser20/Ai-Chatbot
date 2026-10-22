@@ -41,6 +41,7 @@ import SplashScreen from './SplashScreen.vue';
 import SendButton from './SendButton.vue';
 import Icon from './Icon.vue';
 import VoiceSheet from './VoiceSheet.vue';
+import VoiceChat from './VoiceChat.vue';
 import AttachSheet from './AttachSheet.vue';
 import { pickImage, pickFile, takePhoto } from '../services/media';
 import { speak, stopSpeaking } from '../services/audio';
@@ -68,10 +69,10 @@ const showSplash = ref(true);
 
 /** Suggestions offered on the empty screen. */
 const suggestions = [
-  'Explain an error',
-  'Write a bash one-liner',
-  'Draft a commit message',
-  'Compare two SQL queries',
+  'Explain a concept',
+  'Help me write',
+  'Analyze a photo',
+  'Summarize a document',
 ];
 
 /** Provider prefix of the current model. */
@@ -131,6 +132,8 @@ const showAttachSheet = ref(false);
 const showVoiceChat = ref(false);
 /** True when the message was dictated, so its reply is read out loud. */
 const voiceChatActive = ref(false);
+/** True while the full screen voice chat (the wave button) is open. */
+const showVoiceMode = ref(false);
 
 /* ------------------------------------------------------------------ */
 /* Motion                                                               */
@@ -439,6 +442,11 @@ function openVoiceChat() {
   showVoiceChat.value = true;
 }
 
+/** Opens the full screen voice chat - the wave button of the composer. */
+function openVoiceMode() {
+  showVoiceMode.value = true;
+}
+
 /** The voice sheet finished: the words become the message. */
 function onVoiceDone(text: string) {
   showVoiceChat.value = false;
@@ -584,7 +592,7 @@ function onSendPress() {
   <Page actionBarHidden="true">
     <GridLayout rows="auto, *, auto" class="page-root">
       <!-- ============ Top app bar ============ -->
-      <GridLayout row="0" columns="auto, *, auto" class="md-top-bar app-bar">
+      <GridLayout row="0" columns="auto, auto, *" class="md-top-bar app-bar">
         <!-- Navigation handle -->
         <GridLayout
           col="0"
@@ -654,12 +662,12 @@ function onSendPress() {
             />
             <Image row="0" col="0" src="~/assets/img/prism.png" class="hero-mark" />
           </GridLayout>
-          <Label ref="heroTitle" text="What should we route?" class="hero-title" />
+          <Label ref="heroTitle" text="How can I help?" class="hero-title" />
           <Label
             ref="heroSub"
             textWrap="true"
             class="hero-sub"
-            :text="`${models.length || 578} models are one tap away. Pick a route, then ask.`"
+            text="Type a question, talk it out, or share a photo — I'm ready for anything."
           />
 
           <WrapLayout class="hero-chips">
@@ -783,17 +791,35 @@ function onSendPress() {
             @submit="onSubmit"
           />
 
-          <!-- Dictate a message with the voice, while there is nothing to send. -->
-          <GridLayout
+          <!--
+            While there is nothing to send, the trailing slot carries both
+            voice controls: the microphone dictates a message into the field,
+            and the wave opens the full screen voice chat. They collapse to
+            the send button the moment there is something to send.
+          -->
+          <StackLayout
             v-if="sendState === 'idle'"
             col="2"
-            columns="auto"
-            class="composer-icon-btn"
-            v-press
-            @tap="openVoiceChat"
+            orientation="horizontal"
+            class="composer-actions"
           >
-            <Icon col="0" name="microphone" :size="21" tone="on-surface-variant" />
-          </GridLayout>
+            <GridLayout
+              columns="auto"
+              class="composer-icon-btn"
+              v-press
+              @tap="openVoiceChat"
+            >
+              <Icon col="0" name="microphone" :size="21" tone="on-surface-variant" />
+            </GridLayout>
+            <GridLayout
+              columns="auto"
+              class="composer-icon-btn"
+              v-press
+              @tap="openVoiceMode"
+            >
+              <Icon col="0" name="wave" :size="21" tone="on-surface-variant" />
+            </GridLayout>
+          </StackLayout>
 
           <!--
             Otherwise the button sends the message, and while a reply is on
@@ -858,6 +884,17 @@ function onSendPress() {
         <VoiceSheet @done="onVoiceDone" @close="onVoiceChatClose" />
       </GridLayout>
 
+      <!-- ============ Voice chat (the wave button) ============ -->
+      <GridLayout
+        v-if="showVoiceMode"
+        row="0"
+        rowSpan="3"
+        columns="*"
+        class="overlay"
+      >
+        <VoiceChat @close="showVoiceMode = false" />
+      </GridLayout>
+
       <!-- ============ Launch sequence ============ -->
       <GridLayout v-if="showSplash" row="0" rowSpan="3" col="0" class="splash-host">
         <SplashScreen @done="onSplashDone" />
@@ -899,9 +936,9 @@ function onSendPress() {
 }
 
 /*
-  The capsule that picks the route, tucked into the bottom-right corner of
-  the app bar. It is capped, so a long model id cannot push the name of the
-  app out of the bar.
+  The capsule that picks the route, tucked into the bottom-right corner of the
+  bar. The name of the app holds an `auto` column of its own, so the capsule
+  can never push it out of view; the caps below bound the capsule in turn.
 */
 .route-chip {
   background-color: var(--md-secondary-container);
@@ -911,8 +948,12 @@ function onSendPress() {
   margin-right: 4;
   horizontal-align: right;
   vertical-align: bottom;
-  margin-bottom: 2;
-  max-width: 180;
+  /*
+    The capsule belongs on the bar's bottom edge, not floating above it. The
+    bar's own padding would otherwise leave a gap below it, so the margin
+    cancels it: the pill's lower edge lands on the divider of the bar.
+  */
+  margin-bottom: 7;
 }
 
 .route-chip-dot {
@@ -928,6 +969,9 @@ function onSendPress() {
   font-weight: 500;
   vertical-align: center;
   margin-right: 6;
+  /* A `Label` honours this, which the capsule's own grid does not: the
+     prefix is clipped rather than shoving the name of the app aside. */
+  max-width: 46;
 }
 
 .route-chip-model {
@@ -936,6 +980,7 @@ function onSendPress() {
   font-weight: 700;
   vertical-align: center;
   margin-right: 3;
+  max-width: 74;
 }
 
 /* ---------- Conversation ---------- */
@@ -1082,6 +1127,12 @@ function onSendPress() {
   border-radius: 28;
   padding: 12;
   margin-right: 4;
+  vertical-align: center;
+}
+
+/* The two voice controls that share the trailing slot while the field is empty. */
+.composer-actions {
+  orientation: horizontal;
   vertical-align: center;
 }
 

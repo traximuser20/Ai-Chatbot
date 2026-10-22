@@ -151,7 +151,10 @@ if (!notAndroid()) {
     const resolve = pending.get(code);
     pending.delete(code);
 
-    const results: number[] = args?.grantResults ?? [];
+    // `grantResults` arrives as a native Java array (no Array methods), so it
+    // is copied into a plain JS array first.
+    const raw: ArrayLike<number> = args?.grantResults ?? [];
+    const results: number[] = Array.prototype.slice.call(raw);
     const granted =
       results.length > 0 &&
       results.every(

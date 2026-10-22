@@ -192,13 +192,18 @@ if [ ! -d "node_modules" ]; then
 fi
 
 echo "==> Starting NativeScript-Vue Android app..."
-# Run NativeScript app targeting the running emulator
-TARGET_DEVICE=$(adb devices | grep "device$" | head -n 1 | awk '{print $1}')
+# Deploy to the emulator - and only to the emulator. adb discovers every
+# device on the network, including a phone with wireless debugging on, which
+# shows up here as an mDNS serial ("adb-<host>._adb-tls-connect._tcp"). Left
+# to itself NativeScript takes the first device it is given and then fails on
+# the phone with "No emulator image available for device identifier ...", so
+# the emulator serial is asked for by name.
+TARGET_DEVICE=$(adb devices | awk '$2 == "device" && $1 ~ /^emulator-/ { print $1; exit }')
 if [ -n "$TARGET_DEVICE" ]; then
-    echo "==> Deploying to emulator: $TARGET_DEVICE"
+    echo "==> Deploying to the emulator [$TARGET_DEVICE]"
     ns run android --device "$TARGET_DEVICE"
 else
-    echo "==> Deploying to default Android device..."
+    echo "==> Deploying to the default Android device..."
     ns run android
 fi
 

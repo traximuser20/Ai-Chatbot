@@ -15,7 +15,7 @@
  */
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { Color } from '@nativescript/core';
-import { loadIconDrawable } from '../utils/icons';
+import { iconPicture } from '../utils/icons';
 
 /** The roles of the scheme an icon can be painted with. */
 type IconTone =
@@ -117,23 +117,25 @@ function paintColour() {
 /**
  * Draws the icon.
  *
- * The drawable is put on the native view by hand: it keeps the vector of the
- * platform, where a source would be rasterised into a bitmap.
+ * The picture of the icon is handed to the view of the framework the way
+ * every other picture of the app is handed to it - as a source. The platform
+ * only takes the source in while the view is on the screen, so the picture is
+ * put on it again when the view is loaded.
  */
 function paint() {
-  const view = widget();
-  if (!view) {
+  const image = imageRef.value?.nativeView;
+  if (!image) {
     return;
   }
 
-  const drawable = loadIconDrawable(props.name);
-  if (drawable) {
-    view.setImageDrawable(drawable);
+  const picture = iconPicture(props.name);
+  if (picture) {
+    image.src = picture;
   }
 
   /*
-    The colour can land before the drawable is there - the filter would be
-    lost then - so it is put on the view again with every paint.
+    The colour can land before the shape is there - the filter would be lost
+    then - so it is put on the view again with every paint.
   */
   paintColour();
 }
@@ -164,6 +166,7 @@ watch([() => props.color, () => props.tone], paintColour, { flush: 'post' });
     :width="size"
     :height="size"
     stretch="aspectFit"
+    @loaded="paint"
   />
 </template>
 
