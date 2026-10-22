@@ -189,18 +189,20 @@ Both sets of assets are generated, so the sources and the runtime files can
 never drift apart.
 
 ```bash
-python3 design/logo/build-assets.py   # the mark, the launch assets, the icons
-python3 design/icons/build_font.py    # the icon font (OmniIcons.ttf)
+python3 design/logo/build-assets.py    # the mark, the launch assets, the icons
+python3 design/icons/build_drawables.py # the icon set (the vector drawables)
 ```
 
 - `design/logo/` holds the SVG sources of the mark - a square rotated 45
   degrees, filled with the brand spectrum and crossed by a single white beam.
   The build writes the runtime PNGs into `src/assets/img/` and the platform
   icons into `App_Resources/`.
-- `design/icons/build_font.py` cuts Font Awesome down to the eighteen glyphs
-  the app uses, renames the family to `OmniIcons` and writes it to
-  `src/fonts/`. A change to the set of icons means a change to that file **and
-  a rebuild of the font** - a glyph that is not in the font renders as a box.
+- `design/icons/build_drawables.py` cuts the Material Icons down to the
+  twenty-five shapes the app uses and writes them as Android vector drawables
+  into `App_Resources/Android/src/main/res/drawable/`. A change to the set of
+  icons means a change to that file **and a rebuild of the app** - the
+  drawables are native resources, so they need a native rebuild. A shape that
+  is not in the set renders as the information icon.
 
 ---
 
@@ -257,8 +259,8 @@ python3 design/icons/build_font.py    # the icon font (OmniIcons.ttf)
 - **Fix**: As in Issue 7. The V8 heap of the app is 192 MB.
 
 ### Issue 9: An icon is a box, or the wrong glyph
-- **Cause**: The glyph is not in the font - the font is a subset of Font Awesome with the eighteen glyphs the app uses.
-- **Fix**: Add the icon to `design/icons/build_font.py`, rebuild the font (`python3 design/icons/build_font.py`) and rebuild the app. A change to `src/fonts/` needs a native rebuild.
+- **Cause**: The shape is not in the icon set - the drawables are a cut down of the Material Icons with the twenty-five shapes the app uses.
+- **Fix**: Add the icon to `design/icons/build_drawables.py`, rebuild the drawables (`python3 design/icons/build_drawables.py`) and rebuild the app. A change to `App_Resources/Android` needs a native rebuild.
 
 ### Issue 10: The app crashes at launch with `Cannot read properties of undefined (reading 'getResources')`
 - **Cause**: The appearance of the device was asked for before the native context exists.

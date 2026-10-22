@@ -1,4 +1,4 @@
-import { Application } from '@nativescript/core';
+import { Utils } from '@nativescript/core';
 
 /**
  * The icon set.
@@ -60,17 +60,16 @@ export function drawableOf(name: string): string {
  * keeps the colours apart.
  */
 export function loadIconDrawable(name: string): android.graphics.drawable.Drawable | undefined {
-  if (!Application.android) {
+  if (!Utils.android) {
     return undefined;
   }
 
   try {
-    const context = Application.android.context;
-    const resources = context.getResources();
+    const resources = Utils.android.getResources();
     const identifier = resources.getIdentifier(
       drawableOf(name),
       'drawable',
-      context.getPackageName(),
+      Utils.android.getPackageName(),
     );
 
     if (!identifier) {
@@ -78,6 +77,7 @@ export function loadIconDrawable(name: string): android.graphics.drawable.Drawab
       return undefined;
     }
 
+    const context = Utils.android.getApplicationContext();
     const drawable = resources.getDrawable(identifier, context.getTheme());
     return typeof drawable?.mutate === 'function' ? drawable.mutate() : drawable;
   } catch (err) {

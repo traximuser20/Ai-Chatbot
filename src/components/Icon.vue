@@ -74,6 +74,17 @@ defineExpose({
 });
 
 /**
+ * The Android widget behind the icon.
+ *
+ * The drawable and its colour filter live on the widget, so the icon reaches
+ * for it: the view of the framework draws the shape of the platform, and the
+ * tint is a filter on it.
+ */
+function widget(): any {
+  return imageRef.value?.nativeView?.nativeView;
+}
+
+/**
  * The colour of the glyph.
  *
  * A runtime colour wins over the tone. It is put on the native view by hand
@@ -84,12 +95,12 @@ function colour(): Color | undefined {
   if (props.color) {
     return new Color(props.color);
   }
-  return imageRef.value?.tintColor;
+  return imageRef.value?.nativeView?.tintColor;
 }
 
 /** Puts the colour of the glyph on the native view. */
 function paintColour() {
-  const view = imageRef.value?.nativeView;
+  const view = widget();
   if (!view) {
     return;
   }
@@ -98,7 +109,8 @@ function paintColour() {
   if (tint) {
     view.setColorFilter(tint.android);
   } else {
-    view.clearColorFilter();
+    // The filter lives on the drawable, so it is cleared there.
+    view.getDrawable()?.clearColorFilter();
   }
 }
 
@@ -109,7 +121,7 @@ function paintColour() {
  * platform, where a source would be rasterised into a bitmap.
  */
 function paint() {
-  const view = imageRef.value?.nativeView;
+  const view = widget();
   if (!view) {
     return;
   }

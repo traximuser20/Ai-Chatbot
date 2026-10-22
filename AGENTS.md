@@ -187,7 +187,7 @@ The transfer of `ns run android` reports success but the file on the device keep
   ```
 
 ### 6.3 Native & Configuration Rebuilds
-- Modifications to `package.json`, `App_Resources/Android/`, `nativescript.config.ts` or `src/fonts/` require a native rebuild.
+- Modifications to `package.json`, `App_Resources/Android/`, `nativescript.config.ts` or `design/icons/` require a native rebuild.
 - Trigger rebuilds via:
   ```bash
   docker exec -it nativescript-vue-android ns run android
@@ -347,7 +347,7 @@ The splash (`SplashScreen.vue`) is a set of **planes** at different depths, and 
 | `node tools/check-vue.js` | Compile every single file component - `tsc` does not look at a template |
 | `docker exec nativescript-vue-android sh tools/restart-emulator.sh` | Restart the emulator of the container after it died |
 | `python3 design/logo/build-assets.py` | Rebuild the mark, the icons and the launch assets |
-| `python3 design/icons/build_font.py` | Rebuild the icon font from Font Awesome |
+| `python3 design/icons/build_drawables.py` | Rebuild the icon set from the Material Icons |
 | `adb exec-out screencap -p > shot.png` | A screenshot of the emulator |
 | `adb pair <ip>:<port> <code>` | Pair the host with a phone over wireless debugging |
 | `adb mdns services` | Find the debugging port of a paired phone |

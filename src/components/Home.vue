@@ -83,6 +83,13 @@ const modelLabel = computed(() => {
   return slash > -1 ? chatStore.model.slice(slash + 1) : chatStore.model;
 });
 
+/**
+ * Whether the model id carries a provider prefix. `providerOf()` returns the
+ * whole id when there is no `/`, so showing the provider as well would print
+ * the same name twice and push the capsule past its cap.
+ */
+const hasProvider = computed(() => chatStore.model.indexOf('/') > -1);
+
 const canSend = computed(
   () =>
     (userInput.value.trim().length > 0 || attachments.value.length > 0) && !chatStore.isTyping,
@@ -100,8 +107,6 @@ const sendState = computed<'idle' | 'ready' | 'busy'>(() => {
   }
   return canSend.value ? 'ready' : 'idle';
 });
-
-const statusText = computed(() => (chatStore.isConnected ? 'live' : 'offline'));
 
 /** The request that is currently in flight, so it can be stopped. */
 let inFlight: AbortController | undefined;
@@ -136,7 +141,6 @@ const heroMark = ref<any>(null);
 const heroTitle = ref<any>(null);
 const heroSub = ref<any>(null);
 const heroChips = ref<any[]>([]);
-const liveDot = ref<any>(null);
 const typingDots = ref<any[]>([]);
 
 /**
@@ -146,7 +150,6 @@ const typingDots = ref<any[]>([]);
  * its view goes away - otherwise the chains pile up and eat the heap.
  */
 let stopHero: (() => void) | undefined;
-let stopLive: (() => void) | undefined;
 let stopTyping: (() => void)[] = [];
 
 /** Brings the empty state in, one element after the other. */
@@ -168,14 +171,6 @@ function animateHero() {
       { properties: { scale: { x: 1, y: 1 } }, duration: 2600 },
     ]);
   });
-}
-
-/** The live indicator pulses while the gateway is reachable. */
-function startLivePulse() {
-  stopLive = loopAnimation(liveDot.value?.nativeView, [
-    { properties: { opacity: 0.5, scale: { x: 0.85, y: 0.85 } }, duration: 1100 },
-    { properties: { opacity: 1, scale: { x: 1.1, y: 1.1 } }, duration: 1100 },
-  ]);
 }
 
 /** The three dots hop while the answer is on the way. */
@@ -201,10 +196,8 @@ function startTypingDots() {
 /** Stops every loop that is running. */
 function stopAllLoops() {
   stopHero?.();
-  stopLive?.();
   stopTyping.forEach((stop) => stop());
   stopHero = undefined;
-  stopLive = undefined;
   stopTyping = [];
 }
 
@@ -226,7 +219,6 @@ onMounted(async () => {
   }
 
   nextTick(() => {
-    startLivePulse();
     if (!chatStore.messages.length) {
       animateHero();
     }
@@ -252,7 +244,6 @@ function onSuspend() {
 }
 
 function onResume() {
-  startLivePulse();
   if (!chatStore.messages.length) {
     animateHero();
   }
@@ -605,30 +596,43 @@ function onSendPress() {
           <Icon col="0" name="menu" :size="22" tone="on-surface-variant" />
         </GridLayout>
 
-        <!-- Active route: tapping it opens the model picker. -->
+        <!-- The name of the app, with its mark. -->
+        <GridLayout col="1" columns="auto, auto" class="app-bar-brand">
+          <Image col="0" src="~/assets/img/prism-glyph.png" class="app-bar-mark" />
+          <Label col="1" text="Omni Ai" class="md-top-bar-title" />
+        </GridLayout>
+
+        <!--
+          Active route, tucked into the bottom-right corner of the bar. It is
+          there on the home screen and through the conversation alike: the
+          route is what the app is about, wherever the screen is.
+        -->
         <GridLayout
-          col="1"
+          col="2"
           columns="auto, auto, auto, auto"
           class="route-chip"
           v-press
           @tap="openModelPicker"
         >
-          <Icon col="0" name="dot" :size="8" tone="primary" class="route-chip-dot" />
-          <Label col="1" :text="provider" class="route-chip-provider" />
-          <Label col="2" :text="modelLabel" class="route-chip-model" />
-          <Icon col="3" name="chevron-down" :size="14" tone="on-secondary-container" />
-        </GridLayout>
-
-        <!-- Gateway state -->
-        <GridLayout col="2" columns="auto, auto" class="status-chip">
+          <!--
+            The state of the gateway, in the dot that leads the capsule: green
+            while it answers, red when it cannot be reached.
+          -->
           <Icon
-            ref="liveDot"
             col="0"
             name="dot"
             :size="8"
             :tone="chatStore.isConnected ? 'live' : 'offline'"
+            class="route-chip-dot"
           />
-          <Label col="1" :text="statusText" class="status-text" />
+          <Label
+            v-if="hasProvider"
+            col="1"
+            :text="provider"
+            class="route-chip-provider"
+          />
+          <Label col="2" :text="modelLabel" class="route-chip-model" />
+          <Icon col="3" name="chevron-down" :size="14" tone="on-secondary-container" />
         </GridLayout>
       </GridLayout>
 
@@ -881,16 +885,34 @@ function onSendPress() {
   horizontal-align: left;
 }
 
-/* The chip that shows the active route. */
+/* The name of the app: the mark, then the wordmark. */
+.app-bar-brand {
+  margin-left: 2;
+  vertical-align: center;
+}
+
+.app-bar-mark {
+  width: 26;
+  height: 26;
+  margin-right: 10;
+  vertical-align: center;
+}
+
+/*
+  The capsule that picks the route, tucked into the bottom-right corner of
+  the app bar. It is capped, so a long model id cannot push the name of the
+  app out of the bar.
+*/
 .route-chip {
   background-color: var(--md-secondary-container);
-  border-radius: 8;
-  height: 34;
-  padding: 0 8;
-  margin-left: 4;
-  margin-right: 8;
-  horizontal-align: left;
-  vertical-align: center;
+  border-radius: 16;
+  height: 30;
+  padding: 0 10;
+  margin-right: 4;
+  horizontal-align: right;
+  vertical-align: bottom;
+  margin-bottom: 2;
+  max-width: 180;
 }
 
 .route-chip-dot {
@@ -914,21 +936,6 @@ function onSendPress() {
   font-weight: 700;
   vertical-align: center;
   margin-right: 3;
-}
-
-.status-chip {
-  horizontal-align: right;
-  vertical-align: center;
-  padding-right: 6;
-}
-
-.status-text {
-  color: var(--md-on-surface-variant);
-  font-size: 11;
-  font-weight: 600;
-  letter-spacing: 0.08;
-  text-transform: uppercase;
-  vertical-align: center;
 }
 
 /* ---------- Conversation ---------- */
