@@ -262,10 +262,11 @@ onMounted(() => {
   margin-bottom: 12;
 }
 
+/* The slot of the icon is kept with margins - see `AttachSheet.vue`. */
 .sheet-search-icon {
-  width: 24;
+  margin-left: 3;
+  margin-right: 11;
   vertical-align: center;
-  margin-right: 8;
 }
 
 .sheet-search-field {

@@ -560,9 +560,10 @@ function clearHistory() {
   margin-bottom: 8;
 }
 
+/* The slot of the icon is kept with margins - see `AttachSheet.vue`. */
 .row-icon {
-  width: 30;
-  margin-right: 12;
+  margin-left: 5;
+  margin-right: 17;
   vertical-align: center;
 }
 

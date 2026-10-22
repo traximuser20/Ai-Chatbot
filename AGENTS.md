@@ -21,7 +21,7 @@ Whenever operating within this repository, all AI agents and assistants must str
   | `ChatMessage.vue` | One message: an ink bubble for the user, Markdown for the assistant. |
   | `MarkdownView.vue` | Renders the blocks of a parsed reply. |
   | `MdList.vue` | A list of a reply. Recursive: a list indented under an item is a child of that item. |
-  | `Icon.vue` | The whole icon set, drawn with the `OmniIcons` font. |
+  | `Icon.vue` | The whole icon set, drawn with Android vector drawables. |
   | `SendButton.vue` | The send button of the composer: a Material 3 filled icon button with a state layer. |
   | `MdSwitch.vue` | A Material 3 switch: the native one takes its colour from the platform. |
   | `Sidebar.vue` | The drawer: new conversation, the history, profile and settings. |
@@ -47,7 +47,7 @@ Whenever operating within this repository, all AI agents and assistants must str
   - `src/utils/tilt.ts` - the reading of the gravity sensor of Android.
   - `src/utils/status-bar.ts` - the notification bar and the navigation bar of the window.
   - `src/directives/press.ts` - the tactile feedback of a tappable surface.
-  - `src/fonts/OmniIcons.ttf` - the icon font, built by `design/icons/build_font.py`.
+  - `App_Resources/Android/src/main/res/drawable/ic_*.xml` - the icon set: Android vector drawables, built by `design/icons/build_drawables.py`.
   - `design/logo/` - the mark and the launch assets, built by `design/logo/build-assets.py`.
 - **Build & Bundler**: `@nativescript/webpack` (`~5.0.38`) with custom Node.js polyfill fallbacks.
 - **JDK Requirement**: **Java 17 (Eclipse Temurin 17)**. Android Gradle Plugin and Gradle 8.x do not support Java 25 (which triggers `Unsupported class file major version 69`).
@@ -324,7 +324,7 @@ The splash (`SplashScreen.vue`) is a set of **planes** at different depths, and 
 - **Always set `orientation="horizontal"` on a `StackLayout` that holds side-by-side items.** The default is vertical.
 - The **palette** is derived from the provider prefix of the selected model (`src/utils/accent.ts`) and reaches the interface through the CSS variables of the root frame. Changing the model in the picker repaints the whole interface, so no component may name a colour of its own - it names a **role** (`var(--md-primary)`) and the scheme of the route paints it.
 - The theme is a **palette of tokens**, not a second set of rules: `src/app.css` declares the light and the dark values of every role, and every component uses `var(--md-*)`. A hardcoded hex in a component is a bug - it does not follow the theme, and it does not follow the route.
-- `src/components/Icon.vue` draws the whole icon set with the `OmniIcons` font, a subset of Font Awesome (18 glyphs, 4 kB). It is built by `design/icons/build_font.py`; the font lives in `src/fonts`, which NativeScript copies into the app's `files/app/fonts` - the place the runtime looks for a font by its family name. A glyph in a `Label` is recoloured like any other text, so the icons follow the palette of the selected provider.
+- `src/components/Icon.vue` draws the whole icon set with the **Android vector drawables** of the app (`App_Resources/Android/src/main/res/drawable/ic_*.xml`, 25 shapes of the Material Icons, Apache 2.0). The drawables are built by `design/icons/build_drawables.py` and loaded by `src/utils/icons.ts`. The glyph is an `Image` that the platform draws, so it stays crisp at every density; the colour is a `tint-color` on the class of the tone, so the icons follow the palette of the selected provider. A change to `App_Resources/Android` needs a **native rebuild** (§6.3).
 - `src/utils/motion.ts` owns the timing of every animation (`enter`, `exit`, `pressIn`, `pressOut`, `pulse`, `loopAnimation`). `src/directives/press.ts` is registered globally as `v-press` and gives every tappable surface a tactile response; its `touch` handler always returns `false` so the `tap` still fires.
 - A `loopAnimation()` always has to be stopped again - see `stopAllLoops()` in `Home.vue` for the pattern. The loops of a screen are stopped when the screen is left **and** when the app is suspended.
 - A failed request is **not** a message of the conversation: it is reported in the banner above the composer, with a retry. Failures that older versions stored in the history are dropped when the conversations are read back.

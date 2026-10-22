@@ -2,20 +2,20 @@
 /**
  * The icon set.
  *
- * The glyphs come from Font Awesome, cut down to the icons the interface uses
- * and renamed to `OmniIcons` (see `design/icons/build_font.py` - the font is
- * 4 kB instead of 400 kB).
- *
- * A font is used rather than hand drawn views because it gives a proper,
- * consistent icon set, and because a glyph in a `Label` can be recoloured
- * like any other text - which is what lets the icons follow the palette of
- * the active route.
+ * Every icon is an Android vector drawable - a native resource of the app
+ * (see `App_Resources/Android/src/main/res/drawable`), drawn by the platform
+ * itself. It stays crisp on every screen, it follows the density of the
+ * device, and it is tinted with the colour of the scheme, so the icons
+ * follow the palette of the active route.
  *
  * A tone is a *role* of the Material 3 scheme, so an icon always belongs to
  * the surface it stands on: `on-surface` on a card, `on-primary` on a filled
- * button, `error` on a warning.
+ * button, `error` on a warning. The tone is a rule - a class of the scheme -
+ * and a runtime colour is a value that cannot live in the palette.
  */
-import { computed } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { Color } from '@nativescript/core';
+import { loadIconDrawable } from '../utils/icons';
 
 /** The roles of the scheme an icon can be painted with. */
 type IconTone =
@@ -35,39 +35,9 @@ type IconTone =
   | 'live'
   | 'offline';
 
-/** The codepoint of every icon in the font. */
-const GLYPHS: Record<string, string> = {
-  menu: '\uf0c9', // bars
-  'chevron-down': '\uf078',
-  'chevron-left': '\uf053',
-  'arrow-up': '\uf062',
-  stop: '\uf04d', // square
-  plus: '\u002b',
-  close: '\uf00d', // xmark
-  search: '\uf002', // magnifying-glass
-  sliders: '\uf1de',
-  user: '\uf007',
-  dot: '\uf111', // circle
-  check: '\uf00c',
-  dots: '\uf141', // ellipsis
-  trash: '\uf1f8',
-  retry: '\uf2f1', // rotate
-  warning: '\uf071', // triangle-exclamation
-  plane: '\uf1d8', // paper-plane
-  info: '\uf05a', // circle-info
-  // Voice, attachments and the camera.
-  microphone: '\uf130',
-  camera: '\uf030',
-  paperclip: '\uf0c6',
-  image: '\uf03e',
-  file: '\uf0f6',
-  volume: '\uf028', // volume-high
-  play: '\uf04b',
-};
-
 const props = withDefaults(
   defineProps<{
-    /** Name of the icon, see `GLYPHS` for the set. */
+    /** Name of the icon, see `src/utils/icons.ts` for the set. */
     name: string;
     /** Size of the glyph in device independent pixels. */
     size?: number;
@@ -89,21 +59,104 @@ const props = withDefaults(
   },
 );
 
-/** The class that paints the glyph with a role of the scheme. */
-const toneClass = computed(() => `icon--${props.tone}`);
+const imageRef = ref<any>(null);
 
-/** The character of the icon, or a question mark if the name is unknown. */
-const glyph = computed(() => GLYPHS[props.name] ?? GLYPHS['info']);
+/**
+ * The native view of the icon.
+ *
+ * A parent can hold on to it and animate it: the live dot of the app bar
+ * pulses, and the three dots of the typing indicator hop.
+ */
+defineExpose({
+  get nativeView() {
+    return imageRef.value?.nativeView;
+  },
+});
+
+/**
+ * The colour of the glyph.
+ *
+ * A runtime colour wins over the tone. It is put on the native view by hand
+ * rather than as a property: a property would shadow the tone, and the tone
+ * has to keep following the theme.
+ */
+function colour(): Color | undefined {
+  if (props.color) {
+    return new Color(props.color);
+  }
+  return imageRef.value?.tintColor;
+}
+
+/** Puts the colour of the glyph on the native view. */
+function paintColour() {
+  const view = imageRef.value?.nativeView;
+  if (!view) {
+    return;
+  }
+
+  const tint = colour();
+  if (tint) {
+    view.setColorFilter(tint.android);
+  } else {
+    view.clearColorFilter();
+  }
+}
+
+/**
+ * Draws the icon.
+ *
+ * The drawable is put on the native view by hand: it keeps the vector of the
+ * platform, where a source would be rasterised into a bitmap.
+ */
+function paint() {
+  const view = imageRef.value?.nativeView;
+  if (!view) {
+    return;
+  }
+
+  const drawable = loadIconDrawable(props.name);
+  if (drawable) {
+    view.setImageDrawable(drawable);
+  }
+
+  /*
+    The colour can land before the drawable is there - the filter would be
+    lost then - so it is put on the view again with every paint.
+  */
+  paintColour();
+}
+
+onMounted(() => {
+  paint();
+
+  /*
+    The tone of the scheme is applied by the stylesheet. When it changes - the
+    theme, or the route - a runtime colour has to be put on top of it again.
+  */
+  imageRef.value?.style?.on('tintColorChange', paintColour);
+});
+
+onUnmounted(() => {
+  imageRef.value?.style?.off('tintColorChange', paintColour);
+});
+
+watch(() => props.name, paint);
+watch([() => props.color, () => props.tone], paintColour, { flush: 'post' });
 </script>
 
 <template>
-  <Label :text="glyph" class="icon" :class="toneClass" :fontSize="size" :color="color" />
+  <Image
+    ref="imageRef"
+    class="icon"
+    :class="`icon--${tone}`"
+    :width="size"
+    :height="size"
+    stretch="aspectFit"
+  />
 </template>
 
 <style scoped>
 .icon {
-  font-family: OmniIcons;
-  text-align: center;
   vertical-align: center;
   horizontal-align: center;
 }
@@ -115,62 +168,62 @@ const glyph = computed(() => GLYPHS[props.name] ?? GLYPHS['info']);
   default of `.icon` whatever the order of the style sheet is.
 */
 .icon.icon--primary {
-  color: var(--md-primary);
+  tint-color: var(--md-primary);
 }
 
 .icon.icon--on-primary {
-  color: var(--md-on-primary);
+  tint-color: var(--md-on-primary);
 }
 
 .icon.icon--primary-container {
-  color: var(--md-primary-container);
+  tint-color: var(--md-primary-container);
 }
 
 .icon.icon--on-primary-container {
-  color: var(--md-on-primary-container);
+  tint-color: var(--md-on-primary-container);
 }
 
 .icon.icon--secondary {
-  color: var(--md-secondary);
+  tint-color: var(--md-secondary);
 }
 
 .icon.icon--on-secondary-container {
-  color: var(--md-on-secondary-container);
+  tint-color: var(--md-on-secondary-container);
 }
 
 .icon.icon--tertiary {
-  color: var(--md-tertiary);
+  tint-color: var(--md-tertiary);
 }
 
 .icon.icon--on-surface {
-  color: var(--md-on-surface);
+  tint-color: var(--md-on-surface);
 }
 
 .icon.icon--on-surface-variant {
-  color: var(--md-on-surface-variant);
+  tint-color: var(--md-on-surface-variant);
 }
 
 .icon.icon--outline {
-  color: var(--md-outline);
+  tint-color: var(--md-outline);
 }
 
 .icon.icon--error {
-  color: var(--md-error);
+  tint-color: var(--md-error);
 }
 
 .icon.icon--on-error-container {
-  color: var(--md-on-error-container);
+  tint-color: var(--md-on-error-container);
 }
 
 .icon.icon--inverse {
-  color: var(--md-inverse-on-surface);
+  tint-color: var(--md-inverse-on-surface);
 }
 
 .icon.icon--live {
-  color: var(--md-live);
+  tint-color: var(--md-live);
 }
 
 .icon.icon--offline {
-  color: var(--md-error);
+  tint-color: var(--md-error);
 }
 </style>

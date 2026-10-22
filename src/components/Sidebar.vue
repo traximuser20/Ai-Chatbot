@@ -306,10 +306,11 @@ function metaOf(conversation: Conversation): string {
   height: 48;
 }
 
+/* The slot of the icon is kept with margins - see `AttachSheet.vue`. */
 .new-chat-mark {
-  width: 24;
+  margin-left: 3;
+  margin-right: 13;
   vertical-align: center;
-  margin-right: 10;
 }
 
 .new-chat-text {
@@ -442,8 +443,10 @@ function metaOf(conversation: Conversation): string {
   padding: 12 8;
 }
 
+/* The slot of the icon is kept with margins - see `AttachSheet.vue`. */
 .footer-mark {
-  width: 30;
+  margin-left: 5;
+  margin-right: 5;
   vertical-align: center;
 }
 

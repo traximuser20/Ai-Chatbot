@@ -96,9 +96,14 @@ const sources: { source: 'gallery' | 'camera' | 'document'; icon: string; title:
   background-color: transparent;
 }
 
+/*
+  The icon sizes itself through its prop, so the slot it stands in is kept
+  with margins: the glyph stays in the middle of it, and the text keeps the
+  place it had.
+*/
 .attach-icon {
-  width: 40;
-  margin-right: 14;
+  margin-left: 9;
+  margin-right: 23;
   vertical-align: center;
 }
 
