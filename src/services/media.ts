@@ -73,7 +73,7 @@ function tempPath(extension: string): string {
 }
 
 /** Extension guessed from a mime type (used for the temp copy). */
-function extensionFor(mime: string): string {
+function extensionFor(mime: string, name = ''): string {
   const map: Record<string, string> = {
     'image/jpeg': 'jpg',
     'image/png': 'png',
@@ -87,6 +87,9 @@ function extensionFor(mime: string): string {
     'audio/wav': 'wav',
     'audio/webm': 'webm',
     'application/pdf': 'pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
     'application/json': 'json',
     'text/plain': 'txt',
     'text/markdown': 'md',
@@ -97,7 +100,12 @@ function extensionFor(mime: string): string {
     return map[mime];
   }
   const slash = mime.indexOf('/');
-  return slash > -1 ? mime.slice(slash + 1) : 'bin';
+  const mimeExtension = slash > -1 ? mime.slice(slash + 1) : '';
+  // SAF providers sometimes report Office files as application/octet-stream;
+  // preserve the picked filename so OOXML extraction still sees .docx/.pptx/.xlsx.
+  const dot = name.lastIndexOf('.');
+  const nameExtension = dot > -1 ? name.slice(dot + 1).toLowerCase() : '';
+  return nameExtension || mimeExtension || 'bin';
 }
 
 /** Writes a Java byte array to a file. Returns the byte count. */
@@ -211,7 +219,7 @@ function compressImage(
 
 /** Turns a read Uri into a `PickedFile`, copying and scaling as needed. */
 function toPickedFile(read: { bytes: any; mime: string; name: string }): PickedFile | null {
-  const extension = extensionFor(read.mime);
+  const extension = extensionFor(read.mime, read.name);
   const filePath = tempPath(extension);
   writeBytes(filePath, read.bytes);
 

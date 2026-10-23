@@ -14,7 +14,8 @@
  * role, so the colour of the interface always tells you who you are talking
  * to - the whole scheme follows the route (see `src/utils/material.ts`).
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { GestureTypes, observe, type GesturesObserver } from '@nativescript/core/ui/gestures';
 import MarkdownView from './MarkdownView.vue';
 import Icon from './Icon.vue';
 import { providerOf } from '../utils/accent';
@@ -36,6 +37,10 @@ const props = defineProps<{
   attachments?: Attachment[];
 }>();
 
+const emit = defineEmits<{
+  longPress: [event: any];
+}>();
+
 const isUser = computed(() => props.sender === 'user');
 
 /** The image attachments of the message, so they can be shown as thumbnails. */
@@ -45,10 +50,31 @@ const documents = computed(() => (props.attachments ?? []).filter((a) => a.kind 
 
 /** The bubble, so it can be animated in when it appears. */
 const bubbleRef = ref<any>(null);
+const longPressObservers: GesturesObserver[] = [];
 
 onMounted(() => {
+  const bubble = bubbleRef.value?.nativeView;
+  // Android can deliver the press to the native Label/Image inside the row,
+  // bypassing a gesture observer attached only to the outer GridLayout. Watch
+  // the whole message subtree so text and attachment presses behave alike.
+  if (bubble) {
+    const watch = (view: any) => {
+      longPressObservers.push(observe(view, GestureTypes.longPress, (event) => emit('longPress', event)));
+      view.eachChild?.((child: any) => {
+        watch(child);
+        return true;
+      });
+    };
+    watch(bubble);
+  }
+
   // Every message arrives with a small lift, so the conversation feels alive.
-  enter(bubbleRef.value?.nativeView, { distance: props.sender === 'user' ? 8 : 12 });
+  enter(bubble, { distance: props.sender === 'user' ? 8 : 12 });
+});
+
+onUnmounted(() => {
+  longPressObservers.forEach((observer) => observer.disconnect());
+  longPressObservers.length = 0;
 });
 
 /** Provider prefix, e.g. "auto" for "auto/best-fast". */

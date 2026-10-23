@@ -467,6 +467,46 @@ export const useChatStore = defineStore('chat', {
       conversation.title = 'New conversation';
       this.persist();
     },
+
+    /** Updates one visible message without changing its position. */
+    updateMessage(index: number, text: string) {
+      const conversation = this.activeConversation;
+      const message = conversation?.messages[index];
+      if (!message) {
+        return;
+      }
+      message.text = text;
+      conversation.updatedAt = Date.now();
+      this.persist();
+    },
+
+    /** Removes one message from the active conversation. */
+    deleteMessage(index: number) {
+      const conversation = this.activeConversation;
+      if (!conversation || !conversation.messages[index]) {
+        return;
+      }
+      conversation.messages.splice(index, 1);
+      conversation.updatedAt = Date.now();
+      if (!conversation.messages.length) {
+        conversation.title = 'New conversation';
+      }
+      this.persist();
+    },
+
+    /** Removes a message and everything that followed it. */
+    truncateMessagesFrom(index: number) {
+      const conversation = this.activeConversation;
+      if (!conversation || index < 0 || index >= conversation.messages.length) {
+        return;
+      }
+      conversation.messages.splice(index);
+      conversation.updatedAt = Date.now();
+      if (!conversation.messages.length) {
+        conversation.title = 'New conversation';
+      }
+      this.persist();
+    },
     /**
      * Builds the request payload for the gateway from the visible conversation.
      * The trailing assistant message is dropped because it is the answer the

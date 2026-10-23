@@ -141,19 +141,21 @@ function readZipEntry(zip: any, name: string): string | undefined {
     return undefined;
   }
   const stream = zip.getInputStream(entry);
-  // Android's Java bridge does not consistently resolve the overload that
-  // accepts a Java charset name. OOXML is UTF-8, which is also Android's
-  // default for InputStreamReader, so use the one-argument overload here.
-  const reader = new java.io.BufferedReader(new java.io.InputStreamReader(stream));
+  // Read the bytes directly.  Some Android Java bridge versions make both
+  // BufferedReader.readLine() and Scanner.hasNext() report an empty one-line
+  // XML entry even though the zip entry is present.  OOXML is UTF-8, so decode
+  // the complete byte array after the stream has been consumed.
+  const output = new java.io.ByteArrayOutputStream();
   try {
-    const lines: string[] = [];
-    let line: string | null;
-    while ((line = reader.readLine()) !== null) {
-      lines.push(String(line));
+    const buffer = Array.create('byte', 8192);
+    let count: number;
+    while ((count = stream.read(buffer)) > 0) {
+      output.write(buffer, 0, count);
     }
-    return lines.join('\n');
+    return String(new java.lang.String(output.toByteArray(), 'UTF-8'));
   } finally {
-    reader.close();
+    output.close();
+    stream.close();
   }
 }
 

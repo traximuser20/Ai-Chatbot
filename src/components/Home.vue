@@ -22,7 +22,8 @@
  */
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
-import { Application, Screen } from '@nativescript/core';
+import { Application, Screen, Utils } from '@nativescript/core';
+import { inputType, prompt } from '@nativescript/core/ui/dialogs';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { useThemeStore } from '../stores/theme';
@@ -48,7 +49,7 @@ import { speak, stopSpeaking } from '../services/audio';
 import { notifyReply } from '../services/notifications';
 import { ensureCamera } from '../services/permissions';
 import { buildAttachment } from '../utils/attachments';
-import type { Attachment } from '../stores/chat';
+import type { Attachment, Message } from '../stores/chat';
 
 const chatStore = useChatStore();
 const settings = useSettingsStore();
@@ -58,6 +59,10 @@ const palette = usePaletteStore();
 const userInput = ref('');
 const scrollRef = ref(null);
 const contentRef = ref(null);
+const pageRoot = ref<any>(null);
+
+/** The anchored Material-style popup for the selected message. */
+const messageMenu = ref<{ message: Message; index: number; left: number; top: number } | null>(null);
 
 const models = ref<OmniAiModel[]>([]);
 const showModelPicker = ref(false);
@@ -619,7 +624,73 @@ function describeError(error: unknown): string {
   return 'The request failed. Tap retry to try again.';
 }
 
-/** Sends the last message again. */
+/** Opens the actions directly below the selected bubble. */
+function onMessageLongPress(message: Message, index: number, event?: any) {
+  const anchor = event?.object?.nativeView;
+  const root = pageRoot.value?.nativeView;
+  if (!anchor || !root) {
+    return;
+  }
+
+  const anchorLocation = anchor.getLocationInWindow();
+  const rootLocation = root.getLocationInWindow();
+  const size = anchor.getActualSize();
+  const menuWidth = 168;
+  const screenWidth = Screen.mainScreen.widthDIPs;
+  const left = Math.max(8, Math.min(screenWidth - menuWidth - 8, anchorLocation.x - rootLocation.x + size.width - menuWidth));
+  const top = anchorLocation.y - rootLocation.y + size.height + 6;
+  messageMenu.value = { message, index, left, top };
+}
+
+/** Runs a choice from the anchored Material 3 action menu. */
+async function selectMessageAction(choice: string) {
+  const selected = messageMenu.value;
+  messageMenu.value = null;
+  if (!selected) {
+    return;
+  }
+  const { message, index } = selected;
+
+  if (choice === 'Copy') {
+    Utils.copyToClipboard(message.text);
+    return;
+  }
+
+  if (choice === 'Delete') {
+    chatStore.deleteMessage(index);
+    return;
+  }
+
+  if (choice === 'Edit') {
+    const result = await prompt({
+      title: 'Edit message',
+      message: 'Change the message text.',
+      defaultText: message.text,
+      okButtonText: 'Save',
+      cancelButtonText: 'Cancel',
+      inputType: inputType.text,
+    });
+    if (result.result && result.text.trim()) {
+      chatStore.updateMessage(index, result.text.trim());
+    }
+    return;
+  }
+
+  if (choice === 'Retry') {
+    if (message.sender !== 'user' || chatStore.isTyping) {
+      return;
+    }
+    // Retry this exchange, rather than appending a second copy of the old
+    // question. Everything from the selected question onward is replaced by
+    // the fresh request and its answer.
+    const messageAttachments = message.attachments ? [...message.attachments] : [];
+    chatStore.truncateMessagesFrom(index);
+    userInput.value = message.text;
+    attachments.value = messageAttachments;
+    await sendMessage();
+  }
+}
+
 function retryLastMessage() {
   if (!failedText || chatStore.isTyping) {
     return;
@@ -650,7 +721,7 @@ function onSendPress() {
 
 <template>
   <Page actionBarHidden="true">
-    <GridLayout rows="auto, *, auto" class="page-root">
+    <GridLayout ref="pageRoot" rows="auto, *, auto" class="page-root">
       <!-- ============ Top app bar ============ -->
       <GridLayout row="0" columns="auto, auto, *" class="md-top-bar app-bar">
         <!-- Navigation handle -->
@@ -745,6 +816,17 @@ function onSendPress() {
 
         <!-- Messages -->
         <StackLayout v-else ref="contentRef" class="message-list">
+          <!--
+            Long press is a native gesture, so give it a visible affordance.
+            This keeps message actions discoverable without adding another
+            control to every bubble.
+          -->
+          <Label
+            text="Press and hold a message for actions"
+            class="message-actions-hint"
+            textWrap="true"
+          />
+
           <ChatMessage
             v-for="(message, index) in chatStore.messages"
             :key="index"
@@ -756,6 +838,7 @@ function onSendPress() {
             :scale="settings.fontScale"
             :show-timestamp="settings.showTimestamps"
             :attachments="message.attachments"
+            @long-press="onMessageLongPress(message, index, $event)"
           />
 
           <!-- Pending indicator -->
@@ -779,6 +862,23 @@ function onSendPress() {
           </StackLayout>
         </StackLayout>
       </ScrollView>
+
+      <!-- Anchored Material 3 action surface; it has no title or cancel action. -->
+      <GridLayout
+        v-if="messageMenu"
+        row="1"
+        col="0"
+        :left="messageMenu.left"
+        :top="messageMenu.top"
+        width="168"
+        rows="auto, auto, auto, auto"
+        class="message-actions-menu"
+      >
+        <Label row="0" text="Copy" class="message-action-item" @tap="selectMessageAction('Copy')" />
+        <Label row="1" text="Edit" class="message-action-item" @tap="selectMessageAction('Edit')" />
+        <Label row="2" text="Delete" class="message-action-item" @tap="selectMessageAction('Delete')" />
+        <Label row="3" text="Retry" class="message-action-item" @tap="selectMessageAction('Retry')" />
+      </GridLayout>
 
       <!-- ============ Composer ============ -->
       <StackLayout row="2" class="composer-area">
@@ -1060,6 +1160,28 @@ function onSendPress() {
 
 .message-list {
   padding: 4 0 8 0;
+}
+
+.message-actions-hint {
+  color: var(--md-on-surface-variant);
+  font-size: 11;
+  text-align: center;
+  margin: 0 16 4 16;
+  opacity: 0.8;
+}
+
+.message-actions-menu {
+  background-color: var(--md-surface-container);
+  border-radius: 12;
+  elevation: 6;
+  padding: 4 0;
+}
+
+.message-action-item {
+  color: var(--md-on-surface);
+  font-size: 15;
+  padding: 12 16;
+  vertical-align: center;
 }
 
 /* ---------- Empty state ---------- */
