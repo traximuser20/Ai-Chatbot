@@ -2,21 +2,12 @@
 /**
  * The navigation drawer.
  *
- * It is the app's table of contents:
- *   - the gateway identity and its live status
- *   - "New conversation"
- *   - the list of past conversations
- *   - and, at the very end, Profile and Settings
- *
- * The panel follows the Material 3 recipe of a navigation drawer: a header, a
- * filled button, a section label in the primary colour and rows of 56dp that
- * carry a rounded indicator when they are the active one.
- *
- * The panel slides in from the left over a scrim. The animation is driven
- * with the core `animate` API because NativeScript's CSS engine has no
- * transition support for `translate`.
+ * Material 3 navigation drawer: a lifted surface with a rounded trailing
+ * edge, a brand header, a filled "new conversation" action, a list of past
+ * conversations as navigation items (each with a leading indicator and an
+ * active pill), and Profile / Settings at the bottom behind a divider.
  */
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useChatStore, type Conversation, formatRelativeTime } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import Icon from './Icon.vue';
@@ -37,13 +28,6 @@ const settings = useSettingsStore();
 const panelRef = ref<any>(null);
 const scrimRef = ref<any>(null);
 
-/** Id of the conversation whose delete button is waiting for a confirmation. */
-const pendingDeleteId = ref<string | null>(null);
-
-/**
- * Template refs point at the Vue element wrapper, the NativeScript view
- * itself lives behind `nativeView`.
- */
 function nativeView(element: any) {
   return element?.nativeView ?? element;
 }
@@ -54,8 +38,6 @@ onMounted(() => {
   if (!panel) {
     return;
   }
-  // The panel slides in from the left and settles with a touch of depth,
-  // while the scrim fades up underneath it.
   panel.translateX = -PANEL_WIDTH;
   panel.scaleX = 0.97;
   panel.animate(
@@ -67,7 +49,6 @@ onMounted(() => {
   }
 });
 
-/** Slides the panel away and then tells the parent to unmount it. */
 function close() {
   const panel = nativeView(panelRef.value);
   if (!panel) {
@@ -86,28 +67,58 @@ function close() {
 }
 
 function onNewChat() {
-  pendingDeleteId.value = null;
   emit('newChat');
 }
 
 function onOpenConversation(conversation: Conversation) {
-  pendingDeleteId.value = null;
   chatStore.openConversation(conversation.id);
   emit('close');
 }
 
-/** First tap arms the delete button, the second one removes the conversation. */
-function onDelete(conversation: Conversation) {
-  if (pendingDeleteId.value === conversation.id) {
-    chatStore.deleteConversation(conversation.id);
-    pendingDeleteId.value = null;
+/**
+ * Deletes a conversation straight away - no confirmation. The row slides
+ * out and fades, then the store drops it once the animation is done.
+ */
+function onDelete(event: any, conversation: Conversation) {
+  const tapped = event?.object ?? event;
+  const row = rowFor(tapped) ?? tapped;
+  const remove = () => chatStore.deleteConversation(conversation.id);
+
+  if (!row || typeof row.animate !== 'function') {
+    remove();
     return;
   }
-  pendingDeleteId.value = conversation.id;
+
+  // The ListView recycles its rows, so the animation has to be undone before
+  // the store drops the item - otherwise the next conversation to reuse this
+  // view would appear faded and pushed out to the left.
+  const reset = () => {
+    row.opacity = 1;
+    row.translateX = 0;
+    remove();
+  };
+
+  row
+    .animate({ opacity: 0, translate: { x: -60, y: 0 }, duration: 200, curve: 'easeIn' })
+    .then(reset)
+    .catch(reset);
 }
 
-function cancelDelete() {
-  pendingDeleteId.value = null;
+/**
+ * The root of the item that holds a view. A tap can be raised on the delete
+ * button or on the glyph inside it, so the row is found by walking up the
+ * tree rather than by taking one parent.
+ */
+function rowFor(view: any) {
+  let node = view;
+  while (node) {
+    const classes = typeof node.className === 'string' ? node.className.split(/\s+/) : [];
+    if (classes.includes('history-row-wrap')) {
+      return node;
+    }
+    node = node.parent;
+  }
+  return null;
 }
 
 /** "3 messages · 7:40 PM" style summary under a conversation title. */
@@ -124,36 +135,37 @@ function metaOf(conversation: Conversation): string {
     <GridLayout
       ref="panelRef"
       col="0"
-      rows="auto, auto, auto, *, auto"
+      rows="auto, auto, *, auto"
       class="panel"
     >
-      <!-- Gateway identity: the header of the drawer. -->
-      <GridLayout row="0" columns="auto, *" class="brand">
-        <Image col="0" src="~/assets/img/prism-glyph.png" class="brand-mark" />
-        <StackLayout col="1">
-          <Label text="Omni Ai" class="brand-name" />
-          <Label
-            :text="chatStore.isConnected ? 'gateway · live' : 'gateway · offline'"
-            class="brand-status"
-            :class="{ 'brand-status--offline': !chatStore.isConnected }"
-          />
-        </StackLayout>
-      </GridLayout>
+      <!-- Header: brand + gateway status + new conversation. -->
+      <StackLayout row="0" class="header">
+        <GridLayout columns="auto, *" class="brand">
+          <Image col="0" src="~/assets/img/prism-glyph.png" class="brand-mark" />
+          <StackLayout col="1" class="brand-content">
+            <Label text="Omni Ai" class="brand-name" />
+            <Label
+              :text="chatStore.isConnected ? 'gateway · live' : 'gateway · offline'"
+              class="brand-status"
+              :class="{ 'brand-status--offline': !chatStore.isConnected }"
+            />
+          </StackLayout>
+        </GridLayout>
 
-      <!-- New conversation: a filled button. -->
-      <GridLayout
-        row="1"
-        columns="auto, *"
-        class="new-chat"
-        v-press
-        @tap="onNewChat"
-      >
-        <Icon col="0" name="plus" :size="18" tone="on-primary" class="new-chat-mark" />
-        <Label col="1" text="New conversation" class="new-chat-text" />
-      </GridLayout>
+        <!-- New conversation: a filled action button. -->
+        <GridLayout
+          columns="auto, *"
+          class="new-chat"
+          v-press
+          @tap="onNewChat"
+        >
+          <Icon col="0" name="plus" :size="20" tone="on-primary" class="new-chat-mark" />
+          <Label col="1" text="New conversation" class="new-chat-text" />
+        </GridLayout>
+      </StackLayout>
 
-      <!-- Section label -->
-      <GridLayout row="2" columns="*, auto" class="section">
+      <!-- Section label. -->
+      <GridLayout row="1" columns="*, auto" class="section">
         <Label col="0" text="Recent" class="section-label" />
         <Label
           v-if="chatStore.history.length"
@@ -163,19 +175,14 @@ function metaOf(conversation: Conversation): string {
         />
       </GridLayout>
 
-      <!-- Conversation history -->
+      <!-- Navigation list: recent conversations. -->
       <ListView
         v-if="chatStore.history.length"
-        row="3"
+        row="2"
         class="history"
         :items="chatStore.history"
       >
         <template #default="{ item: conversation }">
-          <!--
-            `width: 100%` keeps the row inside the panel: a ListView measures
-            its items without a width, so a long title would push the delete
-            button off the edge of the drawer.
-          -->
           <GridLayout columns="*, auto" class="history-row-wrap">
             <GridLayout
               col="0"
@@ -185,47 +192,41 @@ function metaOf(conversation: Conversation): string {
               v-press
               @tap="onOpenConversation(conversation)"
             >
-              <Icon col="0" name="dot" :size="8" tone="primary" class="history-dot" />
-              <StackLayout col="1">
+              <Icon
+                col="0"
+                name="dot"
+                :size="10"
+                :tone="conversation.id === chatStore.activeConversationId ? 'on-secondary-container' : 'primary'"
+                class="history-dot"
+              />
+              <StackLayout col="1" class="history-content">
                 <Label :text="conversation.title" textWrap="true" class="history-title" />
                 <Label :text="metaOf(conversation)" class="history-meta" />
               </StackLayout>
             </GridLayout>
 
-            <!-- Delete: first tap arms it, second tap confirms. -->
+            <!-- Delete: one tap removes the conversation, with a slide-out. -->
             <GridLayout
-              v-if="pendingDeleteId !== conversation.id"
               col="1"
               columns="auto"
               class="history-delete"
               v-press
-              @tap="onDelete(conversation)"
+              @tap="onDelete($event, conversation)"
             >
-              <Icon col="0" name="trash" :size="18" tone="outline" />
+              <Icon col="0" name="trash" :size="18" tone="error" />
             </GridLayout>
-            <StackLayout
-              v-else
-              col="1"
-              orientation="horizontal"
-              class="history-confirm"
-            >
-              <Label text="Delete?" class="history-confirm-label" />
-              <Label text="Yes" class="history-confirm-yes" @tap="onDelete(conversation)" />
-              <Label text="No" class="history-confirm-no" @tap="cancelDelete" />
-            </StackLayout>
           </GridLayout>
         </template>
       </ListView>
 
-      <StackLayout v-else row="3" class="history-empty">
+      <StackLayout v-else row="2" class="history-empty">
         <Label text="No conversations yet." class="history-empty-title" />
         <Label text="Start one and it will show up here." class="history-empty-text" />
       </StackLayout>
 
-      <!-- Profile + Settings -->
-      <GridLayout row="4" rows="auto, auto" class="footer">
+      <!-- Footer: profile + settings, behind a divider. -->
+      <StackLayout row="3" class="footer">
         <GridLayout
-          row="0"
           columns="auto, *"
           class="footer-row"
           v-press
@@ -235,7 +236,6 @@ function metaOf(conversation: Conversation): string {
           <Label col="1" text="Profile" class="footer-text" />
         </GridLayout>
         <GridLayout
-          row="1"
           columns="auto, *"
           class="footer-row"
           v-press
@@ -244,7 +244,7 @@ function metaOf(conversation: Conversation): string {
           <Icon col="0" name="sliders" :size="20" tone="on-surface-variant" class="footer-mark" />
           <Label col="1" text="Settings" class="footer-text" />
         </GridLayout>
-      </GridLayout>
+      </StackLayout>
     </GridLayout>
 
     <!-- ── Scrim ───────────────────────────────────────────────────────── -->
@@ -253,6 +253,7 @@ function metaOf(conversation: Conversation): string {
 </template>
 
 <style scoped>
+/* ---------- Drawer ---------- */
 .drawer {
   horizontal-align: stretch;
   vertical-align: stretch;
@@ -264,33 +265,43 @@ function metaOf(conversation: Conversation): string {
   background-color: var(--md-surface-container-low);
   horizontal-align: left;
   vertical-align: stretch;
-  padding: 20 0 0 0;
+  border-top-right-radius: 28;
+  border-bottom-right-radius: 28;
+  box-shadow: var(--md-elevation-3);
 }
 
 /* ---------- Header ---------- */
+.header {
+  padding: 12 0 0 0;
+}
+
 .brand {
-  padding: 0 20 20 20;
+  padding: 8 20 12 20;
 }
 
 .brand-mark {
-  width: 30;
-  height: 30;
-  margin-right: 14;
+  width: 36;
+  height: 36;
   vertical-align: center;
+}
+
+.brand-content {
+  padding-left: 14;
 }
 
 .brand-name {
   color: var(--md-on-surface);
-  font-size: 19;
-  font-weight: 600;
+  font-size: 22;
+  font-weight: 500;
+  letter-spacing: -0.01;
 }
 
 .brand-status {
   color: var(--md-live);
-  font-size: 11;
+  font-size: 12;
   font-weight: 500;
-  letter-spacing: 0.04;
-  margin-top: 3;
+  letter-spacing: 0.02;
+  margin-top: 2;
 }
 
 .brand-status--offline {
@@ -300,16 +311,14 @@ function metaOf(conversation: Conversation): string {
 /* ---------- New conversation ---------- */
 .new-chat {
   background-color: var(--md-primary);
-  border-radius: 24;
-  margin: 0 16 22 16;
+  border-radius: 16;
+  margin: 4 16 12 16;
   padding: 0 20;
-  height: 48;
+  height: 52;
+  box-shadow: var(--md-elevation-1);
 }
 
-/* The slot of the icon is kept with margins - see `AttachSheet.vue`. */
 .new-chat-mark {
-  margin-left: 3;
-  margin-right: 13;
   vertical-align: center;
 }
 
@@ -318,40 +327,40 @@ function metaOf(conversation: Conversation): string {
   font-size: 15;
   font-weight: 600;
   vertical-align: center;
+  padding-left: 12;
 }
 
 /* ---------- Section label ---------- */
 .section {
-  padding: 0 20 8 20;
+  padding: 8 28 8 28;
 }
 
 .section-label {
-  color: var(--md-primary);
-  font-size: 12;
+  color: var(--md-on-surface-variant);
+  font-size: 11;
   font-weight: 600;
-  letter-spacing: 0.1;
+  letter-spacing: 0.08;
   text-transform: uppercase;
 }
 
 .section-count {
   color: var(--md-on-surface-variant);
-  font-size: 12;
+  font-size: 11;
   vertical-align: center;
 }
 
 /* ---------- History ---------- */
 .history {
   background-color: transparent;
-  margin-bottom: 8;
 }
 
 .history-row-wrap {
   width: 100%;
-  padding: 2 12 2 14;
+  padding: 4 12 4 12;
 }
 
 .history-row {
-  padding: 12;
+  padding: 10 16;
   border-radius: 28;
 }
 
@@ -359,18 +368,18 @@ function metaOf(conversation: Conversation): string {
   background-color: var(--md-secondary-container);
 }
 
-/* The dot marks the provider of the conversation. It sits on the first line
-   of the title, so it is aligned to the top rather than to the middle of the
-   two line block. */
 .history-dot {
-  vertical-align: top;
-  margin-top: 5;
-  margin-right: 12;
+  vertical-align: center;
+}
+
+.history-content {
+  padding-left: 12;
 }
 
 .history-title {
   color: var(--md-on-surface);
   font-size: 14;
+  font-weight: 500;
 }
 
 .history-row--active .history-title {
@@ -380,44 +389,23 @@ function metaOf(conversation: Conversation): string {
 .history-meta {
   color: var(--md-on-surface-variant);
   font-size: 11;
-  margin-top: 3;
+  margin-top: 2;
+}
+
+.history-row--active .history-meta {
+  color: var(--md-on-secondary-container);
+  opacity: 0.8;
 }
 
 .history-delete {
-  width: 40;
-  height: 40;
+  width: 44;
+  height: 44;
   vertical-align: center;
-  padding-right: 6;
-}
-
-.history-confirm {
-  vertical-align: center;
-  padding-right: 6;
-}
-
-.history-confirm-label {
-  color: var(--md-on-surface-variant);
-  font-size: 12;
-  vertical-align: center;
-  margin-right: 6;
-}
-
-.history-confirm-yes {
-  color: var(--md-error);
-  font-size: 13;
-  font-weight: 700;
-  vertical-align: center;
-  margin-right: 10;
-}
-
-.history-confirm-no {
-  color: var(--md-on-surface-variant);
-  font-size: 13;
-  vertical-align: center;
+  padding-right: 4;
 }
 
 .history-empty {
-  padding: 24 20;
+  padding: 24 28;
 }
 
 .history-empty-title {
@@ -429,43 +417,43 @@ function metaOf(conversation: Conversation): string {
 .history-empty-text {
   color: var(--md-outline);
   font-size: 12;
-  margin-top: 3;
+  margin-top: 4;
 }
 
 /* ---------- Footer ---------- */
 .footer {
   border-top-width: 1;
   border-top-color: var(--md-outline-variant);
-  padding: 8 14 16 14;
+  padding: 8 12 16 12;
 }
 
 .footer-row {
-  padding: 12 8;
-}
-
-/* The slot of the icon is kept with margins - see `AttachSheet.vue`. */
-.footer-mark {
-  margin-left: 5;
-  margin-right: 5;
-  vertical-align: center;
+  padding: 10 12;
+  border-radius: 28;
 }
 
 .footer-avatar {
   font-size: 12;
   font-weight: 700;
-  width: 30;
-  height: 30;
-  border-radius: 15;
+  width: 32;
+  height: 32;
+  border-radius: 16;
   background-color: var(--md-primary-container);
   color: var(--md-on-primary-container);
   text-align: center;
   vertical-align: center;
 }
 
+.footer-mark {
+  vertical-align: center;
+}
+
 .footer-text {
   color: var(--md-on-surface);
-  font-size: 15;
+  font-size: 14;
+  font-weight: 500;
   vertical-align: center;
+  padding-left: 12;
 }
 
 /* ---------- Scrim ---------- */

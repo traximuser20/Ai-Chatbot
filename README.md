@@ -53,6 +53,7 @@ Omni Ai takes the opposite position. **The provider of the selected model is the
 | **A history that is a history** | Conversations are stored on the device, titled after what you asked, ordered by when you last used them. |
 | **A drawer that goes somewhere** | New conversation, the history, and - at the very end - profile and settings. |
 | **A theme that follows the device** | Light, dark, or follow the system, with one palette of tokens behind both. The switch is instant. |
+| **Attachments and search** | Attach gallery images, camera photos, PDFs, and supported Office documents. Images are sent through the gateway's vision bridge; PDFs are rasterised on-device and Office files are converted to text. Search uses the same OpenAI-compatible gateway. |
 | **A stop button** | The send button turns into a stop square while the answer is on its way, and it really cancels the request. |
 | **Failures that are not part of the conversation** | A failed request is a banner above the composer with a retry - not a paragraph of stack trace in the middle of your chat. |
 | **Motion with a purpose** | Every surface answers the finger, messages rise into place, the mark breathes, the launch sequence is built out of planes that move at their own rate. |
@@ -130,12 +131,25 @@ in a private window and the app boots into the launch sequence.
 > `localhost` crashes noVNC with `Cannot read properties of undefined (reading 'M_ID')`.
 
 The app talks to a gateway on the host. From inside the emulator that is
-`10.0.2.2` - the alias of the host machine - so the client is built as:
+`10.0.2.2` - the alias of the host machine. On a physical phone, forward the
+port over wireless ADB and leave the app's gateway address unset:
 
-```typescript
-const HOST = Application.android ? '10.0.2.2' : '127.0.0.1';
-const BASE_URL = `http://${HOST}:20128`;
+```bash
+adb connect <phone-ip>:<debug-port>
+adb -s <phone-ip>:<debug-port> reverse tcp:20128 tcp:20128
+adb -s <phone-ip>:<debug-port> shell \
+  'curl -H "Authorization: Bearer $OMNIROUTE_API_KEY" http://127.0.0.1:20128/v1/models'
 ```
+
+The app then uses `http://127.0.0.1:20128` on the phone. The emulator uses
+`http://10.0.2.2:20128`; a manually configured gateway address overrides both.
+
+For a quick phone validation, check the route list, attach a gallery image and
+send a visual question, take a camera photo and send it, attach a PDF or
+supported Office document, and run a search request. Capture both light and
+dark
+states after the requests complete; the route accent and gateway-live status
+should remain visible in each theme.
 
 ---
 

@@ -118,7 +118,24 @@ through the alias of the host:
 const HOST = Application.android ? '10.0.2.2' : '127.0.0.1';
 const BASE_URL = `http://${HOST}:20128`;
 ```
-On a physical device, use the LAN address of the host instead.
+On a physical device, the most reliable local workflow is wireless ADB with a
+reverse tunnel. This keeps the gateway bound to the host loopback rather than
+exposing it on the LAN:
+
+```bash
+PHONE=192.168.100.29:38893
+adb connect "$PHONE"
+adb -s "$PHONE" reverse tcp:20128 tcp:20128
+adb -s "$PHONE" reverse --list
+adb -s "$PHONE" shell \
+  'curl -H "Authorization: Bearer <OMNIROUTE_API_KEY>" \
+   http://127.0.0.1:20128/v1/models'
+```
+
+Leave the app gateway override empty so the physical-device default is
+`http://127.0.0.1:20128`. A configured override takes precedence over the
+reverse tunnel. Always pass `-s "$PHONE"` when the container emulator is also
+connected.
 
 ### The pieces
 - `src/services/omni-ai.ts` - the client. `loadModels()` lists the routes,
@@ -128,6 +145,36 @@ On a physical device, use the LAN address of the host instead.
   key of the gateway and lives in that file.
 - `android:usesCleartextTraffic="true"` in `App_Resources/Android/src/main/AndroidManifest.xml`
   is what allows the plain HTTP request during development.
+
+### Phone attachment validation
+
+With the reverse tunnel active, validate the user-facing flows on the phone:
+
+1. Pick a gallery image, confirm its attachment chip, ask a visual question,
+   and wait for the assistant response.
+2. Pick **Camera**, take a photo, confirm the chip, and send a visual question.
+3. Pick **Document**, attach a PDF, and confirm that its pages are prepared
+   before sending. Attach a supported `.docx`, `.pptx`, or `.xlsx` and verify
+   that extracted text is included in the request. Unsupported binary files
+   should produce a banner rather than a chat message.
+4. Run a search request and verify that the result returns through the same
+   OpenAI-compatible gateway.
+5. Capture screenshots in both light and dark modes after a successful reply.
+
+If the app reports that the gateway is unreachable, first verify the phone-side
+request independently:
+
+```bash
+adb -s "$PHONE" shell \
+  'curl -i -H "Authorization: Bearer <OMNIROUTE_API_KEY>" \
+   http://127.0.0.1:20128/v1/models'
+adb -s "$PHONE" logcat -c
+# reproduce one failing send, then:
+adb -s "$PHONE" logcat -d | grep -E "gateway|Omni|fetch|Exception|FATAL"
+```
+
+A successful `/v1/models` response proves the tunnel and gateway are healthy;
+remaining failures are app request or payload issues.
 
 ### The route is the accent
 The prefix of a model id (`auto/`, `aihorde/`, `dva/`, …) is the provider, and

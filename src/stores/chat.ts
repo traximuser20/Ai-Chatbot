@@ -28,6 +28,16 @@ export interface Attachment {
   data?: string;
   /** Inlined text of a text document. In memory only. */
   text?: string;
+  /**
+   * The pages of a PDF, rasterised so a vision route can read them. In
+   * memory only.
+   */
+  pages?: { mime: string; data: string }[];
+  /**
+   * Set when the file could not be turned into text or images. The composer
+   * shows this instead of sending the attachment.
+   */
+  unsupportedReason?: string;
 }
 
 export interface Message {
@@ -214,6 +224,22 @@ function buildContent(message: Message): string | ContentPart[] {
         type: 'text',
         text: `\n\nAttached document "${attachment.name}":\n${attachment.text}`,
       });
+    } else if (attachment.pages?.length) {
+      // A PDF: the note names the file, and each rendered page follows as an
+      // image part. A vision route reads them like a photo of the page.
+      const pageCount = attachment.pages.length;
+      parts.push({
+        type: 'text',
+        text: `\n\nThe attached document "${attachment.name}" is shown below as ${
+          pageCount === 1 ? 'one page image' : `${pageCount} page images`
+        }. Read the pages and answer from them.`,
+      });
+      for (const page of attachment.pages) {
+        parts.push({
+          type: 'image_url',
+          image_url: { url: `data:${page.mime};base64,${page.data}` },
+        });
+      }
     } else if (attachment.data) {
       parts.push({
         type: 'file',

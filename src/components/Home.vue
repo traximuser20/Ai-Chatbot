@@ -46,7 +46,7 @@ import AttachSheet from './AttachSheet.vue';
 import { pickImage, pickFile, takePhoto } from '../services/media';
 import { speak, stopSpeaking } from '../services/audio';
 import { notifyReply } from '../services/notifications';
-import { ensureAttachments, ensureCamera } from '../services/permissions';
+import { ensureCamera } from '../services/permissions';
 import { buildAttachment } from '../utils/attachments';
 import type { Attachment } from '../stores/chat';
 
@@ -126,6 +126,8 @@ const lastError = ref('');
 
 /** Files waiting to be sent with the next message. */
 const attachments = ref<Attachment[]>([]);
+/** The file being read - a PDF is rasterised before it can be attached. */
+const preparingName = ref('');
 /** True while the attach sheet is open. */
 const showAttachSheet = ref(false);
 /** True while the voice sheet is open for a chat message. */
@@ -405,7 +407,9 @@ async function onAttachPick(source: 'gallery' | 'camera' | 'document') {
   try {
     let picked = null;
     if (source === 'gallery') {
-      await ensureAttachments();
+      // The system picker (SAF) grants access to the chosen file itself, so
+      // a media permission is neither needed nor requested here - asking for
+      // one would only put a prompt (or a 30 second wait) in front of it.
       picked = await pickImage();
     } else if (source === 'camera') {
       const granted = await ensureCamera();
@@ -415,16 +419,42 @@ async function onAttachPick(source: 'gallery' | 'camera' | 'document') {
       }
       picked = await takePhoto();
     } else {
-      await ensureAttachments();
       picked = await pickFile();
     }
 
     if (!picked) {
+      console.log('[media] pick resolved empty');
       return;
     }
-    attachments.value = [...attachments.value, buildAttachment(picked)];
+    console.log('[media] picked', picked.name, picked.mime, picked.size, picked.path);
+
+    // Reading a PDF means rasterising its pages, which takes a moment. Let
+    // the sheet finish closing and the chip appear before that work starts,
+    // so the screen does not look frozen.
+    preparingName.value = picked.name;
     lastError.value = '';
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    const attachment = buildAttachment(picked);
+    preparingName.value = '';
+    console.log(
+      '[media] attachment',
+      attachment.name,
+      'pages=',
+      attachment.pages?.length ?? 0,
+      'text=',
+      attachment.text?.length ?? 0,
+      'reason=',
+      attachment.unsupportedReason,
+    );
+
+    if (attachment.unsupportedReason) {
+      lastError.value = attachment.unsupportedReason;
+      return;
+    }
+    attachments.value = [...attachments.value, attachment];
   } catch (err) {
+    preparingName.value = '';
     console.error('Could not attach the file:', err);
     lastError.value = 'That file could not be attached.';
   }
@@ -548,14 +578,44 @@ function afterReply(reply: string) {
   }
 }
 
-/** Turns an error into something a person can act on. */
+/**
+ * Turns an error into something a person can act on.
+ *
+ * The gateway puts the useful part of a failure in the body of the response,
+ * and the client carries the first 200 characters of it into the message.
+ * The patterns below map the ones a reader can actually do something about
+ * to a sentence that says what to do.
+ */
 function describeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+
+  if (/cooling down|model_cooldown|rate.?limit|too many requests|HTTP 429/i.test(message)) {
+    return 'That route is rate limited right now. Wait a moment, or pick another route.';
+  }
+
+  if (
+    /(image|vision|multimodal|file part)/i.test(message) &&
+    /(not support|unsupported|capability|reject|invalid|only accept text)/i.test(message)
+  ) {
+    return 'This route cannot read that attachment. Pick a route with vision, or remove the file.';
+  }
+
+  if (/no credentials|missing api key|not configured|no usable|unauthorized|HTTP 401/i.test(message)) {
+    return 'That route has no working credentials. Pick another route in the model sheet.';
+  }
+
+  if (/context length|too many tokens|too large|payload|HTTP 413/i.test(message)) {
+    return 'The message is too large for that route. Try a shorter document or a smaller photo.';
+  }
+
   if (error instanceof OmniAiError && error.status) {
     return `The gateway answered with an error (${error.status}).`;
   }
-  if (error instanceof Error && /Could not reach/i.test(error.message)) {
+
+  if (/Could not reach/i.test(message)) {
     return 'The gateway is unreachable. Check that Omni Ai is running.';
   }
+
   return 'The request failed. Tap retry to try again.';
 }
 
@@ -742,7 +802,17 @@ function onSendPress() {
           Attachments that are waiting to be sent. Each chip can be tapped to
           drop the file before the message goes out.
         -->
-        <WrapLayout v-if="attachments.length" class="attach-chips">
+        <WrapLayout v-if="attachments.length || preparingName" class="attach-chips">
+          <!-- The file is being read: a PDF is turned into page images first. -->
+          <GridLayout v-if="preparingName" columns="auto, auto" class="attach-chip">
+            <Icon col="0" name="file" :size="15" tone="on-surface-variant" class="attach-chip-icon" />
+            <Label
+              col="1"
+              :text="`Reading ${preparingName}…`"
+              class="attach-chip-name attach-chip-preparing"
+            />
+          </GridLayout>
+
           <GridLayout
             v-for="(attachment, index) in attachments"
             :key="`${attachment.name}-${index}`"
@@ -1116,6 +1186,11 @@ function onSendPress() {
   vertical-align: center;
   margin-right: 6;
   max-width: 150;
+}
+
+.attach-chip-preparing {
+  font-style: italic;
+  opacity: 0.8;
 }
 
 .attach-chip-x {

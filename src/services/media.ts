@@ -32,7 +32,10 @@ export interface PickedFile {
   mime: string;
   /** Size in bytes after any compression. */
   size: number;
-  /** Base64 of the bytes, without the `data:` prefix. */
+  /**
+   * Base64 of the bytes, without the `data:` prefix. Only an image carries
+   * its bytes here; a document is read back from `path`.
+   */
   base64: string;
   /** True when the file is an image. */
   isImage: boolean;
@@ -224,12 +227,15 @@ function toPickedFile(read: { bytes: any; mime: string; name: string }): PickedF
     };
   }
 
+  // A document is read back from its temp copy when it is turned into text
+  // or page images, so there is no reason to hold the whole file as base64
+  // as well - a long PDF would double its own memory cost.
   return {
     path: filePath,
     name: read.name,
     mime: read.mime,
     size: read.bytes.length,
-    base64: toBase64(read.bytes),
+    base64: '',
     isImage: false,
   };
 }
@@ -242,6 +248,7 @@ function toPickedFile(read: { bytes: any; mime: string; name: string }): PickedF
 function completeFromUri(uri: android.net.Uri | null) {
   const op = pending;
   pending = undefined;
+  console.log('[media] completeFromUri', String(uri), 'op=', op?.kind);
   if (!op) {
     return;
   }
@@ -267,6 +274,7 @@ function completeFromUri(uri: android.net.Uri | null) {
  */
 export function pickFile(mimes: string[] = ['*/*']): Promise<PickedFile | null> {
   const act = activity();
+  console.log('[media] pickFile activity=', !!act);
   if (!act) {
     return Promise.resolve(null);
   }
@@ -383,14 +391,26 @@ if (Application.android) {
 
     const result = args?.resultCode;
     const ok = result === android.app.Activity.RESULT_OK;
+    console.log(
+      '[media] activityResult code=',
+      code,
+      'resultCode=',
+      result,
+      'pending=',
+      pending?.kind,
+      'intent=',
+      !!args?.intent,
+      'result=',
+      !!args?.result,
+    );
 
     if (code === REQ_CAMERA) {
       const op = pending;
-      pending = undefined;
       if (!op || op.kind !== 'camera') {
         return;
       }
       if (!ok) {
+        pending = undefined;
         // Cancelled: drop the MediaStore row that was created for it.
         try {
           context().getContentResolver().delete(op.uri, null, null);
@@ -400,12 +420,24 @@ if (Application.android) {
         op.resolve(null);
         return;
       }
+      // Keep the pending operation in place: completeFromUri() consumes it
+      // after it has read the camera output Uri.
       completeFromUri(op.uri);
       return;
     }
 
     // The picker returns the chosen file in the intent's data.
-    const uri = ok ? (args?.result?.getData?.() as android.net.Uri | null) : null;
+    //
+    // NativeScript 9 carries the result intent as `intent`; older versions
+    // used `result`. Reading only one of the two silently turns every pick
+    // into a cancellation, so both are tried.
+    const data = args?.intent ?? args?.result;
+    let uri: android.net.Uri | null = null;
+    try {
+      uri = ok ? ((data?.getData?.() as android.net.Uri | null) ?? null) : null;
+    } catch {
+      uri = null;
+    }
     completeFromUri(uri);
   });
 }

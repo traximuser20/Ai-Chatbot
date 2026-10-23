@@ -20,12 +20,6 @@ import { Application } from '@nativescript/core';
 export const PERMISSION = {
   recordAudio: 'android.permission.RECORD_AUDIO',
   camera: 'android.permission.CAMERA',
-  /** Android 13+ (API 33) media access. */
-  mediaImages: 'android.permission.READ_MEDIA_IMAGES',
-  mediaVideo: 'android.permission.READ_MEDIA_VIDEO',
-  mediaAudio: 'android.permission.READ_MEDIA_AUDIO',
-  /** Legacy storage access, up to Android 12 (API 32). */
-  externalStorage: 'android.permission.READ_EXTERNAL_STORAGE',
   /** Android 13+ (API 33) notifications. */
   postNotifications: 'android.permission.POST_NOTIFICATIONS',
 } as const;
@@ -178,25 +172,13 @@ export function ensureCamera(): Promise<boolean> {
   return requestPermissions([PERMISSION.camera]);
 }
 
-/**
- * Picking an attachment.
- *
- * The storage access picker (SAF) grants access to the chosen file on its
- * own, so a media permission is not strictly required. It is asked for
- * anyway on the versions where it is a dangerous permission, because
- * reading the file back through the content resolver is more robust when it
- * is held - and it is what the platform expects of a gallery-style flow.
+/*
+ * Picking a file needs no permission here: `ACTION_GET_CONTENT` (the storage
+ * access framework) grants access to the chosen file on its own, and the
+ * content resolver can read it with that grant alone. Asking for a media
+ * permission would only put a prompt - or a stall, when the permission was
+ * denied earlier - in front of a picker that does not need it.
  */
-export function ensureAttachments(): Promise<boolean> {
-  if (sdkInt() >= 33) {
-    return requestPermissions([
-      PERMISSION.mediaImages,
-      PERMISSION.mediaVideo,
-      PERMISSION.mediaAudio,
-    ]);
-  }
-  return requestPermissions([PERMISSION.externalStorage]);
-}
 
 /** Notifications are a runtime permission from Android 13 (API 33) on. */
 export function ensureNotifications(): Promise<boolean> {

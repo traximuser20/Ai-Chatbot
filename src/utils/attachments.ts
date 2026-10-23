@@ -1,14 +1,22 @@
 import { File } from '@nativescript/core';
 import type { PickedFile } from '../services/media';
 import type { Attachment } from '../stores/chat';
+import { extractOfficeText, renderPdfPages } from './document';
 
 /**
  * Turning a picked file into something a message can carry.
  *
- * The choice follows one rule: a text document is inlined into the message,
- * because every model can read text; an image becomes a vision part; and
- * anything else - a PDF, an archive - travels as a base64 file part, which
- * the models that accept files can open.
+ * The choice follows one rule: the message must contain only what a chat
+ * route can actually read. Every route reads text, and a vision route reads
+ * images, so:
+ *
+ *  - a text document is inlined;
+ *  - a PDF is rasterised into page images;
+ *  - an image becomes a vision part;
+ *  - a Word, PowerPoint or Excel file has its text extracted from the OOXML
+ *    archive and inlined;
+ *  - anything else is refused before it is sent, with a reason the reader can
+ *    act on - a `file` part would only be rejected upstream.
  */
 
 /** Mimes that are read as text and inlined. */
@@ -45,6 +53,14 @@ function extensionOf(name: string): string {
   return dot > -1 ? name.slice(dot + 1).toLowerCase() : '';
 }
 
+/** Office documents whose text can be read out of their OOXML archive. */
+const OFFICE_EXTENSIONS = new Set(['docx', 'pptx', 'xlsx']);
+
+/** True when a picked file is a PDF. */
+function isPdf(picked: PickedFile): boolean {
+  return picked.mime === 'application/pdf' || extensionOf(picked.name) === 'pdf';
+}
+
 /** True when a picked file should be read as text. */
 function isTextLike(picked: PickedFile): boolean {
   if (picked.mime.startsWith('text/')) {
@@ -79,7 +95,13 @@ function readTextSafely(picked: PickedFile): string | undefined {
   }
 }
 
-/** Builds the attachment a message carries for a picked file. */
+/**
+ * Builds the attachment a message carries for a picked file.
+ *
+ * A file that cannot be turned into text or images is returned with an
+ * `unsupportedReason` and no payload, so the composer can say why instead of
+ * sending something the gateway would reject.
+ */
 export function buildAttachment(picked: PickedFile): Attachment {
   const base = {
     name: picked.name,
@@ -98,8 +120,36 @@ export function buildAttachment(picked: PickedFile): Attachment {
     return { ...base, kind: 'document', text };
   }
 
-  // A PDF or any other binary: a file part, base64 encoded.
-  return { ...base, kind: 'document', data: picked.base64 };
+  if (isPdf(picked)) {
+    const pages = renderPdfPages(picked.path);
+    if (pages.length) {
+      return { ...base, kind: 'document', pages };
+    }
+    return {
+      ...base,
+      kind: 'document',
+      unsupportedReason:
+        'That PDF could not be read. It may be password protected or damaged.',
+    };
+  }
+
+  if (OFFICE_EXTENSIONS.has(extensionOf(picked.name))) {
+    const officeText = extractOfficeText(picked.path);
+    if (officeText.trim()) {
+      return { ...base, kind: 'document', text: officeText };
+    }
+    return {
+      ...base,
+      kind: 'document',
+      unsupportedReason: `No text could be read from “${picked.name}”.`,
+    };
+  }
+
+  return {
+    ...base,
+    kind: 'document',
+    unsupportedReason: `“${picked.name}” cannot be read. Attach a PDF, a photo, or a text document.`,
+  };
 }
 
 /** A short human size - "2.1 MB", "340 KB". */
