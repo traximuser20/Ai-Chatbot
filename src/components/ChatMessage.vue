@@ -14,8 +14,8 @@
  * role, so the colour of the interface always tells you who you are talking
  * to - the whole scheme follows the route (see `src/utils/material.ts`).
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { GestureTypes, observe, type GesturesObserver } from '@nativescript/core/ui/gestures';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { GestureTypes, observe, TouchAction, type GesturesObserver } from '@nativescript/core/ui/gestures';
 import MarkdownView from './MarkdownView.vue';
 import Icon from './Icon.vue';
 import { providerOf } from '../utils/accent';
@@ -35,6 +35,8 @@ const props = defineProps<{
   showTimestamp?: boolean;
   /** Files that were sent with this message. */
   attachments?: Attachment[];
+  /** Whether this message is currently selected for its actions. */
+  selected?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -50,31 +52,99 @@ const documents = computed(() => (props.attachments ?? []).filter((a) => a.kind 
 
 /** The bubble, so it can be animated in when it appears. */
 const bubbleRef = ref<any>(null);
-const longPressObservers: GesturesObserver[] = [];
+let touchViews: any[] = [];
+let touchHandler: ((event: any) => boolean) | null = null;
+let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+let longPressObservers: GesturesObserver[] = [];
+/** Android views with a native long-click listener installed. */
+let nativeLongPressViews: any[] = [];
+let longPressTriggered = false;
+
+function emitLongPress(bubble: any, event: any) {
+  if (longPressTriggered) {
+    return;
+  }
+  longPressTriggered = true;
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+  emit('longPress', { anchor: bubble, event });
+}
 
 onMounted(() => {
-  const bubble = bubbleRef.value?.nativeView;
-  // Android can deliver the press to the native Label/Image inside the row,
-  // bypassing a gesture observer attached only to the outer GridLayout. Watch
-  // the whole message subtree so text and attachment presses behave alike.
-  if (bubble) {
-    const watch = (view: any) => {
-      longPressObservers.push(observe(view, GestureTypes.longPress, (event) => emit('longPress', event)));
+  nextTick(() => {
+    const bubble = bubbleRef.value?.nativeView;
+    if (!bubble) {
+      return;
+    }
+
+    // Observe the row itself and its native children. TextViews inside the
+    // ScrollView can consume the row's touch stream, so every descendant gets
+    // the same gesture and touch fallbacks.
+    touchHandler = (event: any) => {
+      if (event.action === TouchAction.down) {
+        longPressTriggered = false;
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+        }
+        longPressTimer = setTimeout(() => emitLongPress(bubble, event), 500);
+      } else if (event.action === TouchAction.up || event.action === TouchAction.cancel) {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      }
+      return false;
+    };
+
+    const bindLongPress = (view: any) => {
+      longPressObservers.push(
+        observe(view, GestureTypes.longPress, (event) => emitLongPress(bubble, event)),
+      );
+      view.on('touch', touchHandler);
+      touchViews.push(view);
+
+      // NativeScript's gesture observer is not delivered consistently for
+      // views inside a ScrollView on some Android phones. Install the Android
+      // listener on every native descendant as a final fallback.
+      if (globalThis.android?.view?.View && view instanceof globalThis.android.view.View) {
+        view.setOnLongClickListener(
+          new globalThis.android.view.View.OnLongClickListener({
+            onLongClick: () => {
+              emitLongPress(bubble, { view });
+              return true;
+            },
+          }),
+        );
+        nativeLongPressViews.push(view);
+      }
+
       view.eachChild?.((child: any) => {
-        watch(child);
+        bindLongPress(child);
         return true;
       });
     };
-    watch(bubble);
-  }
+    bindLongPress(bubble);
 
-  // Every message arrives with a small lift, so the conversation feels alive.
-  enter(bubble, { distance: props.sender === 'user' ? 8 : 12 });
+    enter(bubble, { distance: props.sender === 'user' ? 8 : 12 });
+  });
 });
 
 onUnmounted(() => {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
   longPressObservers.forEach((observer) => observer.disconnect());
-  longPressObservers.length = 0;
+  longPressObservers = [];
+  nativeLongPressViews.forEach((view) => view.setOnLongClickListener(null));
+  nativeLongPressViews = [];
+  if (touchHandler) {
+    touchViews.forEach((view) => view.off('touch', touchHandler));
+  }
+  touchViews = [];
+  touchHandler = null;
 });
 
 /** Provider prefix, e.g. "auto" for "auto/best-fast". */
@@ -118,6 +188,7 @@ const paragraphs = computed(() =>
     ref="bubbleRef"
     :columns="isUser ? '*, auto' : '*'"
     class="message-row"
+    :class="{ 'message-row-selected': props.selected }"
   >
     <!-- ── User message ─────────────────────────────────────────────────── -->
     <StackLayout v-if="isUser" col="1" class="user-bubble">
@@ -194,6 +265,11 @@ const paragraphs = computed(() =>
 .message-row {
   padding: 8 16;
   horizontal-align: stretch;
+}
+
+.message-row-selected {
+  background-color: var(--md-secondary-container);
+  border-radius: 16;
 }
 
 /* ---------- User bubble ---------- */

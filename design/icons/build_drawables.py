@@ -52,6 +52,8 @@ ICONS = {
     "dots": "more_horiz",
     "trash": "delete",
     "retry": "refresh",
+    "copy": "content_copy",
+    "edit": "edit",
     "warning": "warning",
     "plane": "send",
     "info": "info",

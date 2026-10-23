@@ -23,7 +23,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { $navigateTo } from 'nativescript-vue';
 import { Application, Screen, Utils } from '@nativescript/core';
-import { inputType, prompt } from '@nativescript/core/ui/dialogs';
+import { action, inputType, prompt } from '@nativescript/core/ui/dialogs';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
 import { useThemeStore } from '../stores/theme';
@@ -61,8 +61,33 @@ const scrollRef = ref(null);
 const contentRef = ref(null);
 const pageRoot = ref<any>(null);
 
-/** The anchored Material-style popup for the selected message. */
-const messageMenu = ref<{ message: Message; index: number; left: number; top: number } | null>(null);
+/** The selected message and the anchor for its action menu. */
+const messageMenu = ref<{ message: Message; index: number } | null>(null);
+const messageMenuPosition = ref({ left: 16, top: 16 });
+
+/** Places the action menu directly below the long-pressed chat bubble. */
+function positionMessageMenu(anchor: any) {
+  const root = pageRoot.value?.nativeView;
+  if (!root || !anchor?.getLocationInWindow || !root.getLocationInWindow) {
+    messageMenuPosition.value = { left: 16, top: 16 };
+    return;
+  }
+
+  const scale = Screen.mainScreen.scale || 1;
+  const rootLocation = root.getLocationInWindow();
+  const anchorLocation = anchor.getLocationInWindow();
+  const rootWidth = root.getMeasuredWidth() / scale;
+  const rootHeight = root.getMeasuredHeight() / scale;
+  const anchorBottom = (anchorLocation.y - rootLocation.y + anchor.getMeasuredHeight()) / scale;
+  const anchorLeft = (anchorLocation.x - rootLocation.x) / scale;
+  const menuWidth = 280;
+  const menuHeight = 236;
+
+  messageMenuPosition.value = {
+    left: Math.max(8, Math.min(anchorLeft, rootWidth - menuWidth - 8)),
+    top: Math.max(8, Math.min(anchorBottom + 8, rootHeight - menuHeight - 8)),
+  };
+}
 
 const models = ref<OmniAiModel[]>([]);
 const showModelPicker = ref(false);
@@ -624,25 +649,13 @@ function describeError(error: unknown): string {
   return 'The request failed. Tap retry to try again.';
 }
 
-/** Opens the actions directly below the selected bubble. */
-function onMessageLongPress(message: Message, index: number, event?: any) {
-  const anchor = event?.object?.nativeView;
-  const root = pageRoot.value?.nativeView;
-  if (!anchor || !root) {
-    return;
-  }
-
-  const anchorLocation = anchor.getLocationInWindow();
-  const rootLocation = root.getLocationInWindow();
-  const size = anchor.getActualSize();
-  const menuWidth = 168;
-  const screenWidth = Screen.mainScreen.widthDIPs;
-  const left = Math.max(8, Math.min(screenWidth - menuWidth - 8, anchorLocation.x - rootLocation.x + size.width - menuWidth));
-  const top = anchorLocation.y - rootLocation.y + size.height + 6;
-  messageMenu.value = { message, index, left, top };
+/** Opens the action menu directly below the long-pressed message bubble. */
+function onMessageLongPress(message: Message, index: number, payload?: any) {
+  positionMessageMenu(payload?.anchor);
+  messageMenu.value = { message, index };
 }
 
-/** Runs a choice from the anchored Material 3 action menu. */
+/** Runs a choice from the Material 3 action dialog. */
 async function selectMessageAction(choice: string) {
   const selected = messageMenu.value;
   messageMenu.value = null;
@@ -838,6 +851,7 @@ function onSendPress() {
             :scale="settings.fontScale"
             :show-timestamp="settings.showTimestamps"
             :attachments="message.attachments"
+            :selected="messageMenu?.index === index"
             @long-press="onMessageLongPress(message, index, $event)"
           />
 
@@ -863,21 +877,39 @@ function onSendPress() {
         </StackLayout>
       </ScrollView>
 
-      <!-- Anchored Material 3 action surface; it has no title or cancel action. -->
+      <!-- ============ Message actions ============ -->
       <GridLayout
         v-if="messageMenu"
-        row="1"
-        col="0"
-        :left="messageMenu.left"
-        :top="messageMenu.top"
-        width="168"
-        rows="auto, auto, auto, auto"
-        class="message-actions-menu"
+        row="0"
+        rowSpan="3"
+        columns="*"
+        class="message-actions-layer"
+        @tap="messageMenu = null"
       >
-        <Label row="0" text="Copy" class="message-action-item" @tap="selectMessageAction('Copy')" />
-        <Label row="1" text="Edit" class="message-action-item" @tap="selectMessageAction('Edit')" />
-        <Label row="2" text="Delete" class="message-action-item" @tap="selectMessageAction('Delete')" />
-        <Label row="3" text="Retry" class="message-action-item" @tap="selectMessageAction('Retry')" />
+        <GridLayout
+          rows="auto, auto, auto, auto"
+          class="message-actions-dialog"
+          :left="messageMenuPosition.left"
+          :top="messageMenuPosition.top"
+          @tap="() => {}"
+        >
+          <GridLayout row="0" columns="auto, *" class="message-action-item" v-press @tap="selectMessageAction('Copy')">
+            <Icon col="0" name="copy" :size="22" tone="on-surface-variant" class="message-action-icon" />
+            <Label col="1" text="Copy" class="message-action-label" />
+          </GridLayout>
+          <GridLayout row="1" columns="auto, *" class="message-action-item" v-press @tap="selectMessageAction('Edit')">
+            <Icon col="0" name="edit" :size="22" tone="on-surface-variant" class="message-action-icon" />
+            <Label col="1" text="Edit" class="message-action-label" />
+          </GridLayout>
+          <GridLayout row="2" columns="auto, *" class="message-action-item" v-press @tap="selectMessageAction('Delete')">
+            <Icon col="0" name="trash" :size="22" tone="error" class="message-action-icon" />
+            <Label col="1" text="Delete" class="message-action-label message-action-label--danger" />
+          </GridLayout>
+          <GridLayout row="3" columns="auto, *" class="message-action-item" v-press @tap="selectMessageAction('Retry')">
+            <Icon col="0" name="retry" :size="22" tone="on-surface-variant" class="message-action-icon" />
+            <Label col="1" text="Retry" class="message-action-label" />
+          </GridLayout>
+        </GridLayout>
       </GridLayout>
 
       <!-- ============ Composer ============ -->
@@ -1170,18 +1202,41 @@ function onSendPress() {
   opacity: 0.8;
 }
 
-.message-actions-menu {
-  background-color: var(--md-surface-container);
-  border-radius: 12;
+.message-actions-layer {
+  horizontal-align: stretch;
+  vertical-align: stretch;
+}
+
+.message-actions-dialog {
+  width: 280;
+  background-color: var(--md-surface-container-high);
+  border-radius: 28;
   elevation: 6;
-  padding: 4 0;
+  padding: 8;
+  horizontal-align: left;
+  vertical-align: top;
 }
 
 .message-action-item {
-  color: var(--md-on-surface);
-  font-size: 15;
-  padding: 12 16;
+  width: 100%;
+  min-height: 52;
+  border-radius: 26;
+  padding: 8 16;
+}
+
+.message-action-icon {
+  margin-right: 20;
   vertical-align: center;
+}
+
+.message-action-label {
+  color: var(--md-on-surface);
+  font-size: 16;
+  vertical-align: center;
+}
+
+.message-action-label--danger {
+  color: var(--md-error);
 }
 
 /* ---------- Empty state ---------- */

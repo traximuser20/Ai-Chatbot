@@ -29,6 +29,8 @@ const DRAWABLES: Record<string, string> = {
   dots: 'ic_dots',
   trash: 'ic_trash',
   retry: 'ic_retry',
+  copy: 'ic_copy',
+  edit: 'ic_edit',
   warning: 'ic_warning',
   plane: 'ic_plane',
   info: 'ic_info',
