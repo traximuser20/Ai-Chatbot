@@ -21,6 +21,17 @@ export interface Recorder {
   stop(): Promise<{ path: string; mime: string } | null>;
   /** Aborts the recording and throws the file away. */
   cancel(): void;
+  /**
+   * The loudness of the moment, 0..1.
+   *
+   * This is what the waveform of the voice search draws, and what tells the
+   * room apart from a person talking. It is read straight from
+   * `MediaRecorder.getMaxAmplitude()` - the loudest sample since the last
+   * read - against a peak that decays, so the scale follows the room instead
+   * of one loud moment. A value under the noise gate is silence: nothing but
+   * the floor of the microphone, which is not worth drawing or waiting for.
+   */
+  level(): number;
 }
 
 /** The mime type the recorder writes, and what the gateway expects. */
@@ -29,6 +40,12 @@ const RECORD_EXTENSION = 'm4a';
 
 /** A recording shorter than this is treated as a mis-tap. */
 const MIN_RECORDING_MS = 400;
+
+/** Amplitude under this is the floor of the microphone, not a person. */
+const NOISE_GATE = 0.012;
+
+/** The scale never shrinks below this, so a silent room draws a flat line. */
+const PEAK_FLOOR = 0.25;
 
 /** The longest a single recording is allowed to run. */
 const MAX_RECORDING_MS = 5 * 60 * 1000;
@@ -104,9 +121,43 @@ export function startRecording(options: StartRecordingOptions = {}): Recorder | 
   // A runaway recording is stopped by the clock, not by the finger.
   const timer = setTimeout(() => options.onMaxDuration?.(), MAX_RECORDING_MS);
 
+  /*
+    The loudest moment of the recording so far, in normalized units. It
+    decays a little on every read, so one loud moment - a door slamming -
+    cannot hold the scale down for the rest of the take, and a quiet room
+    is still drawn against a peak of its own.
+  */
+  let peak = PEAK_FLOOR;
+
+  /** The loudness of the moment, against that peak. */
+  const level = (): number => {
+    // The microphone belongs to someone else: another recording took it, or
+    // this one was released. Reading an amplitude then is meaningless.
+    if (!active || active.recorder !== recorder) {
+      return 0;
+    }
+    let amplitude = 0;
+    try {
+      // The loudest sample since the last read - which is why the voice
+      // search polls it instead of asking once.
+      amplitude = recorder.getMaxAmplitude();
+    } catch {
+      return 0;
+    }
+    const raw = Math.min(1, amplitude / 32767);
+    if (raw < NOISE_GATE) {
+      // Silence: the floor of the microphone, which is neither worth
+      // drawing nor worth holding the turn open for.
+      return 0;
+    }
+    peak = Math.max(raw, peak * 0.99);
+    return Math.min(1, raw / Math.max(peak, PEAK_FLOOR));
+  };
+
   active = { recorder, filePath, startedAt, timer };
 
   return {
+    level,
     async stop(): Promise<{ path: string; mime: string } | null> {
       const duration = Date.now() - startedAt;
       await stopRecording();

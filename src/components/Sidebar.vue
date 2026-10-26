@@ -7,9 +7,10 @@
  * conversations as navigation items (each with a leading indicator and an
  * active pill), and Profile / Settings at the bottom behind a divider.
  */
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useChatStore, type Conversation, formatRelativeTime } from '../stores/chat';
 import { useSettingsStore } from '../stores/settings';
+import { usePaletteStore } from '../stores/palette';
 import Icon from './Icon.vue';
 
 /** Width of the panel in device independent pixels. */
@@ -24,6 +25,17 @@ const emit = defineEmits<{
 
 const chatStore = useChatStore();
 const settings = useSettingsStore();
+const palette = usePaletteStore();
+
+/**
+ * The gradient of the pinned accent, on the "New conversation" action.
+ *
+ * The button is the one filled surface of the drawer, so it is where a
+ * pinned gradient shows. Without one it is null, the binding is dropped,
+ * and the painted rule (`var(--md-primary)`) carries the colour of the
+ * route, exactly as before.
+ */
+const newChatGradient = computed(() => palette.accentGradient);
 
 const panelRef = ref<any>(null);
 const scrimRef = ref<any>(null);
@@ -156,6 +168,7 @@ function metaOf(conversation: Conversation): string {
         <GridLayout
           columns="auto, *"
           class="new-chat"
+          :style="newChatGradient ? { backgroundImage: newChatGradient } : null"
           v-press
           @tap="onNewChat"
         >
@@ -208,7 +221,8 @@ function metaOf(conversation: Conversation): string {
             <!-- Delete: one tap removes the conversation, with a slide-out. -->
             <GridLayout
               col="1"
-              columns="auto"
+              columns="*"
+              rows="*"
               class="history-delete"
               v-press
               @tap="onDelete($event, conversation)"

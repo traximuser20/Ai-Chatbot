@@ -16,9 +16,10 @@
  * Every colour is a **role** of the scheme, so the button follows the theme
  * and the route that is on screen.
  */
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch, computed } from 'vue';
 import { TouchAction } from '@nativescript/core/ui/gestures';
 import { animate, CURVE, DURATION, loopAnimation } from '../utils/motion';
+import { usePaletteStore } from '../stores/palette';
 import Icon from './Icon.vue';
 
 /** The three states of the button. */
@@ -35,6 +36,20 @@ const emit = defineEmits<{
 const buttonRef = ref<any>(null);
 const layerRef = ref<any>(null);
 const glyphRef = ref<any>(null);
+
+const palette = usePaletteStore();
+
+/**
+ * The gradient of the pinned accent - only while the button is filled.
+ *
+ * A gradient accent is not only a seed: the button wears the gradient itself,
+ * so the choice made in the settings is visible on the surface a reader
+ * touches most. When no accent is pinned this is null, the binding falls
+ * away, and the painted rule (`var(--md-primary)`) takes over.
+ */
+const fillGradient = computed(() =>
+  props.state === 'ready' ? palette.accentGradient : null,
+);
 
 /** The opacity of the state layer while the button is held. */
 const LAYER_OPACITY = 0.12;
@@ -144,6 +159,7 @@ onUnmounted(() => {
     columns="auto"
     class="send-button"
     :class="`send-button--${state}`"
+    :style="fillGradient ? { backgroundImage: fillGradient } : null"
     @tap="emit('press')"
   >
     <!--

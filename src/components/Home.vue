@@ -738,9 +738,15 @@ function onSendPress() {
       <!-- ============ Top app bar ============ -->
       <GridLayout row="0" columns="auto, auto, *" class="md-top-bar app-bar">
         <!-- Navigation handle -->
+        <!--
+          `columns="*"` is what centres the glyph: an `auto` track hugs the
+          icon, so the leftover space of the 48dp button stays unassigned and
+          the glyph lands in its top left corner.
+        -->
         <GridLayout
           col="0"
-          columns="auto"
+          columns="*"
+          rows="*"
           class="md-icon-button app-bar-handle"
           v-press
           @tap="drawerOpen = true"

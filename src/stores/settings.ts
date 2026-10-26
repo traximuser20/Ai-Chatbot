@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ApplicationSettings } from '@nativescript/core';
 import { asThemeMode, type ThemeMode } from '../utils/theme';
+import { ACCENT_AUTO, asAccentId, type AccentId } from '../utils/accent';
 
 /**
  * User settings.
@@ -32,6 +33,11 @@ export interface SettingsState {
   sendOnEnter: boolean;
   /** Follow the device theme, or pin light / dark. */
   theme: ThemeMode;
+  /**
+   * The accent that paints the interface: `ACCENT_AUTO` follows the route,
+   * anything else pins one of the gradient accents across the whole app.
+   */
+  accent: AccentId;
   /** Read every finished reply out loud (voice chat always speaks). */
   speakReplies: boolean;
   /** Tell the reader when a reply lands while the app is in the background. */
@@ -50,6 +56,7 @@ const DEFAULTS: SettingsState = {
   showTimestamps: false,
   sendOnEnter: true,
   theme: 'system',
+  accent: ACCENT_AUTO,
   speakReplies: false,
   notifications: true,
   sttModel: 'whisper-1',
@@ -86,8 +93,9 @@ export const useSettingsStore = defineStore('settings', {
     return {
       ...DEFAULTS,
       ...stored,
-      // The stored value comes from disk, so it is checked before it is used.
+      // The stored values come from disk, so they are checked before use.
       theme: asThemeMode(stored.theme),
+      accent: asAccentId(stored.accent),
     };
   },
   getters: {
@@ -119,6 +127,7 @@ export const useSettingsStore = defineStore('settings', {
             showTimestamps: this.showTimestamps,
             sendOnEnter: this.sendOnEnter,
             theme: this.theme,
+            accent: this.accent,
             speakReplies: this.speakReplies,
             notifications: this.notifications,
             sttModel: this.sttModel,
@@ -148,6 +157,11 @@ export const useSettingsStore = defineStore('settings', {
     },
     setTheme(mode: ThemeMode) {
       this.theme = asThemeMode(mode);
+      this.persist();
+    },
+    /** Pins a gradient accent, or unmakes it again with `ACCENT_AUTO`. */
+    setAccent(id: AccentId) {
+      this.accent = asAccentId(id);
       this.persist();
     },
     setSpeakReplies(value: boolean) {

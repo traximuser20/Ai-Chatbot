@@ -11,7 +11,7 @@ import { computed, ref, onMounted } from 'vue';
 import type { OmniAiModel } from '../services/omni-ai';
 import { providerOf } from '../utils/accent';
 import Icon from './Icon.vue';
-import VoiceSheet from './VoiceSheet.vue';
+import VoiceSearch from './VoiceSearch.vue';
 
 const props = defineProps<{
   models: OmniAiModel[];
@@ -27,7 +27,7 @@ const emit = defineEmits<{
 
 const filter = ref('');
 
-/** Voice search: the sheet opens over the list, the words fill the filter. */
+/** Voice search: the Google shaped voice screen opens over the list. */
 const showVoice = ref(false);
 
 function onVoiceDone(text: string) {
@@ -36,8 +36,8 @@ function onVoiceDone(text: string) {
 }
 
 /**
- * The backdrop of the sheet. It stays deaf while the voice sheet is open -
- * the voice sheet owns the taps of that moment.
+ * The backdrop of the sheet. It stays deaf while the voice search is open -
+ * that screen owns the taps of that moment.
  */
 function onBackdropTap() {
   if (showVoice.value) {
@@ -97,9 +97,11 @@ onMounted(() => {
             class="sheet-subtitle"
           />
         </StackLayout>
+        <!-- `columns="*"` and `rows="*"` centre the glyph in the button. -->
         <GridLayout
           col="1"
-          columns="auto"
+          columns="*"
+          rows="*"
           class="sheet-close"
           v-press
           @tap="emit('close')"
@@ -120,7 +122,8 @@ onMounted(() => {
         />
         <GridLayout
           col="2"
-          columns="auto"
+          columns="*"
+          rows="*"
           class="sheet-search-mic"
           v-press
           @tap="showVoice = true"
@@ -174,7 +177,7 @@ onMounted(() => {
               col="2"
               row="0"
               rowSpan="2"
-              columns="auto"
+              columns="*"
               class="model-check"
             >
               <Icon col="0" name="check" :size="18" tone="primary" />
@@ -192,9 +195,9 @@ onMounted(() => {
     </GridLayout>
 
     <!-- Voice search: the words become the filter of the list. -->
-    <VoiceSheet
+    <VoiceSearch
       v-if="showVoice"
-      label="Search"
+      placeholder="Search models"
       @done="onVoiceDone"
       @close="showVoice = false"
     />

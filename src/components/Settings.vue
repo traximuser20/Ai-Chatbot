@@ -10,7 +10,7 @@
  * the rows of a section, segmented buttons for the choices that fit into one
  * line, and switches for the ones that are on or off.
  */
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { $navigateBack } from 'nativescript-vue';
 import { useChatStore } from '../stores/chat';
 import { useSettingsStore, type TextScale } from '../stores/settings';
@@ -18,6 +18,13 @@ import { useThemeStore } from '../stores/theme';
 import { omniAi, gatewayUrl, setGatewayAddress, defaultGatewayHost, GATEWAY_PORT } from '../services/omni-ai';
 import { ensureNotifications } from '../services/permissions';
 import { ensureChannel } from '../services/notifications';
+import {
+  ACCENT_AUTO,
+  accentFor,
+  gradientAccentOf,
+  gradientCss,
+  type AccentId,
+} from '../utils/accent';
 import { enter, pulse } from '../utils/motion';
 import Icon from './Icon.vue';
 import MdSwitch from './MdSwitch.vue';
@@ -78,6 +85,44 @@ function popThemeSegment(index: number) {
   if (view) {
     pulse(view, 1.08);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* The accent                                                          */
+/* ------------------------------------------------------------------ */
+
+/** The accent that is pinned right now. */
+const chosenAccent = computed(() => settings.accent);
+
+/** The pill of the picker tells which accent is on screen. */
+const accentDescription = computed(() =>
+  chosenAccent.value === ACCENT_AUTO
+    ? 'The interface is painted by the provider that answers'
+    : 'Pinned across the whole app, on every screen',
+);
+
+/** The gradient of a swatch - null when it follows the route. */
+function swatchGradient(id: string): string | null {
+  const accent = gradientAccentOf(id);
+  return accent ? gradientCss(accent) : null;
+}
+
+/**
+ * The paint of the Default swatch: the accent of the provider that answers
+ * the current route. It is read from the route and not from the interface,
+ * so the swatch keeps its own colour when another accent is pinned.
+ */
+const routeSwatchColor = computed(() => accentFor(chatStore.model));
+
+/**
+ * Pins an accent and pulses the swatch that was tapped. Repainting the app
+ * is not this screen's business: the palette store recomputes the scheme and
+ * `App.vue` writes it into the root view, so the whole interface follows at
+ * once - this screen included.
+ */
+function chooseAccent(id: AccentId, event: any) {
+  settings.setAccent(id);
+  pulse(event?.object, 1.08);
 }
 
 onMounted(() => {
@@ -195,7 +240,8 @@ function clearHistory() {
     <GridLayout rows="auto, *">
       <!-- ── Top app bar ────────────────────────────────────────────────── -->
       <GridLayout row="0" columns="auto, *" class="md-top-bar">
-        <GridLayout col="0" columns="auto" class="md-icon-button" v-press @tap="back">
+        <!-- `columns="*"` centres the glyph - an `auto` track would hug it. -->
+        <GridLayout col="0" columns="*" rows="*" class="md-icon-button" v-press @tap="back">
           <Icon col="0" name="chevron-left" :size="22" tone="on-surface-variant" />
         </GridLayout>
         <Label col="1" text="Settings" class="md-top-bar-title" />
@@ -271,6 +317,187 @@ function clearHistory() {
                 />
                 <Label col="1" text="Dark" class="segment-label" />
               </GridLayout>
+            </GridLayout>
+          </GridLayout>
+
+          <!--
+            The accent: one of five gradients pinned across the whole app, or
+            the route itself, which keeps painting the interface in the colour
+            of its provider. A pinned accent is the seed of the Material 3
+            scheme - the palette store rebuilds it and `App.vue` writes it
+            into the root view, so every screen follows at once.
+          -->
+          <GridLayout columns="*" rows="auto, auto" class="md-card card">
+            <StackLayout row="0">
+              <Label text="Accent" class="md-title" />
+              <Label :text="accentDescription" class="md-support" />
+            </StackLayout>
+            <!--
+              The swatches are written out one by one: the children of a
+              `v-for` inside a GridLayout would all land in column 0.
+            -->
+            <GridLayout row="1" columns="*, *, *" rows="auto, auto" class="accent-pick">
+              <StackLayout
+                row="0"
+                col="0"
+                class="accent-cell"
+                v-press
+                @tap="chooseAccent(ACCENT_AUTO, $event)"
+              >
+                <GridLayout
+                  columns="*"
+                  class="accent-swatch accent-swatch--route"
+                  :backgroundColor="routeSwatchColor"
+                >
+                  <Icon
+                    v-if="chosenAccent === ACCENT_AUTO"
+                    col="0"
+                    name="check"
+                    :size="18"
+                    color="#FFFFFF"
+                  />
+                </GridLayout>
+                <Label
+                  text="Default"
+                  class="accent-cell-label"
+                  :class="{ 'accent-cell-label--chosen': chosenAccent === ACCENT_AUTO }"
+                />
+              </StackLayout>
+
+              <StackLayout
+                row="0"
+                col="1"
+                class="accent-cell"
+                v-press
+                @tap="chooseAccent('azure', $event)"
+              >
+                <GridLayout
+                  columns="*"
+                  class="accent-swatch"
+                  :style="{ backgroundImage: swatchGradient('azure') }"
+                >
+                  <Icon
+                    v-if="chosenAccent === 'azure'"
+                    col="0"
+                    name="check"
+                    :size="18"
+                    color="#FFFFFF"
+                  />
+                </GridLayout>
+                <Label
+                  text="Azure"
+                  class="accent-cell-label"
+                  :class="{ 'accent-cell-label--chosen': chosenAccent === 'azure' }"
+                />
+              </StackLayout>
+
+              <StackLayout
+                row="0"
+                col="2"
+                class="accent-cell"
+                v-press
+                @tap="chooseAccent('aurora', $event)"
+              >
+                <GridLayout
+                  columns="*"
+                  class="accent-swatch"
+                  :style="{ backgroundImage: swatchGradient('aurora') }"
+                >
+                  <Icon
+                    v-if="chosenAccent === 'aurora'"
+                    col="0"
+                    name="check"
+                    :size="18"
+                    color="#FFFFFF"
+                  />
+                </GridLayout>
+                <Label
+                  text="Aurora"
+                  class="accent-cell-label"
+                  :class="{ 'accent-cell-label--chosen': chosenAccent === 'aurora' }"
+                />
+              </StackLayout>
+
+              <StackLayout
+                row="1"
+                col="0"
+                class="accent-cell"
+                v-press
+                @tap="chooseAccent('sunset', $event)"
+              >
+                <GridLayout
+                  columns="*"
+                  class="accent-swatch"
+                  :style="{ backgroundImage: swatchGradient('sunset') }"
+                >
+                  <Icon
+                    v-if="chosenAccent === 'sunset'"
+                    col="0"
+                    name="check"
+                    :size="18"
+                    color="#FFFFFF"
+                  />
+                </GridLayout>
+                <Label
+                  text="Sunset"
+                  class="accent-cell-label"
+                  :class="{ 'accent-cell-label--chosen': chosenAccent === 'sunset' }"
+                />
+              </StackLayout>
+
+              <StackLayout
+                row="1"
+                col="1"
+                class="accent-cell"
+                v-press
+                @tap="chooseAccent('orchid', $event)"
+              >
+                <GridLayout
+                  columns="*"
+                  class="accent-swatch"
+                  :style="{ backgroundImage: swatchGradient('orchid') }"
+                >
+                  <Icon
+                    v-if="chosenAccent === 'orchid'"
+                    col="0"
+                    name="check"
+                    :size="18"
+                    color="#FFFFFF"
+                  />
+                </GridLayout>
+                <Label
+                  text="Orchid"
+                  class="accent-cell-label"
+                  :class="{ 'accent-cell-label--chosen': chosenAccent === 'orchid' }"
+                />
+              </StackLayout>
+
+              <StackLayout
+                row="1"
+                col="2"
+                class="accent-cell"
+                v-press
+                @tap="chooseAccent('rose', $event)"
+              >
+                <GridLayout
+                  columns="*"
+                  class="accent-swatch"
+                  :style="{ backgroundImage: swatchGradient('rose') }"
+                >
+                  <Icon
+                    v-if="chosenAccent === 'rose'"
+                    col="0"
+                    name="check"
+                    :size="18"
+                    color="#FFFFFF"
+                  />
+                </GridLayout>
+                <Label
+                  text="Rose"
+                  class="accent-cell-label"
+                  :class="{ 'accent-cell-label--chosen': chosenAccent === 'rose' }"
+                />
+              </StackLayout>
             </GridLayout>
           </GridLayout>
 
@@ -681,4 +908,45 @@ function clearHistory() {
   color: var(--md-on-secondary-container);
   font-weight: 600;
 }
+
+/* ---------- The accent swatches ---------- */
+.accent-pick {
+  margin-top: 14;
+}
+
+/* A cell holds a circle and its name, and the whole cell is tappable. */
+.accent-cell {
+  padding: 10 4 6 4;
+}
+
+/* The circle of the swatch, riding in the middle of its cell. */
+.accent-swatch {
+  width: 44;
+  height: 44;
+  border-radius: 22;
+  horizontal-align: center;
+}
+
+/*
+  Route: no gradient of its own. The circle is painted with a property
+  (`routeSwatchColor` - the accent of the provider that answers), because a
+  rule would follow the pinned accent and the swatch has to keep showing the
+  route's own colour.
+*/
+.accent-swatch--route {
+  background-color: var(--md-surface-variant);
+}
+
+.accent-cell-label {
+  color: var(--md-on-surface-variant);
+  font-size: 12;
+  margin-top: 7;
+  text-align: center;
+}
+
+.accent-cell-label--chosen {
+  color: var(--md-primary);
+  font-weight: 600;
+}
+
 </style>

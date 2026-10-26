@@ -152,3 +152,89 @@ export function tint(hex: string, amount: number): string {
       .padStart(2, '0');
   return `#${mix(r)}${mix(g)}${mix(b)}`.toUpperCase();
 }
+
+/* ------------------------------------------------------------------ */
+/* The gradient accents of the settings screen                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The settings screen can pin an accent across the whole app. `ACCENT_AUTO`
+ * is the default: the accent keeps following the provider that answers.
+ * A gradient accent is a *source colour* like any other in Material You -
+ * its seed repaints the entire interface, on every screen.
+ */
+export const ACCENT_AUTO = 'route';
+
+/** A gradient accent the user can pin in the settings screen. */
+export interface GradientAccent {
+  /** Stable id, stored with the settings. */
+  id: string;
+  /** The name shown under the swatch of the picker. */
+  label: string;
+  /** Where the gradient starts. */
+  from: string;
+  /** Where it ends. */
+  to: string;
+  /** The colour the Material 3 scheme is seeded from - the midpoint. */
+  seed: string;
+}
+
+/** Averages two hex colours - channel by channel. */
+function mixHex(a: string, b: string): string {
+  const first = a.replace('#', '');
+  const second = b.replace('#', '');
+  const channel = (i: number) =>
+    Math.round(
+      (parseInt(first.slice(i, i + 2), 16) + parseInt(second.slice(i, i + 2), 16)) / 2,
+    )
+      .toString(16)
+      .padStart(2, '0');
+  const seed = `#${channel(0)}${channel(2)}${channel(4)}`;
+  return seed.toUpperCase();
+}
+
+/**
+ * The five gradient accents - hand-picked stops that read well at both
+ * tones of the scheme, and sit far enough apart on the wheel to tell each
+ * other apart at a glance.
+ */
+const GRADIENT_STOPS = [
+  { id: 'azure', label: 'Azure', from: '#2563EB', to: '#38BDF8' },
+  { id: 'aurora', label: 'Aurora', from: '#0FB6D6', to: '#10B981' },
+  { id: 'sunset', label: 'Sunset', from: '#F59E0B', to: '#EF4444' },
+  { id: 'orchid', label: 'Orchid', from: '#A855F7', to: '#EC4899' },
+  { id: 'rose', label: 'Rose', from: '#E11D48', to: '#DB2777' },
+] as const;
+
+/** The gradient accents, with the seed each one drives the palette from. */
+export const GRADIENT_ACCENTS: GradientAccent[] = GRADIENT_STOPS.map((stops) => ({
+  id: stops.id,
+  label: stops.label,
+  from: stops.from,
+  to: stops.to,
+  seed: mixHex(stops.from, stops.to),
+}));
+
+/** A gradient accent id, or `ACCENT_AUTO`. */
+export type GradientAccentId = (typeof GRADIENT_STOPS)[number]['id'];
+
+/** Every accent the settings store accepts. */
+export type AccentId = typeof ACCENT_AUTO | GradientAccentId;
+
+/** Returns the gradient accent behind an id, if it is one. */
+export function gradientAccentOf(id: unknown): GradientAccent | undefined {
+  if (typeof id !== 'string') {
+    return undefined;
+  }
+  return GRADIENT_ACCENTS.find((accent) => accent.id === id);
+}
+
+/** The 135° CSS gradient of an accent - the look of its swatch. */
+export function gradientCss(accent: GradientAccent): string {
+  return `linear-gradient(135deg, ${accent.from} 0%, ${accent.to} 100%)`;
+}
+
+/** Checks a value that was read from storage into an accent id. */
+export function asAccentId(raw: unknown): AccentId {
+  return gradientAccentOf(raw) ? (raw as AccentId) : ACCENT_AUTO;
+}

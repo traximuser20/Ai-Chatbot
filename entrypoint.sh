@@ -143,10 +143,13 @@ wait_for_emulator() {
 
     echo "==> Android emulator is online and fully booted!"
 
-    # Optimize emulator performance by disabling UI animations
-    adb shell settings put global window_animation_scale 0 2>/dev/null || true
-    adb shell settings put global transition_animation_scale 0 2>/dev/null || true
-    adb shell settings put global animator_duration_scale 0 2>/dev/null || true
+    # Keep the system animations ON. Disabling them (scale 0) makes every
+    # ValueAnimator resolve instantly, so src/utils/motion.ts sees a duration
+    # of ~0ms on its first frame, trips its early-resolution guard, and every
+    # loopAnimation (typing dots, launch planes, voice ripples) freezes.
+    adb shell settings put global window_animation_scale 1 2>/dev/null || true
+    adb shell settings put global transition_animation_scale 1 2>/dev/null || true
+    adb shell settings put global animator_duration_scale 1 2>/dev/null || true
 }
 
 # If custom command is passed (e.g., bash, sh, custom script)

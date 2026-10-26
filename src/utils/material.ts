@@ -238,19 +238,34 @@ export function oklchToHex(l: number, c: number, h: number): string {
 }
 
 /**
+ * A Material 3 tone, read as an OKLCh lightness.
+ *
+ * The tone of a Material colour is a *perceptual* lightness - the CIE L*
+ * scale that HCT works on - and OKLCh measures lightness on a scale of its
+ * own. For the greys, where the two spaces agree, the two are related by
+ * L_ok = (L* + 16) / 116 above the linear segment, and by the cube root of
+ * the luminance below it. Reading a tone as `tone / 100` skips the
+ * conversion and lands every role about ten lightness points away from
+ * where Material 3 puts it.
+ */
+export function toneToLightness(tone: number): number {
+  const value = clamp(tone, 0, 100);
+  return value > 8 ? (value + 16) / 116 : Math.cbrt(value / 903.3);
+}
+
+/**
  * A tonal palette: every tone of one hue.
  *
- * The tone is the lightness of the colour (0 is black, 100 is white), and the
- * chroma fades towards the ends of the palette, where the colour has to give
- * up its colourfulness to stay on the screen.
+ * The tone is the lightness of the colour (0 is black, 100 is white), and
+ * the full chroma of the source is asked for at every tone. A colour that
+ * does not fit on the screen at that lightness is brought back into the
+ * gamut by `oklchToHex`, which lowers the chroma and keeps the hue and the
+ * lightness - the same thing the HCT palette of Material 3 does, so the
+ * containers stay as colourful as the screen allows instead of fading to
+ * grey.
  */
 export function tonalPalette(hue: number, chroma: number): (tone: number) => string {
-  return (tone: number) => {
-    const lightness = clamp(tone, 0, 100) / 100;
-    const bell = Math.sin(Math.PI * lightness);
-    const amount = chroma * (0.2 + 0.8 * bell);
-    return oklchToHex(lightness, amount, hue);
-  };
+  return (tone: number) => oklchToHex(toneToLightness(tone), chroma, hue);
 }
 
 /**
@@ -274,7 +289,7 @@ export function materialScheme(source: string, dark: boolean): MaterialScheme {
   const primary = tonalPalette(hue, chroma);
   const secondary = tonalPalette(hue, chroma / 3);
   const tertiary = tonalPalette((hue + 60) % 360, chroma);
-  const neutral = tonalPalette(hue, dark ? 0.015 : 0.008);
+  const neutral = tonalPalette(hue, dark ? 0.015 : 0.013);
   const error = tonalPalette(25, 0.17);
 
   if (dark) {

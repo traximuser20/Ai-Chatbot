@@ -70,7 +70,8 @@ function back() {
     <GridLayout rows="auto, *">
       <!-- ── Top app bar ────────────────────────────────────────────────── -->
       <GridLayout row="0" columns="auto, *" class="md-top-bar">
-        <GridLayout col="0" columns="auto" class="md-icon-button" v-press @tap="back">
+        <!-- `columns="*"` centres the glyph - an `auto` track would hug it. -->
+        <GridLayout col="0" columns="*" rows="*" class="md-icon-button" v-press @tap="back">
           <Icon col="0" name="chevron-left" :size="22" tone="on-surface-variant" />
         </GridLayout>
         <Label col="1" text="Profile" class="md-top-bar-title" />

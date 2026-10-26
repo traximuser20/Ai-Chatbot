@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 /**
- * The voice sheet: the ears of the app.
+ * The voice sheet: the ears of the composer.
  *
- * It opens over whatever screen asked for it, records from the microphone,
- * and turns what was said into text with the gateway's transcription route.
- * The same sheet serves both voice search (its text fills the model search)
- * and voice chat (its text becomes the message), so the recording flow lives
- * in one place.
+ * It opens over the chat, records from the microphone, and turns what was
+ * said into text with the gateway's transcription route - and the words
+ * become the message that is being written. (Searching a list with the voice
+ * has a screen of its own: `VoiceSearch.vue`, which is shaped like the voice
+ * search of Google's app.)
  *
  * Tap the big button to stop; tap the scrim or the close button to throw the
  * recording away. The record -> transcribe -> done path is the only thing in
@@ -154,7 +154,8 @@ function describeError(err: unknown): string {
         />
         <GridLayout
           col="0"
-          columns="auto"
+          columns="*"
+          rows="*"
           class="voice-button"
           :class="{
             'voice-button--listening': state === 'listening',
