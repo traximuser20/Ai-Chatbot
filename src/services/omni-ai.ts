@@ -272,6 +272,12 @@ class OmniAiService {
    * `POST /v1/audio/transcriptions`, which routes it to a transcription
    * model. The body is built by hand rather than with `FormData`, because
    * the NativeScript `fetch` does not serialise a file part reliably.
+   *
+   * It is sent as an `ArrayBuffer`, not as the `Uint8Array` it is assembled
+   * in: `XMLHttpRequest.send()` only recognises a string, a `FormData`, a
+   * `Blob` or an `ArrayBuffer`, and silently drops anything else - a
+   * `Uint8Array` goes out as a request with no body at all, which the
+   * gateway reports as `Invalid multipart form data`.
    */
   public async transcribeAudio(
     filePath: string,
@@ -297,10 +303,12 @@ class OmniAiService {
       body.set(audio, head.length);
       body.set(tail, head.length + audio.length);
 
+      // The view was built over a buffer of exactly its own length, so the
+      // whole buffer is the body - no offset to trim.
       const response = await this.request('/v1/audio/transcriptions', {
         method: 'POST',
         headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
-        body,
+        body: body.buffer,
       });
 
       const payload = await this.parseJson(response);

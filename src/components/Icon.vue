@@ -30,6 +30,7 @@ type IconTone =
   | 'on-surface-variant'
   | 'outline'
   | 'error'
+  | 'on-error'
   | 'on-error-container'
   | 'inverse'
   | 'live'
@@ -224,6 +225,15 @@ watch([() => props.color, () => props.tone], paintColour, { flush: 'post' });
 
 .icon.icon--error {
   tint-color: var(--md-error);
+}
+
+/*
+  The glyph that sits on an error surface - the stop button of the composer.
+  Without this rule the class matches nothing and the tint falls back to
+  black, which is invisible on the red disc.
+*/
+.icon.icon--on-error {
+  tint-color: var(--md-on-error);
 }
 
 .icon.icon--on-error-container {

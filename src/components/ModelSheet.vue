@@ -156,7 +156,7 @@ onMounted(() => {
               row="0"
               name="dot"
               :size="8"
-              tone="primary"
+              :tone="model.id === selected ? 'on-primary' : 'primary'"
               class="model-dot"
             />
             <Label
@@ -180,7 +180,7 @@ onMounted(() => {
               columns="*"
               class="model-check"
             >
-              <Icon col="0" name="check" :size="18" tone="primary" />
+              <Icon col="0" name="check" :size="18" tone="on-primary" />
             </GridLayout>
           </GridLayout>
         </template>
@@ -304,7 +304,7 @@ onMounted(() => {
 }
 
 .model-row--active {
-  background-color: var(--md-secondary-container);
+  background-color: var(--md-primary);
 }
 
 .model-dot {
@@ -326,8 +326,12 @@ onMounted(() => {
   margin-top: 2;
 }
 
+.model-row--active .model-provider {
+  color: var(--md-on-primary);
+}
+
 .model-row--active .model-id {
-  color: var(--md-on-secondary-container);
+  color: var(--md-on-primary);
 }
 
 .model-check {

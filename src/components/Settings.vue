@@ -276,7 +276,7 @@ function clearHistory() {
                   col="0"
                   name="check"
                   :size="14"
-                  tone="on-secondary-container"
+                  tone="on-primary"
                   class="segment-check"
                 />
                 <Label col="1" text="System" class="segment-label" />
@@ -294,7 +294,7 @@ function clearHistory() {
                   col="0"
                   name="check"
                   :size="14"
-                  tone="on-secondary-container"
+                  tone="on-primary"
                   class="segment-check"
                 />
                 <Label col="1" text="Light" class="segment-label" />
@@ -312,7 +312,7 @@ function clearHistory() {
                   col="0"
                   name="check"
                   :size="14"
-                  tone="on-secondary-container"
+                  tone="on-primary"
                   class="segment-check"
                 />
                 <Label col="1" text="Dark" class="segment-label" />
@@ -525,7 +525,7 @@ function clearHistory() {
                   col="0"
                   name="check"
                   :size="14"
-                  tone="on-secondary-container"
+                  tone="on-primary"
                   class="segment-check"
                 />
                 <Label col="1" text="Small" class="segment-label" />
@@ -543,7 +543,7 @@ function clearHistory() {
                   col="0"
                   name="check"
                   :size="14"
-                  tone="on-secondary-container"
+                  tone="on-primary"
                   class="segment-check"
                 />
                 <Label col="1" text="Medium" class="segment-label" />
@@ -561,7 +561,7 @@ function clearHistory() {
                   col="0"
                   name="check"
                   :size="14"
-                  tone="on-secondary-container"
+                  tone="on-primary"
                   class="segment-check"
                 />
                 <Label col="1" text="Large" class="segment-label" />
@@ -889,7 +889,8 @@ function clearHistory() {
 }
 
 .segment-item--active {
-  background-color: var(--md-secondary-container);
+  background-color: var(--md-primary);
+  border-color: var(--md-primary);
 }
 
 .segment-check {
@@ -905,7 +906,7 @@ function clearHistory() {
 }
 
 .segment-item--active .segment-label {
-  color: var(--md-on-secondary-container);
+  color: var(--md-on-primary);
   font-weight: 600;
 }
 

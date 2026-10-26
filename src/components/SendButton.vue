@@ -154,9 +154,15 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!--
+    `columns="*"` and `rows="*"`, on the button and on the glyph box alike:
+    an `auto` track hugs the icon, so the leftover space of the 48dp circle
+    stays unassigned and the glyph lands in its top left corner.
+  -->
   <GridLayout
     ref="buttonRef"
-    columns="auto"
+    columns="*"
+    rows="*"
     class="send-button"
     :class="`send-button--${state}`"
     :style="fillGradient ? { backgroundImage: fillGradient } : null"
@@ -167,7 +173,14 @@ onUnmounted(() => {
       grid, so the grid draws the layer first and the glyph on top of it.
     -->
     <Label ref="layerRef" row="0" col="0" class="send-button-layer" />
-    <GridLayout ref="glyphRef" row="0" col="0" columns="auto" class="send-button-glyph">
+    <GridLayout
+      ref="glyphRef"
+      row="0"
+      col="0"
+      columns="*"
+      rows="*"
+      class="send-button-glyph"
+    >
       <Icon
         v-if="state !== 'busy'"
         name="arrow-up"
@@ -220,8 +233,13 @@ onUnmounted(() => {
   background-color: var(--md-on-error);
 }
 
-/* The glyph. */
+/*
+  The glyph. It is the size of the button, so its `*` track is the whole
+  circle and the icon can be centred in it.
+*/
 .send-button-glyph {
+  width: 48;
+  height: 48;
   vertical-align: center;
 }
 </style>

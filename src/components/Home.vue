@@ -38,6 +38,7 @@ import Sidebar from './Sidebar.vue';
 import ModelSheet from './ModelSheet.vue';
 import Profile from './Profile.vue';
 import Settings from './Settings.vue';
+import ModelUsage from './ModelUsage.vue';
 import SplashScreen from './SplashScreen.vue';
 import SendButton from './SendButton.vue';
 import Icon from './Icon.vue';
@@ -415,6 +416,11 @@ function openSettings() {
   $navigateTo(Settings, { transition: { name: 'slide', duration: 260 } });
 }
 
+function openModelUsage() {
+  drawerOpen.value = false;
+  $navigateTo(ModelUsage, { transition: { name: 'slide', duration: 260 } });
+}
+
 /* ------------------------------------------------------------------ */
 /* Composer                                                            */
 /* ------------------------------------------------------------------ */
@@ -737,11 +743,12 @@ function onSendPress() {
     <GridLayout ref="pageRoot" rows="auto, *, auto" class="page-root">
       <!-- ============ Top app bar ============ -->
       <GridLayout row="0" columns="auto, auto, *" class="md-top-bar app-bar">
-        <!-- Navigation handle -->
+        <!-- Navigation icon button -->
         <!--
-          `columns="*"` is what centres the glyph: an `auto` track hugs the
-          icon, so the leftover space of the 48dp button stays unassigned and
-          the glyph lands in its top left corner.
+          Material 3: a 48dp touch target around a 24dp glyph, painted with
+          `on-surface-variant`. `columns="*"` is what centres the glyph: an
+          `auto` track hugs the icon, so the leftover space of the button
+          stays unassigned and the glyph lands in its top left corner.
         -->
         <GridLayout
           col="0"
@@ -751,7 +758,7 @@ function onSendPress() {
           v-press
           @tap="drawerOpen = true"
         >
-          <Icon col="0" name="menu" :size="22" tone="on-surface-variant" />
+          <Icon col="0" :name="drawerOpen ? 'close' : 'menu'" :size="24" tone="on-surface-variant" />
         </GridLayout>
 
         <!-- The name of the app, with its mark. -->
@@ -1025,7 +1032,7 @@ function onSendPress() {
               v-press
               @tap="openVoiceMode"
             >
-              <Icon col="0" name="wave" :size="21" tone="on-surface-variant" />
+              <Icon col="0" name="wave" :size="21" tone="primary" />
             </GridLayout>
           </StackLayout>
 
@@ -1050,6 +1057,7 @@ function onSendPress() {
           @new-chat="onNewChat"
           @open-profile="openProfile"
           @open-settings="openSettings"
+          @open-model-usage="openModelUsage"
         />
       </GridLayout>
 
@@ -1128,6 +1136,11 @@ function onSendPress() {
 
 .app-bar-handle {
   horizontal-align: left;
+  border-radius: 24;
+}
+
+.app-bar-handle:pressed {
+  background-color: var(--md-surface-variant);
 }
 
 /* The name of the app: the mark, then the wordmark. */
@@ -1149,7 +1162,7 @@ function onSendPress() {
   can never push it out of view; the caps below bound the capsule in turn.
 */
 .route-chip {
-  background-color: var(--md-secondary-container);
+  background-color: var(--md-primary);
   border-radius: 16;
   height: 30;
   padding: 0 10;
@@ -1172,7 +1185,7 @@ function onSendPress() {
 }
 
 .route-chip-provider {
-  color: var(--md-on-secondary-container);
+  color: var(--md-on-primary);
   font-size: 12;
   font-weight: 500;
   vertical-align: center;
@@ -1183,7 +1196,7 @@ function onSendPress() {
 }
 
 .route-chip-model {
-  color: var(--md-on-secondary-container);
+  color: var(--md-on-primary);
   font-size: 13;
   font-weight: 700;
   vertical-align: center;

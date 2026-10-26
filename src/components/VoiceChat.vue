@@ -198,7 +198,8 @@ onUnmounted(() => {
   <GridLayout class="vc-root" rows="auto, *, auto">
     <!-- ============ Top bar ============ -->
     <GridLayout row="0" columns="auto, *" class="vc-top">
-      <GridLayout col="0" columns="auto" class="vc-icon-btn" v-press @tap="close">
+      <!-- `columns="*"` and `rows="*"` centre the glyph - an `auto` track would hug it. -->
+      <GridLayout col="0" columns="*" rows="*" class="vc-icon-btn" v-press @tap="close">
         <Icon col="0" name="close" :size="22" tone="on-surface" />
       </GridLayout>
       <Label col="1" text="Voice" class="vc-title" />
@@ -215,7 +216,7 @@ onUnmounted(() => {
 
     <!-- ============ Controls ============ -->
     <GridLayout row="2" columns="*, auto, *" class="vc-controls">
-      <GridLayout col="1" columns="auto" class="vc-main" v-press @tap="onMainTap">
+      <GridLayout col="1" columns="*" rows="*" class="vc-main" v-press @tap="onMainTap">
         <Icon
           col="0"
           :name="state === 'error' ? 'retry' : state === 'listening' ? 'stop' : 'microphone'"

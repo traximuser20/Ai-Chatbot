@@ -23,7 +23,7 @@ const DRAWABLES: Record<string, string> = {
   close: 'ic_close',
   search: 'ic_search',
   sliders: 'ic_sliders',
-  user: 'ic_user',
+  chart: 'ic_chart',  user: 'ic_user',
   dot: 'ic_dot',
   check: 'ic_check',
   dots: 'ic_dots',

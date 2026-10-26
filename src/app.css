@@ -225,8 +225,13 @@ Frame {
 .md-icon-button {
   width: 48;
   height: 48;
+  border-radius: 24;
   vertical-align: center;
   horizontal-align: center;
+}
+
+.md-icon-button:pressed {
+  background-color: var(--md-surface-variant);
 }
 
 /* A row of a list: the title, the supporting line and the trailing control. */
