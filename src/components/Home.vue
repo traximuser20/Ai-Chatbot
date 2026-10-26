@@ -1150,8 +1150,9 @@ function onSendPress() {
 }
 
 .app-bar-mark {
-  width: 26;
-  height: 26;
+  width: 28;
+  height: 28;
+  border-radius: 14;
   margin-right: 10;
   vertical-align: center;
 }
@@ -1268,15 +1269,16 @@ function onSendPress() {
 }
 
 .hero-glow {
-  width: 104;
-  height: 104;
+  width: 120;
+  height: 120;
   horizontal-align: center;
   vertical-align: center;
 }
 
 .hero-mark {
-  width: 58;
-  height: 58;
+  width: 68;
+  height: 68;
+  border-radius: 34;
   horizontal-align: center;
   vertical-align: center;
 }

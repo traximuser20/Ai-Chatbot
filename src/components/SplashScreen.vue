@@ -32,9 +32,11 @@ import { useThemeStore } from '../stores/theme';
 import { loopAnimation } from '../utils/motion';
 import { Parallax } from '../utils/parallax';
 import {
+  hideSystemBars,
   paintRootBackground,
   paintSplashBars,
   restoreSystemBars,
+  showSystemBars,
 } from '../utils/status-bar';
 import { themeToken } from '../utils/theme';
 
@@ -388,12 +390,14 @@ function applyStatusBar(onInk: boolean) {
   const dark = onInk || theme.isDark;
 
   if (onInk) {
-    // The ink of the splash reaches to the edges of the screen: the bars
-    // are transparent, and the background behind them is the ink.
+    // The ink of the splash reaches to every edge of the screen: the bars
+    // are hidden entirely, so nothing of the system shows over the mark.
     paintRootBackground(INK);
-    paintSplashBars(INK);
+    hideSystemBars();
     return;
   }
+
+  showSystemBars();
 
   paintRootBackground(surface);
   restoreSystemBars(surface, surface, dark);
@@ -602,6 +606,7 @@ function applyStatusBar(onInk: boolean) {
 .splash-mark {
   width: 150;
   height: 150;
+  border-radius: 75;
   horizontal-align: center;
   vertical-align: middle;
 }

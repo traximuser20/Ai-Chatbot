@@ -20,14 +20,14 @@ import Icon from './Icon.vue';
 const chatStore = useChatStore();
 
 const bodyRef = ref<any>(null);
-const heroRef = ref<any>(null);
-const composeRef = ref<any>(null);
 
 onMounted(() => {
   nextTick(() => {
-    enter(heroRef.value?.nativeView, { distance: 18, duration: 460 });
-    enter(composeRef.value?.nativeView, { delay: 80, distance: 14, duration: 420 });
-    enter(bodyRef.value?.nativeView, { delay: 160, distance: 12, duration: 420 });
+    const candidates = [bodyRef.value, bodyRef.value?.nativeView];
+    const view = candidates.find((candidate) => candidate && typeof candidate.animate === 'function');
+    if (view) {
+      enter(view, { distance: 16, duration: 420 });
+    }
   });
 });
 
@@ -153,11 +153,11 @@ function shortName(model: string): string {
   return slash > -1 ? model.slice(slash + 1) : model;
 }
 
-function rankColor(index: number): string {
-  if (index === 0) return 'var(--md-primary)';
-  if (index === 1) return 'var(--md-secondary)';
-  if (index === 2) return 'var(--md-tertiary)';
-  return 'var(--md-on-surface-variant)';
+function rankClass(index: number): string {
+  if (index === 0) return 'rank--primary';
+  if (index === 1) return 'rank--secondary';
+  if (index === 2) return 'rank--tertiary';
+  return 'rank--muted';
 }
 </script>
 
@@ -194,7 +194,7 @@ function rankColor(index: number): string {
           </GridLayout>
 
           <!-- ── Composition bar ─────────────────────────────────────────── -->
-          <StackLayout v-if="hasUsage" ref="composeRef" class="compose-card">
+          <StackLayout v-if="hasUsage" class="compose-card">
             <Label text="Share by provider" class="compose-label" />
             <StackLayout orientation="horizontal" class="compose-bar">
               <ContentView
@@ -348,7 +348,7 @@ function rankColor(index: number): string {
                   col="0"
                   :text="`${index + 1}`"
                   class="rank"
-                  :style="{ color: rankColor(index) }"
+                  :class="rankClass(index)"
                 />
                 <StackLayout col="1" class="usage-body">
                   <GridLayout columns="*, auto" class="usage-head">
@@ -673,6 +673,22 @@ function rankColor(index: number): string {
   text-align: center;
   vertical-align: center;
   margin-right: 6;
+}
+
+.rank--primary {
+  color: var(--md-primary);
+}
+
+.rank--secondary {
+  color: var(--md-secondary);
+}
+
+.rank--tertiary {
+  color: var(--md-tertiary);
+}
+
+.rank--muted {
+  color: var(--md-on-surface-variant);
 }
 
 .usage-dot {

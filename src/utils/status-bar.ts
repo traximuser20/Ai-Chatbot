@@ -102,6 +102,67 @@ export function paintSplashBars(ink: string): void {
 }
 
 /**
+ * Hides the system bars entirely, so a surface (the splash) can reach every
+ * edge of the screen.
+ */
+export function hideSystemBars(): void {
+  try {
+    const window = currentWindow();
+    if (!window) {
+      return;
+    }
+
+    if (android.os.Build.VERSION.SDK_INT >= 30) {
+      const controller = window.getInsetsController();
+      const types =
+        (android.view as any).WindowInsets.Type.statusBars() |
+        (android.view as any).WindowInsets.Type.navigationBars();
+      controller?.hide(types);
+      controller?.setSystemBarsBehavior(
+        (android.view as any).WindowInsetsController
+          .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE,
+      );
+    } else {
+      const decorView = window.getDecorView();
+      const flags =
+        (android.view as any).View.SYSTEM_UI_FLAG_FULLSCREEN |
+        (android.view as any).View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+        (android.view as any).View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+        (android.view as any).View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+        (android.view as any).View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+        (android.view as any).View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+      decorView.setSystemUiVisibility(flags);
+    }
+  } catch (err) {
+    console.error('Could not hide the system bars:', err);
+  }
+}
+
+/**
+ * Brings the system bars back after they have been hidden.
+ */
+export function showSystemBars(): void {
+  try {
+    const window = currentWindow();
+    if (!window) {
+      return;
+    }
+
+    if (android.os.Build.VERSION.SDK_INT >= 30) {
+      const controller = window.getInsetsController();
+      const types =
+        (android.view as any).WindowInsets.Type.statusBars() |
+        (android.view as any).WindowInsets.Type.navigationBars();
+      controller?.show(types);
+    } else {
+      window.getDecorView().setSystemUiVisibility(0);
+    }
+  } catch (err) {
+    console.error('Could not show the system bars:', err);
+  }
+}
+
+/**
  * Gives the bars back the colour of the surface they sit on.
  */
 export function restoreSystemBars(statusBar: string, navigationBar: string, dark: boolean): void {
